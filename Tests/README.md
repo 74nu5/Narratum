@@ -11,6 +11,7 @@ Ce dossier contient tous les tests du projet.
 ## Organisation (Phase 1)
 
 ### Tests unitaires par module
+
 - `Narratum.Core.Tests` - Tests des abstractions
 - `Narratum.Domain.Tests` - Tests des entités
 - `Narratum.State.Tests` - Tests de gestion d'état
@@ -19,11 +20,13 @@ Ce dossier contient tous les tests du projet.
 - `Narratum.Persistence.Tests` - Tests de persistance
 
 ### Tests d'intégration
+
 - Tests cross-modules
 - Scénarios narratifs complets
 - Tests de bout en bout (sans UI)
 
 ### Tests de déterminisme
+
 - Reproductibilité exacte
 - Même séquence → même résultat
 - Tests de régression
@@ -31,30 +34,35 @@ Ce dossier contient tous les tests du projet.
 ## Types de tests requis
 
 ### 1. Tests de domaine
+
 - Création d'univers
 - Création de personnages
 - Relations entre entités
 - Validation des invariants
 
 ### 2. Tests de règles
+
 - Validation des règles individuelles
 - Scénarios d'échec (règles violées)
 - Règles composites
 - Ordre d'exécution
 
 ### 3. Tests de progression
+
 - Progression d'arc narratif
 - Génération d'événements
 - Transitions d'état valides et invalides
 - Actions utilisateur
 
 ### 4. Tests de persistance
+
 - Sauvegarde / restauration d'état
 - Intégrité des données
 - Gestion des slots de sauvegarde
 - Tests de migration
 
 ### 5. Tests de scénarios
+
 - Scénarios narratifs complets (sans texte)
 - Cohérence sur 50+ actions
 - Reproductibilité déterministe
