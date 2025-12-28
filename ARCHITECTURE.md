@@ -90,3 +90,83 @@ Les flèches indiquent les dépendances autorisées. Aucune dépendance circulai
 - **Immutabilité** : Les états ne sont jamais modifiés, uniquement remplacés
 - **Testabilité** : Chaque module est testable indépendamment
 - **Isolation** : La logique métier est isolée de l'infrastructure
+
+---
+
+## Évolution architecturale
+
+### Phase actuelle (Phase 1)
+
+L'architecture actuelle est **volontairement simple** et **sans IA** :
+- Core déterministe
+- Domain pur
+- State immuable
+- Rules algorithmiques
+- Persistence locale
+
+### Phases futures (2-6)
+
+L'architecture évoluera progressivement pour intégrer :
+
+#### Phase 4-5 : Modules IA
+- **Narratum.LLM** : Abstraction des modèles locaux (llama.cpp, Ollama)
+- **Narratum.Orchestration** : Pipeline multi-agents
+- **Narratum.Memory** : Gestion de contexte et résumés hiérarchiques
+
+#### Phase 6 : Interface
+- **Narratum.UI** : Interface utilisateur (Blazor WebView)
+- **Narratum.Api** : API REST pour communication UI
+
+#### Agents IA spécialisés (Phase 5)
+1. **NarratorAgent** : Génération du texte narratif principal
+2. **CharacterAgent** : Dialogues et réactions des personnages
+3. **SummaryAgent** : Résumés factuels (température basse)
+4. **ConsistencyAgent** : Vérification de cohérence (pas de contradictions)
+
+### Principe fondamental
+
+**L'orchestration reste dans l'application, jamais dans le LLM.**
+
+Les LLMs sont des **moteurs de génération**, pas le cerveau métier :
+- La logique reste dans Core/Domain
+- Les agents IA sont des adaptateurs
+- Le déterminisme est garanti par l'orchestrateur
+- Les prompts sont générés dynamiquement par l'application
+
+### Architecture cible
+
+```
+UI (Phase 6)
+  ↓
+API REST (Phase 6)
+  ↓
+Orchestrateur (Phase 3-5)
+  ↓
+┌─────────────────────────────┐
+│ Agents IA (Phase 4-5)       │
+│ - NarratorAgent             │
+│ - CharacterAgent            │
+│ - SummaryAgent              │
+│ - ConsistencyAgent          │
+└─────────────────────────────┘
+  ↓
+┌─────────────────────────────┐
+│ Core & Domain (Phase 1-2)   │
+│ - StoryWorld                │
+│ - Characters                │
+│ - Rules Engine              │
+│ - State Management          │
+└─────────────────────────────┘
+  ↓
+Persistence (Phase 1)
+```
+
+### Migration garantie
+
+Chaque phase est conçue pour :
+- Ne pas casser les phases précédentes
+- Ajouter des fonctionnalités sans modifier le core
+- Maintenir le déterminisme
+- Permettre de désactiver les modules avancés (mode "LLM OFF")
+
+Consultez [ROADMAP.md](Docs/ROADMAP.md) pour le plan complet.
