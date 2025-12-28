@@ -1,10 +1,22 @@
 # Phase 1 : Fondations (SANS IA)
 
-## Principe
+## Principe directeur
 
 > **Aucun LLM ne doit écrire une ligne tant que le moteur narratif n'est pas béton.**
 
 Nous construisons **un moteur**, pas une démo.
+
+---
+
+## Documentation Phase 1
+
+📘 **[Phase1-Design.md](Phase1-Design.md)** - Document d'architecture et de conception complet
+
+Ce document contient :
+- Architecture détaillée du moteur narratif
+- Modèle de domaine complet (StoryWorld, Character, Event, etc.)
+- Spécifications des services et règles
+- Guide de développement étape par étape
 
 ---
 
