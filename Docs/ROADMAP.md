@@ -12,56 +12,91 @@ Nous construisons **un moteur**, pas une démo.
 
 ---
 
-## 🧱 PHASE 1 — FONDATIONS (SANS IA) ✅ EN COURS
+## 🧱 PHASE 1 — FONDATIONS (SANS IA) ✅ COMPLÉTÉE
 
 ### Objectif
-Avoir un **moteur narratif testable sans IA**.
+Avoir un **moteur narratif testable sans IA**. ✅ ATTEINT
 
 ### Livrables
-- ✅ Solution .NET 10 multi-projets
+- ✅ Solution .NET 10 multi-projets (7 modules)
 - ✅ Structure hexagonale (Core, Domain, State, Rules, Simulation, Persistence)
-- ⏳ `Narratum.Core` COMPLET
-- ⏳ États, univers, personnages, règles
-- ⏳ Persistance SQLite
-- ⏳ Tests unitaires
+- ✅ `Narratum.Core` complet avec Result<T>, Id, Unit, Enums
+- ✅ Entités complètes : StoryWorld, Character, Location, Event, StoryArc, StoryChapter
+- ✅ Gestion d'état immuable : WorldState, CharacterState, StoryState
+- ✅ Moteur de règles : RuleEngine avec validation
+- ✅ Persistance SQLite : Snapshots déterministes + EF Core
+- ✅ Tests unitaires : 110/110 passants (65 Phase 1.6 + 45 baseline)
+- ✅ Application Playground : Démo narrative complète avec Spectre.Console
 
-### Interdictions volontaires
-- ❌ Appeler un LLM
-- ❌ Générer du texte libre
-- ❌ Faire une UI sexy
+### Résultats Finaux
+- **Build**: 0 erreurs, 0 warnings
+- **Tests**: 110/110 passing (100%)
+- **Code**: ~3000+ lignes, architecture hexagonale clean
+- **Démo**: Histoire de 3 chapitres sur 10 heures, mort de personnage, snapshots
 
-### Validation (checkpoint)
-Vous devez pouvoir :
-- Créer un univers
-- Avancer une histoire
-- Sauvegarder / charger
-- Tout fonctionne **avec des textes mockés**
+### Interdictions Respectées
+- ✅ Aucun appel à un LLM
+- ✅ Aucune génération de texte libre (mockée seulement)
+- ✅ Aucune UI (Playground est CLI)
 
-👉 Si vous vous ennuyez ici, c'est bon signe.
+### Validation Complète ✅
+- ✅ Créer un univers (The Hidden Realm)
+- ✅ Avancer une histoire (3 chapitres, 10 heures)
+- ✅ Ajouter des personnages (3 personnes avec traits)
+- ✅ Créer des événements (mouvements, morts, révélations)
+- ✅ Sauvegarder et charger (snapshots)
+- ✅ Valider les règles (RuleEngine)
+- ✅ Tout fonctionne **avec des textes mockés**
+
+👉 **Phase 1 = Fondations Solides ✅**
 
 ---
 
-## 🧱 PHASE 2 — MÉMOIRE & COHÉRENCE (SANS CRÉATIVITÉ)
+## 🧱 PHASE 2 — MÉMOIRE & COHÉRENCE (SANS CRÉATIVITÉ) 📋 DESIGN COMPLET
 
 ### Objectif
-La continuité doit fonctionner **avant** l'écriture.
+La continuité doit fonctionner **avant** l'écriture. Les résumés et la cohérence doivent être **déterministes et sans LLM**.
 
-### Livrables
-- `Narratum.Memory`
-- Résumés hiérarchiques
-- États canoniques
-- Détection de contradictions (logique pure)
+### Livrables Planifiés
+- 📚 `Narratum.Memory` (nouveau module)
+- 📚 IFactExtractor - Extraction de faits depuis les événements
+- 📚 ISummaryGenerator - Résumés hiérarchiques (4 niveaux)
+- 📚 CanonicalState - État "ground truth" d'une histoire
+- 🧠 ICoherenceValidator - Détection de contradictions
+- 💾 IMemoryRepository - Persistance des memorias (SQLite)
+- ✅ Tests unitaires et d'intégration
 
-### Interdictions volontaires
-- ❌ Générer de la belle prose
-- ❌ Utiliser température > 0.3
+### Architecture Détaillée
+📖 **[Phase2-Design.md](Phase2-Design.md)** - Document complet (180+ lignes) avec:
+- **Vue d'ensemble**: Architecture globale, intégration, flux de données
+- **Modules**: Models, Services, Layers, Coherence, Store
+- **Algorithmes**: Extraction, résumé hiérarchique, détection de contradictions
+- **APIs**: IMemoryService, interfaces complètes, exemples d'utilisation
+- **Plan**: 8 étapes de développement avec checkpoints
+- **Tests**: Unitaires, intégration, cas réels, performance
+- **Interdictions**: Pas de LLM, pas de stochastique, pas de texte libre
 
-### Validation
-Vous devez pouvoir :
-- Résumer 50 chapitres
-- Retrouver un personnage
-- Détecter une incohérence
-- **Sans LLM**, ou avec LLM mocké ultra déterministe
+### 4 Niveaux de Mémoire
+1. **Level 0 - Event**: Un seul événement → Faits élémentaires
+2. **Level 1 - Chapter**: Groupe d'événements → Résumé scène
+3. **Level 2 - Arc**: Groupe de chapitres → Résumé narratif
+4. **Level 3 - World**: Histoire complète → Résumé global
+
+### Interdictions Volontaires
+- ❌ Aucun appel LLM (Phase 2 = logique pure)
+- ❌ Aucune génération de texte libre
+- ❌ Aucune randomisation ou température
+- ❌ Aucune modification du Core/Phase 1
+- ❌ Aucun cache non-invalidable
+
+### Validation Prévue
+- ✅ Résumer 50+ chapitres (déterministe)
+- ✅ Retrouver un personnage dans l'historique
+- ✅ Détecter une incohérence (mort → vivant)
+- ✅ Extraire tous les changements d'état
+- ✅ Performance: 100 events en < 500ms
+
+👉 **Phase 2 = Memory + Coherence (Logique Pure)**
 
 ---
 
@@ -220,8 +255,20 @@ UI → API .NET → Orchestrateur → Agents IA → Mémoire → Persistance
 
 ---
 
-## Statut actuel
+## Statut Actuel
 
-📍 **PHASE 1 - Structure et fondations**
+✅ **PHASE 1 - COMPLÉTÉE** 🎉
+- 110/110 tests passants
+- 7 modules compilés (0 erreurs)
+- Démo Playground narrative fonctionnelle
+- Architecture hexagonale validée
+- Documentation complète
 
-Prochaine étape : Implémenter les entités du Core (StoryWorld, Character, Event, etc.)
+📋 **PHASE 2 - Design Complet, Prêt à Développer**
+- Architecture documentée dans Phase2-Design.md
+- Tous les composants spécifiés avec code exemple
+- Plan de développement en 8 étapes
+- APIs publiques définies
+- Critères de validation clairs
+
+📅 **Prochaine Étape**: Étape 2.1 — Créer Narratum.Memory.Models

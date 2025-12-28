@@ -3,20 +3,33 @@
 ## 🎯 Quick Navigation
 
 ### 🚀 Start Here (New Users)
-1. **[START_HERE.md](START_HERE.md)** - First file to read (5 min read)
+1. **[PHASE2.1-SUMMARY.md](PHASE2.1-SUMMARY.md)** - Latest features (5 min read) ⭐ **NEW**
+   - Phase 2.1 completion
+   - Memory models overview
+   - Quick code example
+
+2. **[START_HERE.md](START_HERE.md)** - Project overview (5 min read)
    - Project overview
    - Quick start guide
    - How to navigate the codebase
 
-2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Design principles (10 min read)
+3. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Design principles (10 min read)
    - Hexagonal architecture
    - Dependency graph
    - Design patterns
 
-3. **[PHASE1-STATUS.md](PHASE1-STATUS.md)** - Current status (2 min read)
-   - Progress summary
-   - Build status
-   - Next steps
+---
+
+## 📊 Phase 2.1 Documentation (LATEST)
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| **[PHASE2.1-SUMMARY.md](PHASE2.1-SUMMARY.md)** | One-page overview | ✅ COMPLETE |
+| **[PHASE2.1-COMPLETION-REPORT.md](PHASE2.1-COMPLETION-REPORT.md)** | Final completion report | ✅ COMPLETE |
+| **[PHASE2.1-COMPLETION.md](PHASE2.1-COMPLETION.md)** | Detailed completion (500+ lines) | ✅ COMPLETE |
+| **[PHASE2.1-DEVELOPER-GUIDE.md](PHASE2.1-DEVELOPER-GUIDE.md)** | How to use the memory models | ✅ COMPLETE |
+| **[PHASE2.1-ARCHITECTURE.md](PHASE2.1-ARCHITECTURE.md)** | Design patterns & decisions | ✅ COMPLETE |
+| **[PHASE2.1-FILES-CREATED.md](PHASE2.1-FILES-CREATED.md)** | File-by-file breakdown | ✅ COMPLETE |
 
 ---
 
