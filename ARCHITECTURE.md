@@ -18,6 +18,7 @@ L'architecture est organisée en couches concentriques :
 ### 2. Déterminisme
 
 Toutes les opérations du moteur sont déterministes :
+
 - Pas de générateurs aléatoires non-seedés
 - Pas d'accès à l'horloge système non contrôlé
 - Pas d'I/O non déterministe dans la logique métier
@@ -28,47 +29,60 @@ Toutes les opérations du moteur sont déterministes :
 Chaque module a une responsabilité claire et unique :
 
 #### Core
+
 Définit les abstractions fondamentales sans dépendances externes.
 
 #### Domain
+
 Contient la logique métier pure du moteur narratif.
+
 - Entités et Value Objects
 - Logique de domaine
 - Invariants métier
 
 #### State
+
 Gère l'état du système de manière immuable.
+
 - Représentation de l'état
 - Transitions d'état
 - Snapshots
 
 #### Rules
+
 Implémente le moteur de règles narratives.
+
 - Définition des règles
 - Évaluation déterministe
 - Application des effets
 
 #### Simulation
+
 Orchestre l'exécution de la simulation.
+
 - Boucle de simulation
 - Gestion du temps
 - Coordination des modules
 
 #### Persistence
+
 Fournit les adaptateurs de persistance.
+
 - Sérialisation/désérialisation
 - Stockage des états
 - Chargement des configurations
 
 #### Tests
+
 Valide le comportement du système.
+
 - Tests unitaires par module
 - Tests d'intégration
 - Tests de déterminisme
 
 ## Dépendances
 
-```
+``` txt
 Tests → Simulation → Rules → State → Domain → Core
 Tests → Persistence → State, Domain
 ```
@@ -98,6 +112,7 @@ Les flèches indiquent les dépendances autorisées. Aucune dépendance circulai
 ### Phase actuelle (Phase 1)
 
 L'architecture actuelle est **volontairement simple** et **sans IA** :
+
 - Core déterministe
 - Domain pur
 - State immuable
@@ -109,15 +124,18 @@ L'architecture actuelle est **volontairement simple** et **sans IA** :
 L'architecture évoluera progressivement pour intégrer :
 
 #### Phase 4-5 : Modules IA
+
 - **Narratum.LLM** : Abstraction des modèles locaux (llama.cpp, Ollama)
 - **Narratum.Orchestration** : Pipeline multi-agents
 - **Narratum.Memory** : Gestion de contexte et résumés hiérarchiques
 
 #### Phase 6 : Interface
+
 - **Narratum.UI** : Interface utilisateur (Blazor WebView)
 - **Narratum.Api** : API REST pour communication UI
 
 #### Agents IA spécialisés (Phase 5)
+
 1. **NarratorAgent** : Génération du texte narratif principal
 2. **CharacterAgent** : Dialogues et réactions des personnages
 3. **SummaryAgent** : Résumés factuels (température basse)
@@ -128,6 +146,7 @@ L'architecture évoluera progressivement pour intégrer :
 **L'orchestration reste dans l'application, jamais dans le LLM.**
 
 Les LLMs sont des **moteurs de génération**, pas le cerveau métier :
+
 - La logique reste dans Core/Domain
 - Les agents IA sont des adaptateurs
 - Le déterminisme est garanti par l'orchestrateur
@@ -135,7 +154,7 @@ Les LLMs sont des **moteurs de génération**, pas le cerveau métier :
 
 ### Architecture cible
 
-```
+``` txt
 UI (Phase 6)
   ↓
 API REST (Phase 6)
@@ -164,6 +183,7 @@ Persistence (Phase 1)
 ### Migration garantie
 
 Chaque phase est conçue pour :
+
 - Ne pas casser les phases précédentes
 - Ajouter des fonctionnalités sans modifier le core
 - Maintenir le déterminisme

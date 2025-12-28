@@ -7,6 +7,7 @@ Merci de votre intérêt pour Narratum ! Ce document explique comment contribuer
 ### 1. Déterminisme avant tout
 
 Toutes les contributions doivent respecter le principe de déterminisme :
+
 - Pas de génération aléatoire non-seedée
 - Pas d'accès à l'horloge système non contrôlé
 - Pas de dépendances sur des services externes non déterministes
@@ -14,6 +15,7 @@ Toutes les contributions doivent respecter le principe de déterminisme :
 ### 2. Architecture hexagonale
 
 Respectez la structure en couches :
+
 - La logique métier doit rester dans Domain
 - Les abstractions vont dans Core
 - Les implémentations concrètes vont dans les adaptateurs
@@ -43,6 +45,7 @@ Respectez la structure en couches :
 ### 3. Tests
 
 Toute contribution doit inclure :
+
 - Tests unitaires pour la nouvelle fonctionnalité
 - Tests de déterminisme si applicable
 - Tous les tests existants doivent passer
@@ -66,7 +69,8 @@ Toute contribution doit inclure :
 ## Structure des commits
 
 Format recommandé :
-```
+
+``` txt
 <type>: <description courte>
 
 <description détaillée si nécessaire>
@@ -75,6 +79,7 @@ Fixes #<numéro-issue>
 ```
 
 Types :
+
 - `feat`: Nouvelle fonctionnalité
 - `fix`: Correction de bug
 - `docs`: Documentation uniquement

@@ -37,6 +37,7 @@ Narratum est un moteur narratif conçu selon les principes d'architecture hexago
 ## Vision à long terme
 
 Narratum évoluera pour intégrer :
+
 - Agents IA spécialisés (Narrator, Character, Summary, Consistency)
 - Mémoire narrative longue
 - Orchestration multi-agents

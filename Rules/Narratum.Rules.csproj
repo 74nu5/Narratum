@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Narratum.Rules</AssemblyName>
+    <RootNamespace>Narratum.Rules</RootNamespace>
+    <Description>Rules engine for Narratum</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\Domain\Narratum.Domain.csproj" />
+    <ProjectReference Include="..\State\Narratum.State.csproj" />
+  </ItemGroup>
+
+</Project>
