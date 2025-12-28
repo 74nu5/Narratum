@@ -7,6 +7,7 @@ Ce dossier contient toute la documentation technique et architecturale du projet
 ### Phase 1 (Actuelle)
 - **[Phase1.md](Phase1.md)** - Vue d'ensemble et progression de la Phase 1
 - **[Phase1-Design.md](Phase1-Design.md)** - Architecture détaillée et spécifications complètes de la Phase 1
+- **[HiddenWorldSimulation.md](HiddenWorldSimulation.md)** - Système de simulation hors-scène et événements cachés
 - **[ROADMAP.md](ROADMAP.md)** - Plan complet des 6 phases du projet
 
 ### Architecture

@@ -82,7 +82,8 @@ Narratum.Core
 │
 └─ Services
    ├─ StoryProgressionService
-   └─ StateTransitionService
+   ├─ StateTransitionService
+   └─ OffSceneSimulationService
 ```
 
 ---
@@ -189,6 +190,43 @@ Fait narratif immuable.
 
 ---
 
+### 5.7 Hidden World Simulation
+
+**Concept clé :** Le monde vit même hors de la vue du protagoniste.
+
+**Trois catégories d'événements cachés :**
+
+1. **Événements du monde hors caméra**
+   - Guerres lointaines, catastrophes naturelles
+   - Décisions politiques, complots
+   - Changements globaux
+
+2. **Évolution des personnages hors scène**
+   - Entraînement, amélioration de compétences
+   - Maladies, vieillissement
+   - Changements de relations
+
+3. **États internes non exposés**
+   - Pensées, intentions, peurs
+   - Plans secrets, mensonges
+   - Motivations cachées
+
+**Nouveaux types :**
+- `HiddenEvent` : Extension de `Event` avec `VisibilityLevel`
+- `InternalCharacterState` : Pensées, émotions, intentions cachées
+- `OffSceneSimulationService` : Simule le monde entre les chapitres
+
+**Niveaux de visibilité :**
+- `Hidden` : Complètement caché
+- `Foreshadowed` : Indices suggérés
+- `Revealed` : Révélé au lecteur
+
+**Important :** Ce système est **déterministe** en Phase 1, **pas un agent IA**.
+
+👉 Documentation complète : [HiddenWorldSimulation.md](HiddenWorldSimulation.md)
+
+---
+
 ## 6. Gestion des états
 
 ### StoryState
@@ -203,7 +241,9 @@ Source unique de vérité.
 **Attributs :**
 - `WorldState` : État du monde
 - `CharacterStates` : Collection des états des personnages
-- `EventHistory` : Historique complet des événements
+- `EventHistory` : Historique complet des événements (visibles + cachés)
+- `HiddenEvents` : Événements cachés non encore révélés
+- `InternalCharacterStates` : États internes des personnages
 - `CurrentChapterId` : Chapitre actuel
 - `NarrativeTime` : Temps narratif actuel
 
@@ -386,18 +426,22 @@ public ProgressionResult Progress(StoryState state, StoryAction action)
 - ✅ Solution .NET 10 structurée
 - ✅ `Narratum.Core` complet
 - ✅ `Narratum.Domain` avec toutes les entités
-- ✅ `Narratum.State` avec gestion d'état
+- ✅ `Narratum.State` avec gestion d'état (incluant états cachés)
 - ✅ `Narratum.Rules` avec moteur de règles
+- ✅ `Narratum.Simulation` avec services de progression et simulation hors-scène
 - ✅ `Narratum.Persistence` fonctionnelle
 
 ### Tests
 - ✅ Suite de tests verte (100 % pass)
 - ✅ Couverture > 80 %
 - ✅ Tests de scénarios complets
+- ✅ Tests de simulation hors-scène déterministe
+- ✅ Tests de révélation d'événements cachés
 
 ### Documentation
 - ✅ README Phase 1 (ce document)
 - ✅ Documentation des entités
+- ✅ Hidden World Simulation (HiddenWorldSimulation.md)
 - ✅ Exemples d'utilisation
 - ✅ Guide de contribution au code
 
@@ -409,6 +453,8 @@ public ProgressionResult Progress(StoryState state, StoryAction action)
 - ✅ Créer un univers
 - ✅ Ajouter des personnages et lieux
 - ✅ Jouer 50 actions sans IA
+- ✅ Simuler des événements cachés hors-scène
+- ✅ Révéler des événements cachés de manière contrôlée
 - ✅ Restaurer une sauvegarde
 - ✅ Détecter une incohérence (invariant violé)
 - ✅ Modifier une règle sans casser le reste

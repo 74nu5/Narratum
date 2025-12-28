@@ -7,6 +7,7 @@ Ce dossier orchestre l'exécution de la simulation narrative.
 - Coordonner l'exécution des règles et des transitions d'état
 - Gérer le déroulement temporel de la simulation
 - Fournir les services d'orchestration du moteur narratif
+- **Simuler les événements hors-scène et cachés**
 
 ## Services principaux (Phase 1)
 
@@ -29,6 +30,23 @@ Service gérant les transitions d'état.
 - Générer les événements
 - Maintenir l'intégrité de l'état
 
+### OffSceneSimulationService
+Service de simulation hors-scène (événements cachés).
+
+**Responsabilités :**
+- Simuler les événements du monde hors caméra
+- Gérer l'évolution des personnages hors scène
+- Progresser les intentions et plans cachés
+- Révéler les événements cachés selon les méthodes narratives
+
+**Flux :**
+- S'exécute entre les chapitres
+- Produit des `HiddenEvent` avec niveaux de visibilité
+- Respecte le déterminisme complet
+- Ne génère jamais de texte (Phase 1)
+
+👉 Documentation complète : [../Docs/HiddenWorldSimulation.md](../Docs/HiddenWorldSimulation.md)
+
 ## StoryAction
 
 Action utilisateur ou système.
@@ -39,6 +57,7 @@ Action utilisateur ou système.
 - Déclencher un événement
 - Terminer un chapitre
 - Créer une relation entre personnages
+- Révéler un événement caché
 
 ## Principes
 
@@ -47,3 +66,4 @@ Action utilisateur ou système.
 - Coordination des différents modules
 - Validation avant toute action
 - Génération d'événements traçables
+- **Le monde vit même hors de la vue du protagoniste**
