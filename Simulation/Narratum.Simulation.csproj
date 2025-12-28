@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Narratum.Simulation</AssemblyName>
+    <RootNamespace>Narratum.Simulation</RootNamespace>
+    <Description>Simulation orchestration for Narratum</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\Domain\Narratum.Domain.csproj" />
+    <ProjectReference Include="..\State\Narratum.State.csproj" />
+    <ProjectReference Include="..\Rules\Narratum.Rules.csproj" />
+  </ItemGroup>
+
+</Project>
