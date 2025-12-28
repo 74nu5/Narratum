@@ -18,6 +18,7 @@
     <ProjectReference Include="..\State\Narratum.State.csproj" />
     <ProjectReference Include="..\Persistence\Narratum.Persistence.csproj" />
     <ProjectReference Include="..\Simulation\Narratum.Simulation.csproj" />
+    <ProjectReference Include="..\Memory\Narratum.Memory.csproj" />
   </ItemGroup>
 
 </Project>
