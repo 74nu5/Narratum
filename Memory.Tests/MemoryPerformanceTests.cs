@@ -247,7 +247,9 @@ public class MemoryPerformanceTests
 
         // Assert: Performance should scale roughly linearly
         // 5x events should not take 25x time
-        var ratio = (double)timings.Last() / timings.First();
+        // Guard against division by zero (operations too fast to measure in ms)
+        var firstTiming = Math.Max(timings.First(), 1);
+        var ratio = (double)timings.Last() / firstTiming;
         ratio.Should().BeLessThan(10);
     }
 

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using Narratum.Memory;
@@ -15,17 +16,23 @@ using Narratum.Memory.Store;
 /// </summary>
 public class MemoryRepositoryTests : IAsyncLifetime
 {
+    private SqliteConnection _connection = null!;
     private MemoryDbContext _dbContext = null!;
     private SQLiteMemoryRepository _repository = null!;
     private readonly Guid _worldId = Guid.NewGuid();
 
     /// <summary>
     /// Initializes test context with in-memory SQLite database.
+    /// The connection is kept open to preserve the in-memory database.
     /// </summary>
     public async Task InitializeAsync()
     {
+        // Create and open a connection that stays open for the lifetime of the test
+        _connection = new SqliteConnection("Data Source=:memory:");
+        await _connection.OpenAsync();
+
         var options = new DbContextOptionsBuilder<MemoryDbContext>()
-            .UseSqlite("Data Source=:memory:")
+            .UseSqlite(_connection)
             .Options;
 
         _dbContext = new MemoryDbContext(options);
@@ -39,6 +46,7 @@ public class MemoryRepositoryTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _dbContext.DisposeAsync();
+        await _connection.DisposeAsync();
     }
 
     #region SaveAsync Tests

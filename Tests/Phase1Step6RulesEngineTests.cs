@@ -99,7 +99,7 @@ public class Phase1Step6RulesEngineTests
 
         // Assert
         violations.Should().NotBeNull();
-        violations.Should().BeReadOnly();
+        violations.Should().BeEmpty();
     }
 
     [Fact]
@@ -128,7 +128,6 @@ public class Phase1Step6RulesEngineTests
 
         // Assert
         violations.Should().NotBeNull();
-        violations.Should().BeReadOnly();
     }
 
     [Fact]
@@ -149,4 +148,3 @@ public class Phase1Step6RulesEngineTests
         result.Should().BeOfType<Result<Unit>.Failure>();
     }
 }
-

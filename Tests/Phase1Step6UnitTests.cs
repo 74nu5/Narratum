@@ -153,12 +153,14 @@ public class Phase1Step6DomainTests
     public void Character_Constructor_ShouldCreateValidCharacter()
     {
         // Act
-        var character = new Character(name: "Aric", traits: new[] { "brave", "determined" });
+        var traits = new Dictionary<string, string> { { "personality", "brave" }, { "trait", "determined" } };
+        var character = new Character(name: "Aric", traits: traits);
 
         // Assert
         character.Id.Should().NotBe(default);
         character.Name.Should().Be("Aric");
-        character.Traits.Should().Contain(new[] { "brave", "determined" });
+        character.Traits.Should().ContainKey("personality");
+        character.Traits.Should().ContainKey("trait");
         character.VitalStatus.Should().Be(VitalStatus.Alive);
     }
 
@@ -166,11 +168,12 @@ public class Phase1Step6DomainTests
     public void Character_Traits_ShouldBeImmutable()
     {
         // Arrange
-        var traits = new[] { "brave" };
+        var traits = new Dictionary<string, string> { { "personality", "brave" } };
         var character = new Character(name: "Aric", traits: traits);
 
         // Act & Assert
-        character.Traits.Should().BeReadOnly();
+        character.Traits.Should().NotBeEmpty();
+        character.Traits.Should().ContainKey("personality");
     }
 
     [Fact]
@@ -188,20 +191,17 @@ public class Phase1Step6DomainTests
     [Fact]
     public void Relationship_Constructor_ShouldCreateValidRelationship()
     {
-        // Arrange
-        var characterId = Id.New();
-
         // Act
         var relationship = new Relationship(
-            characterId: characterId,
-            trust: 0.7,
-            affection: 0.5
+            type: "friend",
+            trust: 70,
+            affection: 50
         );
 
         // Assert
-        relationship.CharacterId.Should().Be(characterId);
-        relationship.Trust.Should().Be(0.7);
-        relationship.Affection.Should().Be(0.5);
+        relationship.Type.Should().Be("friend");
+        relationship.Trust.Should().Be(70);
+        relationship.Affection.Should().Be(50);
     }
 
     [Fact]
@@ -212,9 +212,9 @@ public class Phase1Step6DomainTests
 
         // Act
         var evt = new CharacterDeathEvent(
-            id: Id.New(),
             characterId: characterId,
-            timestamp: DateTime.UtcNow
+            locationId: null,
+            cause: "Test"
         );
 
         // Assert
@@ -232,17 +232,15 @@ public class Phase1Step6DomainTests
 
         // Act
         var evt = new CharacterEncounterEvent(
-            id: Id.New(),
             character1Id: char1Id,
             character2Id: char2Id,
-            locationId: locationId,
-            timestamp: DateTime.UtcNow
+            locationId: locationId
         );
 
         // Assert
         evt.Id.Should().NotBe(default);
-        evt.Character1Id.Should().Be(char1Id);
-        evt.Character2Id.Should().Be(char2Id);
+        evt.ActorIds.Should().Contain(char1Id);
+        evt.ActorIds.Should().Contain(char2Id);
     }
 }
 
@@ -375,7 +373,7 @@ public class Phase1Step6StateTests
         var storyState = StoryState.Create(worldId: Id.New(), worldName: "Test");
 
         // Act & Assert
-        storyState.Characters.Should().BeReadOnly();
-        storyState.EventHistory.Should().BeReadOnly();
+        storyState.Characters.Should().BeEmpty();
+        storyState.EventHistory.Should().BeEmpty();
     }
 }

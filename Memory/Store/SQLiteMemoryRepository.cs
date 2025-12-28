@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Narratum.Memory;
@@ -220,18 +221,31 @@ public class SQLiteMemoryRepository : IMemoryRepository
 internal static class MemorandumEntityExtensions
 {
     /// <summary>
+    /// JSON serializer options configured to handle IReadOnlySet and other interfaces.
+    /// </summary>
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters =
+        {
+            new CanonicalStateDictionaryConverter(),
+            new CoherenceViolationSetConverter()
+        }
+    };
+
+    /// <summary>
     /// Converts an EF entity to a domain model.
     /// </summary>
     internal static Memorandum ToDomain(this MemorandumEntity entity)
     {
         var canonicalStates = string.IsNullOrEmpty(entity.CanonicalStatesData)
             ? new Dictionary<MemoryLevel, CanonicalState>()
-            : JsonSerializer.Deserialize<Dictionary<MemoryLevel, CanonicalState>>(entity.CanonicalStatesData)
+            : JsonSerializer.Deserialize<Dictionary<MemoryLevel, CanonicalState>>(entity.CanonicalStatesData, JsonOptions)
                 ?? new Dictionary<MemoryLevel, CanonicalState>();
 
         var violations = string.IsNullOrEmpty(entity.ViolationsData)
             ? new HashSet<CoherenceViolation>()
-            : JsonSerializer.Deserialize<HashSet<CoherenceViolation>>(entity.ViolationsData)
+            : JsonSerializer.Deserialize<HashSet<CoherenceViolation>>(entity.ViolationsData, JsonOptions)
                 ?? new HashSet<CoherenceViolation>();
 
         return new Memorandum(
@@ -244,5 +258,314 @@ internal static class MemorandumEntityExtensions
             CreatedAt: entity.CreatedAt,
             LastUpdated: entity.LastUpdated
         );
+    }
+}
+
+/// <summary>
+/// Custom JSON converter for Dictionary of CanonicalState that handles IReadOnlySet serialization.
+/// </summary>
+internal class CanonicalStateDictionaryConverter : JsonConverter<Dictionary<MemoryLevel, CanonicalState>>
+{
+    public override Dictionary<MemoryLevel, CanonicalState>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+            return null;
+
+        var result = new Dictionary<MemoryLevel, CanonicalState>();
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected StartObject token");
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+                return result;
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                throw new JsonException("Expected PropertyName token");
+
+            var keyString = reader.GetString()!;
+            var key = Enum.Parse<MemoryLevel>(keyString);
+
+            reader.Read();
+            var value = ReadCanonicalState(ref reader);
+            result[key] = value;
+        }
+
+        return result;
+    }
+
+    private static CanonicalState ReadCanonicalState(ref Utf8JsonReader reader)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected StartObject for CanonicalState");
+
+        Guid id = Guid.Empty;
+        Guid worldId = Guid.Empty;
+        var facts = new HashSet<Fact>();
+        MemoryLevel memoryLevel = MemoryLevel.Event;
+        int version = 1;
+        DateTime? lastUpdated = null;
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+                break;
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                throw new JsonException("Expected PropertyName");
+
+            var propName = reader.GetString()!;
+            reader.Read();
+
+            switch (propName)
+            {
+                case "Id":
+                    id = reader.GetGuid();
+                    break;
+                case "WorldId":
+                    worldId = reader.GetGuid();
+                    break;
+                case "Facts":
+                    facts = ReadFactsSet(ref reader);
+                    break;
+                case "MemoryLevel":
+                    memoryLevel = (MemoryLevel)reader.GetInt32();
+                    break;
+                case "Version":
+                    version = reader.GetInt32();
+                    break;
+                case "LastUpdated":
+                    if (reader.TokenType != JsonTokenType.Null)
+                        lastUpdated = reader.GetDateTime();
+                    break;
+            }
+        }
+
+        return new CanonicalState(id, worldId, facts, memoryLevel, version, lastUpdated);
+    }
+
+    private static HashSet<Fact> ReadFactsSet(ref Utf8JsonReader reader)
+    {
+        var facts = new HashSet<Fact>();
+
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException("Expected StartArray for Facts");
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndArray)
+                return facts;
+
+            var fact = ReadFact(ref reader);
+            facts.Add(fact);
+        }
+
+        return facts;
+    }
+
+    private static Fact ReadFact(ref Utf8JsonReader reader)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected StartObject for Fact");
+
+        Guid id = Guid.Empty;
+        string content = "";
+        FactType factType = FactType.Event;
+        MemoryLevel memoryLevel = MemoryLevel.Event;
+        var entityReferences = new HashSet<string>();
+        string? timeContext = null;
+        double confidence = 1.0;
+        string? source = null;
+        DateTime? createdAt = null;
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+                break;
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                throw new JsonException("Expected PropertyName");
+
+            var propName = reader.GetString()!;
+            reader.Read();
+
+            switch (propName)
+            {
+                case "Id":
+                    id = reader.GetGuid();
+                    break;
+                case "Content":
+                    content = reader.GetString() ?? "";
+                    break;
+                case "FactType":
+                    factType = (FactType)reader.GetInt32();
+                    break;
+                case "MemoryLevel":
+                    memoryLevel = (MemoryLevel)reader.GetInt32();
+                    break;
+                case "EntityReferences":
+                    entityReferences = ReadStringSet(ref reader);
+                    break;
+                case "TimeContext":
+                    timeContext = reader.TokenType != JsonTokenType.Null ? reader.GetString() : null;
+                    break;
+                case "Confidence":
+                    confidence = reader.GetDouble();
+                    break;
+                case "Source":
+                    source = reader.TokenType != JsonTokenType.Null ? reader.GetString() : null;
+                    break;
+                case "CreatedAt":
+                    if (reader.TokenType != JsonTokenType.Null)
+                        createdAt = reader.GetDateTime();
+                    break;
+            }
+        }
+
+        return new Fact(id, content, factType, memoryLevel, entityReferences, timeContext, confidence, source, createdAt);
+    }
+
+    private static HashSet<string> ReadStringSet(ref Utf8JsonReader reader)
+    {
+        var set = new HashSet<string>();
+
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException("Expected StartArray for string set");
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndArray)
+                return set;
+
+            var value = reader.GetString();
+            if (value != null)
+                set.Add(value);
+        }
+
+        return set;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Dictionary<MemoryLevel, CanonicalState> value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value);
+    }
+}
+
+/// <summary>
+/// Custom JSON converter for HashSet of CoherenceViolation.
+/// </summary>
+internal class CoherenceViolationSetConverter : JsonConverter<HashSet<CoherenceViolation>>
+{
+    public override HashSet<CoherenceViolation>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+            return null;
+
+        var result = new HashSet<CoherenceViolation>();
+
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException("Expected StartArray for CoherenceViolation set");
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndArray)
+                return result;
+
+            var violation = ReadViolation(ref reader);
+            result.Add(violation);
+        }
+
+        return result;
+    }
+
+    private static CoherenceViolation ReadViolation(ref Utf8JsonReader reader)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected StartObject for CoherenceViolation");
+
+        Guid id = Guid.Empty;
+        string description = "";
+        CoherenceViolationType violationType = CoherenceViolationType.StatementContradiction;
+        CoherenceSeverity severity = CoherenceSeverity.Warning;
+        var involvedFactIds = new HashSet<Guid>();
+        DateTime? detectedAt = null;
+        DateTime? resolvedAt = null;
+        string? resolution = null;
+        MemoryLevel? memoryLevel = null;
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+                break;
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                throw new JsonException("Expected PropertyName");
+
+            var propName = reader.GetString()!;
+            reader.Read();
+
+            switch (propName)
+            {
+                case "Id":
+                    id = reader.GetGuid();
+                    break;
+                case "Description":
+                    description = reader.GetString() ?? "";
+                    break;
+                case "ViolationType":
+                    violationType = (CoherenceViolationType)reader.GetInt32();
+                    break;
+                case "Severity":
+                    severity = (CoherenceSeverity)reader.GetInt32();
+                    break;
+                case "InvolvedFactIds":
+                    involvedFactIds = ReadGuidSet(ref reader);
+                    break;
+                case "DetectedAt":
+                    if (reader.TokenType != JsonTokenType.Null)
+                        detectedAt = reader.GetDateTime();
+                    break;
+                case "ResolvedAt":
+                    if (reader.TokenType != JsonTokenType.Null)
+                        resolvedAt = reader.GetDateTime();
+                    break;
+                case "Resolution":
+                    resolution = reader.TokenType != JsonTokenType.Null ? reader.GetString() : null;
+                    break;
+                case "MemoryLevel":
+                    if (reader.TokenType != JsonTokenType.Null)
+                        memoryLevel = (MemoryLevel)reader.GetInt32();
+                    break;
+            }
+        }
+
+        // CoherenceViolation(Guid Id, CoherenceViolationType ViolationType, CoherenceSeverity Severity,
+        //                    string Description, IReadOnlySet<Guid> InvolvedFactIds, string? Resolution,
+        //                    MemoryLevel? MemoryLevel, DateTime? DetectedAt, DateTime? ResolvedAt)
+        return new CoherenceViolation(id, violationType, severity, description, involvedFactIds, resolution, memoryLevel, detectedAt, resolvedAt);
+    }
+
+    private static HashSet<Guid> ReadGuidSet(ref Utf8JsonReader reader)
+    {
+        var set = new HashSet<Guid>();
+
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException("Expected StartArray for Guid set");
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndArray)
+                return set;
+
+            set.Add(reader.GetGuid());
+        }
+
+        return set;
+    }
+
+    public override void Write(Utf8JsonWriter writer, HashSet<CoherenceViolation> value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value);
     }
 }

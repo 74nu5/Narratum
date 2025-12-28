@@ -73,10 +73,8 @@ public class MemoryService : IMemoryService
                 canonicalState = canonicalState.AddFact(fact);
             }
 
-            var updatedCanonicalStates = new Dictionary<MemoryLevel, CanonicalState>(memorandum.CanonicalStates)
-            {
-                { MemoryLevel.Event, canonicalState }
-            };
+            var updatedCanonicalStates = new Dictionary<MemoryLevel, CanonicalState>(memorandum.CanonicalStates);
+            updatedCanonicalStates[MemoryLevel.Event] = canonicalState;
 
             var updatedMemoranda = memorandum with
             {
@@ -140,10 +138,8 @@ public class MemoryService : IMemoryService
                 canonicalState = canonicalState.AddFact(fact);
             }
 
-            var updatedCanonicalStates = new Dictionary<MemoryLevel, CanonicalState>(memorandum.CanonicalStates)
-            {
-                { MemoryLevel.Chapter, canonicalState }
-            };
+            var updatedCanonicalStates = new Dictionary<MemoryLevel, CanonicalState>(memorandum.CanonicalStates);
+            updatedCanonicalStates[MemoryLevel.Chapter] = canonicalState;
 
             var updatedMemoranda = memorandum with
             {
