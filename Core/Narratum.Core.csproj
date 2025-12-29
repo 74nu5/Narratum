@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Narratum.Core</AssemblyName>
+    <RootNamespace>Narratum.Core</RootNamespace>
+    <Description>Core abstractions and interfaces for Narratum engine</Description>
+  </PropertyGroup>
+
+</Project>

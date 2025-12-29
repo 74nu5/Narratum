@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Narratum.State</AssemblyName>
+    <RootNamespace>Narratum.State</RootNamespace>
+    <Description>State management for Narratum engine</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\Domain\Narratum.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

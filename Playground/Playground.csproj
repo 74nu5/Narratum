@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.49.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\Domain\Narratum.Domain.csproj" />
+    <ProjectReference Include="..\State\Narratum.State.csproj" />
+    <ProjectReference Include="..\Persistence\Narratum.Persistence.csproj" />
+    <ProjectReference Include="..\Simulation\Narratum.Simulation.csproj" />
+    <ProjectReference Include="..\Memory\Narratum.Memory.csproj" />
+  </ItemGroup>
+
+</Project>

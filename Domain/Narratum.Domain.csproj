@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Narratum.Domain</AssemblyName>
+    <RootNamespace>Narratum.Domain</RootNamespace>
+    <Description>Domain logic and entities for Narratum engine</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+  </ItemGroup>
+
+</Project>
