@@ -15,8 +15,8 @@ Narratum est en **très bon état** — architecture hexagonale solide, tests ex
 | **Phase 2** — Mémoire & Cohérence | ✅ 100% (2.1→2.7) | 274 tests |
 | **Phase 3** — Orchestration | ✅ 100% (3.1→3.8 complet) | 461 tests |
 | **Phase 4** — Intégration LLM | ✅ 100% | 52 tests |
-| **Phase 5** — Narration Contrôlée | ⏳ Non démarré | — |
-| **Phase 6** — UI | ⏳ Non démarré | — |
+| **Phase 5** — Interface Web Blazor Server | ⏳ Non démarré | — |
+| **Phase 6** — Narration Contrôlée | ⏳ Non démarré | — |
 
 **Total : 894 tests — 100% passing ✅**
 
@@ -49,7 +49,7 @@ Orchestration.Tests → Orchestration, Core, Domain, State, Memory
 ### Phase 1–3 (COMPLÈTES ✅)
 Voir sections détaillées ci-dessous.
 
-### Phase 4 — Intégration LLM (EN COURS 🔨)
+### Phase 4 — Intégration LLM (COMPLÈTE ✅)
 
 **Approche** : Utilisation de `Microsoft.Extensions.AI` (`IChatClient`) — l'abstraction officielle .NET.
 Pas de client HTTP manuel : on utilise les SDK existants.
@@ -134,14 +134,39 @@ Pas de client HTTP manuel : on utilise les SDK existants.
 
 ## Ce qui reste à faire
 
-### Phase 5 : Narration Contrôlée
+### Phase 5 : Interface Web Blazor Server (PLANIFIÉ 📋)
+
+**Objectif** : Front-end Blazor Server (Interactive SSR) avec Microsoft Fluent UI Blazor pour générer des histoires interactivement. Pas d'API — accès direct aux services via DI (SignalR).
+
+**Stack** :
+- Blazor Web App (.NET 10) — Interactive Server rendering
+- Microsoft Fluent UI Blazor (`Microsoft.FluentUI.AspNetCore.Components` v4.13+)
+- SQLite via module Persistence existant
+- Single-user, français, dark mode par défaut avec toggle
+
+**Projet** : `Narratum.Web` (Blazor Web App)
+
+**Fonctionnalités clés** :
+1. **Sélection de modèle LLM** — Changeable à la volée (header + wizard), enregistré par page
+2. **Mode Expert** — Toggle affichant/éditant les données internes (StoryState, prompts, outputs bruts LLM)
+3. **Navigation temporelle** — Timeline des pages, retour arrière à n'importe quel point, fork/régénération (dernière page uniquement)
+4. **Multi-histoires** — Toutes en DB, auto-save continu, switch rapide, dashboard multi-stories
+5. **Genre / Style narratif** — Choix d'un genre (fantaisie, SF, polar...) qui influence les prompts des agents
+6. **Création d'histoire** — Wizard multi-étapes (monde, genre, personnages, lieux, relations, modèle)
+7. **Génération narrative** — Vue temps réel avec progression du pipeline 5 étapes + notification fin de génération
+8. **Bibliothèque** — Liste des histoires, chargement, duplication, export, suppression
+9. **Export** — Markdown, texte brut, PDF
+10. **Statistiques** — Mots, personnages, événements, modèles utilisés
+11. **Configuration LLM** — Provider, modèle par défaut, routing par agent
+
+**Prérequis** : Évolution du schema Persistence (table PageSnapshots + fix stubs désérialisation)
+
+Voir `plans/phase5-blazor-server.md` pour le plan détaillé (15 todos).
+
+### Phase 6 : Narration Contrôlée
 - NarratorAgent, CharacterAgent, ConsistencyAgent réels
 - Température maîtrisée, prompts stricts
 - Cohérence sur 20+ itérations
-
-### Phase 6 : UI
-- Blazor WebView / MAUI / Avalonia
-- API REST ASP.NET Core
 
 ---
 
