@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Narratum.Llm</RootNamespace>
+    <AssemblyName>Narratum.Llm</AssemblyName>
+    <!-- Requis par Microsoft.AI.Foundry.Local (dépendances natives ONNX Runtime) -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\Orchestration\Narratum.Orchestration.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AI.Foundry.Local" Version="0.8.2.1" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.2.0-preview.1.26063.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
+    <PackageReference Include="OllamaSharp" Version="5.4.16" />
+    <PackageReference Include="OpenAI" Version="2.8.0" />
+  </ItemGroup>
+
+</Project>

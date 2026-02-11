@@ -437,11 +437,16 @@ public sealed class FullOrchestrationService
 
             var agentStopwatch = Stopwatch.StartNew();
 
-            // Appeler le LLM
+            // Appeler le LLM avec le type d'agent pour le routing de modèle
+            var metadata = new Dictionary<string, object>
+            {
+                ["llm.agentType"] = prompt.TargetAgent
+            };
             var request = new LlmRequest(
                 prompt.SystemPrompt,
                 prompt.UserPrompt,
-                LlmParameters.Default);
+                LlmParameters.Default,
+                metadata);
 
             var llmResult = await _llmClient.GenerateAsync(request, cancellationToken);
             agentStopwatch.Stop();

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -19,6 +20,13 @@
     <ProjectReference Include="..\Persistence\Narratum.Persistence.csproj" />
     <ProjectReference Include="..\Simulation\Narratum.Simulation.csproj" />
     <ProjectReference Include="..\Memory\Narratum.Memory.csproj" />
+    <ProjectReference Include="..\Orchestration\Narratum.Orchestration.csproj" />
+    <ProjectReference Include="..\Llm\Narratum.Llm.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.2" />
   </ItemGroup>
 
 </Project>
