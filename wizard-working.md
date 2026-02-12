@@ -1,0 +1,54 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e5]:
+      - heading "✨ Narratum" [level=3] [ref=e6] [cursor=pointer]
+      - combobox [ref=e7]:
+        - generic [ref=e9] [cursor=pointer]:
+          - generic [ref=e10]: Sélectionner une histoire...
+          - img [ref=e13]
+        - generic: Histoire 1
+        - generic: Histoire 2
+      - switch "🔧 Expert" [ref=e15]:
+        - generic [ref=e16] [cursor=pointer]:
+          - generic: 🔧 Expert
+        - img [ref=e19] [cursor=pointer]
+      - button "⚙️ Config" [ref=e22] [cursor=pointer]:
+        - generic:
+          - generic: ⚙️ Config
+  - main [ref=e25]:
+    - generic [ref=e26]:
+      - heading "✨ Créer une nouvelle histoire" [level=2] [ref=e27]
+      - generic [ref=e29]:
+        - button "1. Monde" [ref=e31] [cursor=pointer]:
+          - generic:
+            - generic: 1. Monde
+        - button "2. Genre" [disabled] [ref=e33]:
+          - generic:
+            - generic: 2. Genre
+        - button "3. Personnages" [disabled] [ref=e35]:
+          - generic:
+            - generic: 3. Personnages
+        - button "4. Lieux" [disabled] [ref=e37]:
+          - generic:
+            - generic: 4. Lieux
+        - button "5. Résumé" [disabled] [ref=e39]:
+          - generic:
+            - generic: 5. Résumé
+      - generic [ref=e42]:
+        - generic [ref=e43] [cursor=pointer]:
+          - text: Nom du monde
+          - generic: "*"
+        - textbox [ref=e46]
+        - generic [ref=e47] [cursor=pointer]: Description du monde
+        - textbox [ref=e49]
+      - generic [ref=e50]:
+        - button "Annuler" [ref=e52] [cursor=pointer]:
+          - generic:
+            - generic: Annuler
+        - button "Suivant →" [disabled] [ref=e54]:
+          - generic:
+            - generic: Suivant →
+  - contentinfo [ref=e55]:
+    - generic [ref=e56]:
+      - paragraph [ref=e57]: Narratum - Générateur d'histoires déterministe
+      - paragraph [ref=e59]: ✓ Sauvegardé à 11:38:23
