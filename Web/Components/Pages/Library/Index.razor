@@ -1,0 +1,54 @@
+@page "/library"
+@rendermode InteractiveServer
+@inject StoryLibraryService LibraryService
+@inject NavigationManager Navigation
+
+<PageTitle>Bibliothèque - Narratum</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+    <FluentLabel Typo="Typography.H2">📚 Bibliothèque d'histoires</FluentLabel>
+    
+    <FluentButton Appearance="Appearance.Accent" Href="/wizard">
+        ➕ Créer une nouvelle histoire
+    </FluentButton>
+
+    @if (_stories == null)
+    {
+        <FluentProgressRing />
+    }
+    else if (!_stories.Any())
+    {
+        <FluentMessageBar Intent="MessageIntent.Info">
+            Aucune histoire sauvegardée. Créez-en une nouvelle !
+        </FluentMessageBar>
+    }
+    else
+    {
+        <FluentDataGrid Items="@_stories.AsQueryable()" GridTemplateColumns="1fr 200px 150px 150px 100px">
+            <PropertyColumn Property="@(s => s.DisplayName)" Title="Titre" />
+            <PropertyColumn Property="@(s => s.GenreStyle)" Title="Genre" />
+            <PropertyColumn Property="@(s => s.PageCount)" Title="Pages" />
+            <PropertyColumn Property="@(s => s.LastModified)" Title="Modifié le" Format="dd/MM/yyyy HH:mm" />
+            <TemplateColumn Title="Actions">
+                <FluentButton Appearance="Appearance.Lightweight" 
+                              OnClick="@(() => OpenStory(context.SlotName))">
+                    Ouvrir
+                </FluentButton>
+            </TemplateColumn>
+        </FluentDataGrid>
+    }
+</FluentStack>
+
+@code {
+    private List<StoryEntry>? _stories;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stories = await LibraryService.ListStoriesAsync();
+    }
+
+    private void OpenStory(string slotName)
+    {
+        Navigation.NavigateTo($"/reader/{slotName}");
+    }
+}

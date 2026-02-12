@@ -1,0 +1,51 @@
+@page "/wizard"
+@rendermode InteractiveServer
+
+<PageTitle>Créer une histoire - Narratum</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+    <FluentLabel Typo="Typography.H2">✨ Créer une nouvelle histoire</FluentLabel>
+    
+    <FluentCard>
+        <FluentLabel Typo="Typography.H4">Étape 1 : Informations de base</FluentLabel>
+        <FluentTextField @bind-Value="_storyName" Label="Nom de l'histoire" Required />
+        <FluentTextArea @bind-Value="_description" Label="Description" Rows="3" />
+    </FluentCard>
+
+    <FluentCard>
+        <FluentLabel Typo="Typography.H4">Étape 2 : Genre et style</FluentLabel>
+        <FluentSelect TOption="string" @bind-SelectedOption="_genre" Label="Genre">
+            <FluentOption Value="Fantasy">Fantasy</FluentOption>
+            <FluentOption Value="SciFi">Science-Fiction</FluentOption>
+            <FluentOption Value="Mystery">Mystère</FluentOption>
+            <FluentOption Value="Romance">Romance</FluentOption>
+        </FluentSelect>
+    </FluentCard>
+
+    <FluentCard>
+        <FluentLabel Typo="Typography.H4">Étape 3 : Configuration</FluentLabel>
+        <FluentNumberField @bind-Value="_maxPages" Label="Nombre de pages maximum" Min="1" Max="100" />
+    </FluentCard>
+
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
+        <FluentButton Appearance="Appearance.Accent" OnClick="CreateStory" Disabled="@string.IsNullOrWhiteSpace(_storyName)">
+            Créer l'histoire
+        </FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" Href="/">
+            Annuler
+        </FluentButton>
+    </FluentStack>
+</FluentStack>
+
+@code {
+    private string _storyName = string.Empty;
+    private string _description = string.Empty;
+    private string _genre = "Fantasy";
+    private int _maxPages = 20;
+
+    private void CreateStory()
+    {
+        // TODO Phase 5.5: Implémenter création via service
+        // Pour l'instant, juste un placeholder
+    }
+}

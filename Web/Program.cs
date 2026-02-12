@@ -19,8 +19,8 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<NarrativumDbContext>(options =>
     options.UseSqlite("Data Source=narratum.db"));
 
+builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<PersistenceService>();
-builder.Services.AddScoped<SnapshotService>();
 
 // Add Narratum LLM (Foundry Local)
 var llmConfig = new LlmClientConfig

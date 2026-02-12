@@ -1,0 +1,49 @@
+@page "/config"
+@rendermode InteractiveServer
+@inject ModelSelectionService ModelService
+
+<PageTitle>Configuration - Narratum</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+    <FluentLabel Typo="Typography.H2">⚙️ Configuration</FluentLabel>
+    
+    <FluentCard>
+        <FluentLabel Typo="Typography.H4">Modèle LLM pour la narration</FluentLabel>
+        <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle">
+            <FluentOption Value="Phi-4-mini">Phi-4-mini (par défaut)</FluentOption>
+            <FluentOption Value="Phi-4">Phi-4</FluentOption>
+            <FluentOption Value="Custom">Autre modèle...</FluentOption>
+        </FluentSelect>
+        
+        @if (_selectedModel == "Custom")
+        {
+            <FluentTextField @bind-Value="_customModel" Label="Nom du modèle personnalisé" />
+        }
+        
+        <FluentButton Appearance="Appearance.Accent" OnClick="SaveConfig">
+            Sauvegarder
+        </FluentButton>
+    </FluentCard>
+
+    <FluentCard>
+        <FluentLabel Typo="Typography.H4">Informations système</FluentLabel>
+        <FluentLabel>Modèle actuel : @ModelService.CurrentNarratorModel</FluentLabel>
+        <FluentLabel>Provider : Foundry Local</FluentLabel>
+    </FluentCard>
+</FluentStack>
+
+@code {
+    private string _selectedModel = "Phi-4-mini";
+    private string _customModel = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _selectedModel = ModelService.CurrentNarratorModel;
+    }
+
+    private void SaveConfig()
+    {
+        var modelToUse = _selectedModel == "Custom" ? _customModel : _selectedModel;
+        ModelService.CurrentNarratorModel = modelToUse;
+    }
+}

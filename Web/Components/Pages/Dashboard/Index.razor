@@ -1,13 +1,65 @@
 @page "/"
 @rendermode InteractiveServer
+@inject StoryLibraryService LibraryService
+@inject NavigationManager Navigation
 
-<PageTitle>Narratum - Dashboard</PageTitle>
+<PageTitle>Dashboard - Narratum</PageTitle>
 
-<FluentLabel Typo="Typography.H1">Narratum - Dashboard</FluentLabel>
-<FluentLabel Typo="Typography.Body">
-    Bienvenue sur Narratum, votre générateur d'histoires IA.
-</FluentLabel>
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+    <FluentLabel Typo="Typography.H1">✨ Bienvenue sur Narratum</FluentLabel>
+    
+    <FluentCard>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
+            <FluentButton Appearance="Appearance.Accent" Href="/wizard" Style="flex: 1;">
+                ➕ Créer une nouvelle histoire
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" Href="/library" Style="flex: 1;">
+                📚 Voir toutes mes histoires
+            </FluentButton>
+        </FluentStack>
+    </FluentCard>
 
-<FluentButton Appearance="Appearance.Accent" Href="/wizard">
-    Créer une nouvelle histoire
-</FluentButton>
+    <FluentLabel Typo="Typography.H3">Histoires récentes</FluentLabel>
+    
+    @if (_recentStories == null)
+    {
+        <FluentProgressRing />
+    }
+    else if (!_recentStories.Any())
+    {
+        <FluentMessageBar Intent="MessageIntent.Info">
+            Aucune histoire. Créez-en une pour commencer !
+        </FluentMessageBar>
+    }
+    else
+    {
+        <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="16">
+            @foreach (var story in _recentStories)
+            {
+                <FluentCard Style="width: 300px; cursor: pointer;" @onclick="@(() => OpenStory(story.SlotName))">
+                    <FluentLabel Typo="Typography.H4">@story.DisplayName</FluentLabel>
+                    <FluentLabel>Genre: @story.GenreStyle</FluentLabel>
+                    <FluentLabel>Pages: @story.PageCount</FluentLabel>
+                    <FluentLabel Typo="Typography.Body">
+                        Modifié: @story.LastModified.ToString("dd/MM/yyyy")
+                    </FluentLabel>
+                </FluentCard>
+            }
+        </FluentStack>
+    }
+</FluentStack>
+
+@code {
+    private List<StoryEntry>? _recentStories;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var allStories = await LibraryService.ListStoriesAsync();
+        _recentStories = allStories.Take(6).ToList();
+    }
+
+    private void OpenStory(string slotName)
+    {
+        Navigation.NavigateTo($"/reader/{slotName}");
+    }
+}
