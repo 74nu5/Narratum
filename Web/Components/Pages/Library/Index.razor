@@ -5,12 +5,13 @@
 
 <PageTitle>Bibliothèque - Narratum</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-    <FluentLabel Typo="Typography.H2">📚 Bibliothèque d'histoires</FluentLabel>
-    
-    <FluentButton Appearance="Appearance.Accent" Href="/wizard">
-        ➕ Créer une nouvelle histoire
-    </FluentButton>
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
+        <FluentLabel Typo="Typography.H2">📚 Bibliothèque</FluentLabel>
+        <FluentButton Appearance="Appearance.Accent" Href="/wizard">
+            ➕ Nouvelle histoire
+        </FluentButton>
+    </FluentStack>
 
     @if (_stories == null)
     {
@@ -18,22 +19,35 @@
     }
     else if (!_stories.Any())
     {
-        <FluentMessageBar Intent="MessageIntent.Info">
-            Aucune histoire sauvegardée. Créez-en une nouvelle !
-        </FluentMessageBar>
+        <FluentCard>
+            <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
+                <FluentLabel Typo="Typography.H4">Aucune histoire</FluentLabel>
+                <FluentLabel>Créez votre première histoire pour commencer !</FluentLabel>
+                <FluentButton Appearance="Appearance.Accent" Href="/wizard" Style="margin-top: 16px;">
+                    ✨ Créer une histoire
+                </FluentButton>
+            </FluentStack>
+        </FluentCard>
     }
     else
     {
-        <FluentDataGrid Items="@_stories.AsQueryable()" GridTemplateColumns="1fr 200px 150px 150px 100px">
-            <PropertyColumn Property="@(s => s.DisplayName)" Title="Titre" />
-            <PropertyColumn Property="@(s => s.GenreStyle)" Title="Genre" />
-            <PropertyColumn Property="@(s => s.PageCount)" Title="Pages" />
-            <PropertyColumn Property="@(s => s.LastModified)" Title="Modifié le" Format="dd/MM/yyyy HH:mm" />
+        <FluentDataGrid Items="@_stories.AsQueryable()" GridTemplateColumns="2fr 1fr 1fr 1fr 250px" Style="width: 100%;">
+            <PropertyColumn Property="@(s => s.DisplayName ?? s.SlotName)" Title="Titre" Sortable="true" />
+            <PropertyColumn Property="@(s => s.GenreStyle)" Title="Genre" Sortable="true" />
+            <PropertyColumn Property="@(s => s.PageCount)" Title="Pages" Sortable="true" />
+            <PropertyColumn Property="@(s => s.LastModified)" Title="Modifiée" Format="g" Sortable="true" />
             <TemplateColumn Title="Actions">
-                <FluentButton Appearance="Appearance.Lightweight" 
-                              OnClick="@(() => OpenStory(context.SlotName))">
-                    Ouvrir
-                </FluentButton>
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                    <FluentButton Appearance="Appearance.Accent" @onclick="() => ContinueStory(context.SlotName)">
+                        ▶️ Continuer
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral" @onclick="() => ReadStory(context.SlotName)">
+                        📖 Lire
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Stealth" @onclick="() => DeleteStory(context.SlotName)">
+                        🗑️
+                    </FluentButton>
+                </FluentStack>
             </TemplateColumn>
         </FluentDataGrid>
     }
@@ -47,8 +61,20 @@
         _stories = await LibraryService.ListStoriesAsync();
     }
 
-    private void OpenStory(string slotName)
+    private void ContinueStory(string slotName)
+    {
+        Navigation.NavigateTo($"/generation/{slotName}");
+    }
+
+    private void ReadStory(string slotName)
     {
         Navigation.NavigateTo($"/reader/{slotName}");
     }
+
+    private async Task DeleteStory(string slotName)
+    {
+        await LibraryService.DeleteStoryAsync(slotName);
+        _stories = await LibraryService.ListStoriesAsync();
+    }
 }
+

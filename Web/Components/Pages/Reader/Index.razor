@@ -1,0 +1,94 @@
+@page "/reader/{SlotName}"
+@rendermode InteractiveServer
+@inject GenerationService GenService
+@inject NavigationManager Navigation
+@using Narratum.Web.Services
+
+<PageTitle>Lecture - Narratum</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+    <FluentLabel Typo="Typography.H2">📖 @SlotName</FluentLabel>
+
+    @* Current page *@
+    <FluentCard Style="min-height: 300px;">
+        @if (!string.IsNullOrEmpty(_currentNarrative))
+        {
+            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative</div>
+        }
+        else
+        {
+            <FluentLabel>Aucune page à afficher.</FluentLabel>
+        }
+    </FluentCard>
+
+    @* Navigation *@
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+        <FluentButton Appearance="Appearance.Neutral" @onclick="PreviousPage" Disabled="@(_currentPageIndex == 0)">
+            ← Page précédente
+        </FluentButton>
+        
+        <FluentLabel>Page @_currentPageIndex / @(_maxPage)</FluentLabel>
+        
+        <FluentButton Appearance="Appearance.Neutral" @onclick="NextPage" Disabled="@(_currentPageIndex >= _maxPage)">
+            Page suivante →
+        </FluentButton>
+        
+        <FluentSpacer />
+        
+        <FluentButton Appearance="Appearance.Neutral" Href="/">
+            ← Retour au dashboard
+        </FluentButton>
+    </FluentStack>
+
+    @* Error display *@
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    [Parameter] public string SlotName { get; set; } = string.Empty;
+
+    private int _currentPageIndex = 0;
+    private int _maxPage = 0;
+    private string _currentNarrative = string.Empty;
+    private string _errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var history = await GenService.GetPageHistoryAsync(SlotName);
+        if (history.Any())
+        {
+            _maxPage = history.Max();
+            _currentPageIndex = _maxPage;
+            await LoadCurrentPage();
+        }
+    }
+
+    private async Task LoadCurrentPage()
+    {
+        var pageResult = await GenService.LoadPageAsync(SlotName, _currentPageIndex);
+        pageResult.Match(
+            onSuccess: page => _currentNarrative = page.NarrativeText,
+            onFailure: error => _errorMessage = error);
+    }
+
+    private async Task PreviousPage()
+    {
+        if (_currentPageIndex > 0)
+        {
+            _currentPageIndex--;
+            await LoadCurrentPage();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (_currentPageIndex < _maxPage)
+        {
+            _currentPageIndex++;
+            await LoadCurrentPage();
+        }
+    }
+}

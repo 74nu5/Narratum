@@ -1,0 +1,141 @@
+@page "/generation/{SlotName}"
+@rendermode InteractiveServer
+@inject GenerationService GenService
+@inject NavigationManager Navigation
+@using Narratum.Web.Services
+
+<PageTitle>Génération - Narratum</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+    <FluentLabel Typo="Typography.H2">📖 @SlotName</FluentLabel>
+
+    @* Timeline *@
+    <FluentCard>
+        <FluentLabel Typo="Typography.H4">Timeline</FluentLabel>
+        <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
+            @foreach (var pageIdx in _pageHistory)
+            {
+                <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
+                              @onclick="() => LoadPage(pageIdx)">
+                    Page @pageIdx
+                </FluentButton>
+            }
+        </FluentStack>
+    </FluentCard>
+
+    @* Current page content *@
+    <FluentCard Style="min-height: 300px;">
+        @if (_isGenerating)
+        {
+            <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
+                <FluentProgressRing />
+                <FluentLabel>Génération en cours...</FluentLabel>
+            </FluentStack>
+        }
+        else if (!string.IsNullOrEmpty(_currentNarrative))
+        {
+            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative</div>
+        }
+        else
+        {
+            <FluentLabel>Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentLabel>
+        }
+    </FluentCard>
+
+    @* Intent input *@
+    <FluentCard>
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+            <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="3"
+                          Placeholder="Ex: Les personnages découvrent une porte secrète..." />
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage" 
+                            Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">
+                    ✨ Générer la suite
+                </FluentButton>
+                
+                <FluentButton Appearance="Appearance.Neutral" Href="/">
+                    ← Retour au dashboard
+                </FluentButton>
+            </FluentStack>
+        </FluentStack>
+    </FluentCard>
+
+    @* Error display *@
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    [Parameter] public string SlotName { get; set; } = string.Empty;
+
+    private List<int> _pageHistory = new();
+    private int _currentPageIndex = 0;
+    private string _currentNarrative = string.Empty;
+    private string _userIntent = string.Empty;
+    private bool _isGenerating = false;
+    private string _errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageHistory();
+        
+        // Load latest page if exists
+        if (_pageHistory.Any())
+        {
+            _currentPageIndex = _pageHistory.Max();
+            await LoadPage(_currentPageIndex);
+        }
+    }
+
+    private async Task LoadPageHistory()
+    {
+        _pageHistory = await GenService.GetPageHistoryAsync(SlotName);
+    }
+
+    private async Task LoadPage(int pageIndex)
+    {
+        _currentPageIndex = pageIndex;
+        
+        var pageResult = await GenService.LoadPageAsync(SlotName, pageIndex);
+        pageResult.Match(
+            onSuccess: page => _currentNarrative = page.NarrativeText,
+            onFailure: error => _errorMessage = error);
+    }
+
+    private async Task GenerateNextPage()
+    {
+        _isGenerating = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            var result = await GenService.GenerateNextPageAsync(SlotName, _userIntent);
+            
+            result.Match<int>(
+                onSuccess: pageInfo =>
+                {
+                    _currentNarrative = pageInfo.NarrativeText;
+                    _currentPageIndex = pageInfo.PageIndex;
+                    _userIntent = string.Empty; // Clear input
+                    return 0;
+                },
+                onFailure: error =>
+                {
+                    _errorMessage = error;
+                    return -1;
+                });
+            
+            await LoadPageHistory(); // Refresh timeline
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            _isGenerating = false;
+        }
+    }
+}

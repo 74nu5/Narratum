@@ -3,6 +3,7 @@ using Narratum.Persistence;
 using Narratum.Llm.DependencyInjection;
 using Narratum.Llm.Configuration;
 using Narratum.Web.Services;
+using Narratum.Orchestration.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FluentUI.AspNetCore.Components;
 
@@ -30,9 +31,14 @@ var llmConfig = new LlmClientConfig
 };
 builder.Services.AddNarratumLlm(llmConfig);
 
+// Add Narratum Orchestration
+builder.Services.AddScoped<FullOrchestrationService>();
+
 // Add Web Services
 builder.Services.AddScoped<StoryLibraryService>();
 builder.Services.AddScoped<ModelSelectionService>();
+builder.Services.AddScoped<GenerationService>();
+builder.Services.AddScoped<ExpertModeService>();
 
 var app = builder.Build();
 

@@ -1,0 +1,47 @@
+@using Narratum.Domain
+
+<FluentCard>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+        <FluentLabel Typo="Typography.Body">Ajoutez les personnages de votre histoire</FluentLabel>
+        
+        @foreach (var character in Characters)
+        {
+            <FluentCard Style="background-color: var(--neutral-layer-2);">
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                    <FluentTextField @bind-Value="character.Name" Label="Nom" Style="flex: 1;" />
+                    <FluentTextField @bind-Value="character.Description" Label="Description" Style="flex: 2;" />
+                    <FluentButton Appearance="Appearance.Stealth" @onclick="() => RemoveCharacter(character)">
+                        ❌
+                    </FluentButton>
+                </FluentStack>
+            </FluentCard>
+        }
+        
+        <FluentButton Appearance="Appearance.Outline" @onclick="AddCharacter">
+            ➕ Ajouter un personnage
+        </FluentButton>
+    </FluentStack>
+</FluentCard>
+
+@code {
+    [Parameter] public List<CharacterInput> Characters { get; set; } = new();
+    [Parameter] public EventCallback<List<CharacterInput>> CharactersChanged { get; set; }
+    
+    private void AddCharacter()
+    {
+        Characters.Add(new CharacterInput());
+        CharactersChanged.InvokeAsync(Characters);
+    }
+    
+    private void RemoveCharacter(CharacterInput character)
+    {
+        Characters.Remove(character);
+        CharactersChanged.InvokeAsync(Characters);
+    }
+    
+    public class CharacterInput
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+}

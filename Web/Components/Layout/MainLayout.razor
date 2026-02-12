@@ -1,5 +1,6 @@
 @using Narratum.Web.Components.Shared
 @inherits LayoutComponentBase
+@inject ExpertModeService ExpertMode
 
 <FluentLayout>
     <FluentHeader Style="padding: 0.5rem 1rem;">
@@ -10,6 +11,7 @@
             <FluentSpacer />
             <StorySwitcher />
             <FluentSpacer />
+            <FluentSwitch Label="🔧 Expert" @bind-Value="@ExpertMode.IsExpertModeEnabled" />
             <FluentButton Appearance="Appearance.Outline" Href="/config">
                 ⚙️ Config
             </FluentButton>

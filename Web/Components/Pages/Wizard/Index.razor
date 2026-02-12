@@ -1,51 +1,157 @@
 @page "/wizard"
 @rendermode InteractiveServer
+@using Narratum.Web.Components.Shared
+@using static Narratum.Web.Components.Shared.CharactersEditor
+@using static Narratum.Web.Components.Shared.LocationsEditor
+@inject NavigationManager Navigation
+@inject GenerationService GenService
 
 <PageTitle>Créer une histoire - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
     <FluentLabel Typo="Typography.H2">✨ Créer une nouvelle histoire</FluentLabel>
     
+    @* Step indicator *@
     <FluentCard>
-        <FluentLabel Typo="Typography.H4">Étape 1 : Informations de base</FluentLabel>
-        <FluentTextField @bind-Value="_storyName" Label="Nom de l'histoire" Required />
-        <FluentTextArea @bind-Value="_description" Label="Description" Rows="3" />
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+            @for (int i = 0; i < _stepTitles.Length; i++)
+            {
+                var stepIndex = i;
+                <FluentButton Appearance="@(stepIndex == _currentStep ? Appearance.Accent : Appearance.Neutral)"
+                              Disabled="@(stepIndex > _currentStep)"
+                              @onclick="() => _currentStep = stepIndex">
+                    @(stepIndex + 1). @_stepTitles[stepIndex]
+                </FluentButton>
+            }
+        </FluentStack>
     </FluentCard>
-
-    <FluentCard>
-        <FluentLabel Typo="Typography.H4">Étape 2 : Genre et style</FluentLabel>
-        <FluentSelect TOption="string" @bind-SelectedOption="_genre" Label="Genre">
-            <FluentOption Value="Fantasy">Fantasy</FluentOption>
-            <FluentOption Value="SciFi">Science-Fiction</FluentOption>
-            <FluentOption Value="Mystery">Mystère</FluentOption>
-            <FluentOption Value="Romance">Romance</FluentOption>
-        </FluentSelect>
-    </FluentCard>
-
-    <FluentCard>
-        <FluentLabel Typo="Typography.H4">Étape 3 : Configuration</FluentLabel>
-        <FluentNumberField @bind-Value="_maxPages" Label="Nombre de pages maximum" Min="1" Max="100" />
-    </FluentCard>
-
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
-        <FluentButton Appearance="Appearance.Accent" OnClick="CreateStory" Disabled="@string.IsNullOrWhiteSpace(_storyName)">
-            Créer l'histoire
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Neutral" Href="/">
-            Annuler
-        </FluentButton>
+    
+    @* Step content *@
+    <div>
+        @switch (_currentStep)
+        {
+            case 0: @* Monde *@
+                <WorldEditor @bind-WorldName="_worldName" @bind-WorldDescription="_worldDescription" />
+                break;
+                
+            case 1: @* Genre *@
+                <FluentCard>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                        <FluentSelect TOption="string" Label="Genre" @bind-Value="_genre">
+                            <FluentOption TOption="string" Value="Fantasy">Fantasy</FluentOption>
+                            <FluentOption TOption="string" Value="SciFi">Science-Fiction</FluentOption>
+                            <FluentOption TOption="string" Value="Mystery">Mystère</FluentOption>
+                            <FluentOption TOption="string" Value="Horror">Horreur</FluentOption>
+                            <FluentOption TOption="string" Value="Historical">Historique</FluentOption>
+                        </FluentSelect>
+                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="_narrativeStyle" Rows="3" 
+                                      Placeholder="Ex: Épique, sombre, humoristique..." />
+                    </FluentStack>
+                </FluentCard>
+                break;
+                
+            case 2: @* Personnages *@
+                <CharactersEditor @bind-Characters="_characters" />
+                break;
+                
+            case 3: @* Lieux *@
+                <LocationsEditor @bind-Locations="_locations" />
+                break;
+                
+            case 4: @* Résumé *@
+                <FluentCard>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                        <FluentLabel Typo="Typography.H4">📋 Récapitulatif</FluentLabel>
+                        <FluentLabel><strong>Monde :</strong> @_worldName</FluentLabel>
+                        <FluentLabel><strong>Description :</strong> @(_worldDescription ?? "Aucune")</FluentLabel>
+                        <FluentLabel><strong>Genre :</strong> @_genre</FluentLabel>
+                        <FluentLabel><strong>Style :</strong> @(_narrativeStyle ?? "Par défaut")</FluentLabel>
+                        <FluentLabel><strong>Personnages :</strong> @_characters.Count</FluentLabel>
+                        <FluentLabel><strong>Lieux :</strong> @_locations.Count</FluentLabel>
+                        
+                        @if (_characters.Count > 0)
+                        {
+                            <FluentLabel Typo="Typography.Body"><strong>Liste des personnages :</strong></FluentLabel>
+                            <ul>
+                                @foreach (var c in _characters)
+                                {
+                                    <li>@c.Name @(string.IsNullOrEmpty(c.Description) ? "" : $"- {c.Description}")</li>
+                                }
+                            </ul>
+                        }
+                    </FluentStack>
+                </FluentCard>
+                break;
+        }
+    </div>
+    
+    @* Navigation buttons *@
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" HorizontalAlignment="HorizontalAlignment.End">
+        <FluentButton Appearance="Appearance.Neutral" Href="/">Annuler</FluentButton>
+        
+        @if (_currentStep > 0)
+        {
+            <FluentButton Appearance="Appearance.Neutral" @onclick="PreviousStep">← Précédent</FluentButton>
+        }
+        
+        @if (_currentStep < _stepTitles.Length - 1)
+        {
+            <FluentButton Appearance="Appearance.Accent" @onclick="NextStep" Disabled="@(!CanProceed)">
+                Suivant →
+            </FluentButton>
+        }
+        else
+        {
+            <FluentButton Appearance="Appearance.Accent" @onclick="CreateStory" Disabled="@(!CanCreate)">
+                🚀 Créer l'histoire
+            </FluentButton>
+        }
     </FluentStack>
 </FluentStack>
 
 @code {
-    private string _storyName = string.Empty;
-    private string _description = string.Empty;
+    private readonly string[] _stepTitles = { "Monde", "Genre", "Personnages", "Lieux", "Résumé" };
+    private int _currentStep = 0;
+    
+    private string _worldName = string.Empty;
+    private string _worldDescription = string.Empty;
     private string _genre = "Fantasy";
-    private int _maxPages = 20;
-
-    private void CreateStory()
+    private string _narrativeStyle = string.Empty;
+    private List<CharacterInput> _characters = new();
+    private List<LocationInput> _locations = new();
+    
+    private bool CanProceed => _currentStep switch
     {
-        // TODO Phase 5.5: Implémenter création via service
-        // Pour l'instant, juste un placeholder
+        0 => !string.IsNullOrWhiteSpace(_worldName),
+        2 => _characters.Count > 0,
+        _ => true
+    };
+    
+    private bool CanCreate => !string.IsNullOrWhiteSpace(_worldName) && _characters.Count > 0;
+    
+    private void NextStep()
+    {
+        if (_currentStep < _stepTitles.Length - 1)
+            _currentStep++;
+    }
+    
+    private void PreviousStep()
+    {
+        if (_currentStep > 0)
+            _currentStep--;
+    }
+    
+    private async Task CreateStory()
+    {
+        var slotName = $"story-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        
+        // Create story via service
+        await GenService.CreateStoryAsync(
+            slotName,
+            _worldName,
+            _genre,
+            _characters.Select(c => c.Name).ToList());
+        
+        Navigation.NavigateTo($"/generation/{slotName}");
     }
 }

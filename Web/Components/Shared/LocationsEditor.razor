@@ -1,0 +1,47 @@
+@using Narratum.Domain
+
+<FluentCard>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+        <FluentLabel Typo="Typography.Body">Définissez les lieux de votre histoire</FluentLabel>
+        
+        @foreach (var location in Locations)
+        {
+            <FluentCard Style="background-color: var(--neutral-layer-2);">
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                    <FluentTextField @bind-Value="location.Name" Label="Nom du lieu" Style="flex: 1;" />
+                    <FluentTextField @bind-Value="location.Description" Label="Description" Style="flex: 2;" />
+                    <FluentButton Appearance="Appearance.Stealth" @onclick="() => RemoveLocation(location)">
+                        ❌
+                    </FluentButton>
+                </FluentStack>
+            </FluentCard>
+        }
+        
+        <FluentButton Appearance="Appearance.Outline" @onclick="AddLocation">
+            ➕ Ajouter un lieu
+        </FluentButton>
+    </FluentStack>
+</FluentCard>
+
+@code {
+    [Parameter] public List<LocationInput> Locations { get; set; } = new();
+    [Parameter] public EventCallback<List<LocationInput>> LocationsChanged { get; set; }
+    
+    private void AddLocation()
+    {
+        Locations.Add(new LocationInput());
+        LocationsChanged.InvokeAsync(Locations);
+    }
+    
+    private void RemoveLocation(LocationInput location)
+    {
+        Locations.Remove(location);
+        LocationsChanged.InvokeAsync(Locations);
+    }
+    
+    public class LocationInput
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+}

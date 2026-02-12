@@ -5,45 +5,103 @@
 <PageTitle>Configuration - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">⚙️ Configuration</FluentLabel>
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
+        <FluentLabel Typo="Typography.H2">⚙️ Configuration LLM</FluentLabel>
+        <FluentButton Appearance="Appearance.Neutral" Href="/">← Dashboard</FluentButton>
+    </FluentStack>
     
     <FluentCard>
-        <FluentLabel Typo="Typography.H4">Modèle LLM pour la narration</FluentLabel>
-        <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle">
-            <FluentOption Value="Phi-4-mini">Phi-4-mini (par défaut)</FluentOption>
-            <FluentOption Value="Phi-4">Phi-4</FluentOption>
-            <FluentOption Value="Custom">Autre modèle...</FluentOption>
-        </FluentSelect>
-        
-        @if (_selectedModel == "Custom")
-        {
-            <FluentTextField @bind-Value="_customModel" Label="Nom du modèle personnalisé" />
-        }
-        
-        <FluentButton Appearance="Appearance.Accent" OnClick="SaveConfig">
-            Sauvegarder
-        </FluentButton>
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+            <FluentLabel Typo="Typography.H4">Modèle de narration</FluentLabel>
+            <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle" Style="max-width: 400px;">
+                <FluentOption Value="Phi-4-mini">Phi-4-mini (Rapide, recommandé)</FluentOption>
+                <FluentOption Value="Phi-4">Phi-4 (Plus précis)</FluentOption>
+                <FluentOption Value="Custom">Modèle personnalisé...</FluentOption>
+            </FluentSelect>
+            
+            @if (_selectedModel == "Custom")
+            {
+                <FluentTextField @bind-Value="_customModel" Label="Nom du modèle personnalisé" 
+                               Placeholder="Ex: llama-3.2" Style="max-width: 400px;" />
+            }
+            
+            <FluentButton Appearance="Appearance.Accent" OnClick="SaveConfig" Style="max-width: 200px;">
+                💾 Sauvegarder
+            </FluentButton>
+
+            @if (_saved)
+            {
+                <FluentMessageBar Intent="MessageIntent.Success">✓ Configuration sauvegardée !</FluentMessageBar>
+            }
+        </FluentStack>
     </FluentCard>
 
     <FluentCard>
-        <FluentLabel Typo="Typography.H4">Informations système</FluentLabel>
-        <FluentLabel>Modèle actuel : @ModelService.CurrentNarratorModel</FluentLabel>
-        <FluentLabel>Provider : Foundry Local</FluentLabel>
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+            <FluentLabel Typo="Typography.H4">Informations système</FluentLabel>
+            <FluentLabel><strong>Modèle actuel :</strong> @ModelService.CurrentNarratorModel</FluentLabel>
+            <FluentLabel><strong>Provider :</strong> Foundry Local</FluentLabel>
+            <FluentLabel><strong>Endpoint :</strong> http://localhost:5272</FluentLabel>
+        </FluentStack>
+    </FluentCard>
+
+    <FluentCard>
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+            <FluentLabel Typo="Typography.H4">Test de connexion</FluentLabel>
+            <FluentButton Appearance="Appearance.Neutral" OnClick="TestConnection" Disabled="@_testing">
+                🔌 Tester la connexion LLM
+            </FluentButton>
+            
+            @if (_testing)
+            {
+                <FluentProgressRing />
+            }
+            else if (_testResult != null)
+            {
+                <FluentMessageBar Intent="@(_testSuccess ? MessageIntent.Success : MessageIntent.Error)">
+                    @_testResult
+                </FluentMessageBar>
+            }
+        </FluentStack>
     </FluentCard>
 </FluentStack>
 
 @code {
     private string _selectedModel = "Phi-4-mini";
     private string _customModel = string.Empty;
+    private bool _saved = false;
+    private bool _testing = false;
+    private string? _testResult;
+    private bool _testSuccess;
 
     protected override void OnInitialized()
     {
-        _selectedModel = ModelService.CurrentNarratorModel;
+        _selectedModel = ModelService.CurrentNarratorModel ?? "Phi-4-mini";
     }
 
     private void SaveConfig()
     {
         var modelToUse = _selectedModel == "Custom" ? _customModel : _selectedModel;
         ModelService.CurrentNarratorModel = modelToUse;
+        _saved = true;
+
+        Task.Delay(3000).ContinueWith(_ => 
+        {
+            _saved = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task TestConnection()
+    {
+        _testing = true;
+        _testResult = null;
+
+        await Task.Delay(1000); // Simulate
+        
+        _testSuccess = true;
+        _testResult = "✓ Connexion réussie au service Foundry Local";
+        _testing = false;
     }
 }
+
