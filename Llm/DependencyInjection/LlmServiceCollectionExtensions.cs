@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Narratum.Llm.Clients;
 using Narratum.Llm.Configuration;
 using Narratum.Llm.Factory;
 using Narratum.Orchestration.Llm;
@@ -23,13 +24,14 @@ public static class LlmServiceCollectionExtensions
         services.AddSingleton(config);
         services.TryAddSingleton<ILlmClientFactory, LlmClientFactory>();
         
-        // Register ILlmClient as a factory-created singleton
-        services.TryAddSingleton<ILlmClient>(sp =>
+        // Register ILlmClient as SCOPED to avoid blocking DI startup with async init
+        // Foundry Local initialization is LAZY and happens on first usage
+        services.TryAddScoped<ILlmClient>(sp =>
         {
             var factory = sp.GetRequiredService<ILlmClientFactory>();
-            // Note: CreateClientAsync is async, but DI requires sync factory
-            // We need to use a workaround or change the design
-            return factory.CreateClientAsync().GetAwaiter().GetResult();
+            // LAZY: CreateClientAsync will be called on first use
+            // DO NOT call .GetAwaiter().GetResult() here - it blocks app startup!
+            return new LazyLlmClient(factory);
         });
 
         return services;

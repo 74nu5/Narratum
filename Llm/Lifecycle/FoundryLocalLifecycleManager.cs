@@ -28,13 +28,14 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
     }
 
     /// <summary>
-    /// Initialise le SDK Foundry Local et démarre le service web.
+    /// Initialise le SDK Foundry Local et démarre le service web (LAZY).
+    /// Cette méthode est appelée automatiquement lors de la première utilisation.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         if (_initialized) return;
 
-        _logger.LogInformation("Initializing Foundry Local...");
+        _logger.LogInformation("Initializing Foundry Local (on first use)...");
 
         var foundryConfig = new Microsoft.AI.Foundry.Local.Configuration
         {
@@ -54,7 +55,7 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         _baseUrl = foundryConfig.Web.Urls;
         _initialized = true;
 
-        _logger.LogInformation("Foundry Local initialized at {BaseUrl}", _baseUrl);
+        _logger.LogInformation("Foundry Local initialized successfully at {BaseUrl}", _baseUrl);
     }
 
     public async Task<bool> IsRunningAsync(CancellationToken cancellationToken = default)

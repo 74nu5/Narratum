@@ -1,59 +1,198 @@
 using Microsoft.EntityFrameworkCore;
 using Narratum.Core;
+using Narratum.State;
+using Narratum.Orchestration.Services;
+using Narratum.Orchestration.Models;
 using Narratum.Persistence;
 
 namespace Narratum.Web.Services;
 
 /// <summary>
-/// STUB SERVICE - Will be implemented properly later.
-/// For now, just makes the Web project compile.
+/// Service for Blazor UI to interact with narrative generation.
+/// Wraps FullOrchestrationService and PersistenceService.
 /// </summary>
 public class GenerationService
 {
+    private readonly FullOrchestrationService _orchestrator;
+    private readonly ISnapshotService _snapshotService;
     private readonly NarrativumDbContext _dbContext;
 
-    public GenerationService(NarrativumDbContext dbContext)
+    public GenerationService(
+        FullOrchestrationService orchestrator,
+        ISnapshotService snapshotService,
+        NarrativumDbContext dbContext)
     {
+        _orchestrator = orchestrator;
+        _snapshotService = snapshotService;
         _dbContext = dbContext;
     }
 
-    public Task<Result<string>> CreateStoryAsync(
+    /// <summary>
+    /// Creates a new story slot in the database with initial state (page 0).
+    /// </summary>
+    public async Task<Result<string>> CreateStoryAsync(
         string slotName,
         string worldName,
         string genreStyle,
         List<string> characterNames,
         CancellationToken ct = default)
     {
-        // STUB - Not implemented yet
-        return Task.FromResult(Result<string>.Ok(slotName));
+        try
+        {
+            // Create initial state with characters
+            var worldId = Id.New();
+            var characterStates = characterNames.Select(name =>
+            {
+                var id = Id.New();
+                return new CharacterState(id, name);
+            }).ToArray();
+
+            var storyState = StoryState.Create(worldId, worldName)
+                .WithCharacters(characterStates);
+
+            // Create snapshot
+            var snapshot = _snapshotService.CreateSnapshot(storyState);
+
+            // Save initial page snapshot (page 0)
+            var pageSnapshot = new PageSnapshotEntity
+            {
+                Id = Guid.NewGuid(),
+                SlotName = slotName,
+                PageIndex = 0,
+                GeneratedAt = DateTime.UtcNow,
+                NarrativeText = $"Histoire créée: {worldName}\nGenre: {genreStyle}\nPersonnages: {string.Join(", ", characterNames)}",
+                SerializedState = snapshot.CharacterStatesData, // Store character states
+                IntentDescription = "Création initiale",
+                ModelUsed = "N/A",
+                GenreStyle = genreStyle
+            };
+
+            _dbContext.PageSnapshots.Add(pageSnapshot);
+            await _dbContext.SaveChangesAsync(ct);
+
+            return Result<string>.Ok(slotName);
+        }
+        catch (Exception ex)
+        {
+            return Result<string>.Fail($"Erreur création: {ex.Message}", ex);
+        }
     }
 
-    public Task<Result<PageInfo>> GenerateNextPageAsync(
+    /// <summary>
+    /// Generates next page using FullOrchestrationService.
+    /// </summary>
+    public async Task<Result<PageInfo>> GenerateNextPageAsync(
         string slotName,
         string intentDescription,
         CancellationToken ct = default)
     {
-        // STUB - Not implemented yet
-        return Task.FromResult(Result<PageInfo>.Fail("Génération non implémentée"));
+        try
+        {
+            // Load latest snapshot
+            var latest = await _dbContext.PageSnapshots
+                .Where(p => p.SlotName == slotName)
+                .OrderByDescending(p => p.PageIndex)
+                .FirstOrDefaultAsync(ct);
+
+            if (latest == null)
+                return Result<PageInfo>.Fail("Aucune histoire trouvée pour ce slot");
+
+            // Deserialize state - use simple approach since we're storing serialized state as string
+            var stateSnapshot = new Narratum.Persistence.StateSnapshot
+            {
+                SnapshotId = Guid.NewGuid(),
+                CreatedAt = latest.GeneratedAt,
+                WorldId = Guid.NewGuid(), // Temporary - will be extracted from state
+                NarrativeTime = 0,
+                TotalEventCount = 0,
+                CharacterStatesData = latest.SerializedState ?? "",
+                EventsData = "[]",
+                WorldStateData = latest.SerializedState ?? "",
+                SnapshotVersion = 1
+            };
+
+            var storyStateResult = _snapshotService.RestoreFromSnapshot(stateSnapshot);
+            
+            if (storyStateResult is not Result<StoryState>.Success successResult)
+                return Result<PageInfo>.Fail("Impossible de restaurer l'état de l'histoire");
+
+            var storyState = successResult.Value;
+
+            // Create intent
+            var intent = NarrativeIntent.Continue(intentDescription);
+
+            // Execute pipeline
+            var result = await _orchestrator.ExecuteCycleAsync(storyState, intent, ct);
+
+            return result.Match<Result<PageInfo>>(
+                onSuccess: pipelineResult =>
+                {
+                    if (!pipelineResult.IsSuccess || pipelineResult.Output == null)
+                        return Result<PageInfo>.Fail(pipelineResult.ErrorMessage ?? "Génération échouée");
+
+                    // Create new snapshot from updated state
+                    var newSnapshot = _snapshotService.CreateSnapshot(storyState);
+
+                    // Save new page snapshot
+                    var pageSnapshot = new PageSnapshotEntity
+                    {
+                        Id = Guid.NewGuid(),
+                        SlotName = slotName,
+                        PageIndex = latest.PageIndex + 1,
+                        GeneratedAt = DateTime.UtcNow,
+                        NarrativeText = pipelineResult.Output.NarrativeText,
+                        SerializedState = newSnapshot.CharacterStatesData, // Store character states as serialized state
+                        IntentDescription = intentDescription,
+                        ModelUsed = "Phi-4-mini",
+                        GenreStyle = latest.GenreStyle
+                    };
+
+                    _dbContext.PageSnapshots.Add(pageSnapshot);
+                    _dbContext.SaveChanges(); // Sync because we're in Result.Match
+
+                    return Result<PageInfo>.Ok(new PageInfo(
+                        pageSnapshot.PageIndex,
+                        pageSnapshot.NarrativeText,
+                        pageSnapshot.GeneratedAt));
+                },
+                onFailure: error => Result<PageInfo>.Fail(error));
+        }
+        catch (Exception ex)
+        {
+            return Result<PageInfo>.Fail($"Erreur génération: {ex.Message}", ex);
+        }
     }
 
+    /// <summary>
+    /// Loads a specific page from database.
+    /// </summary>
     public async Task<Result<PageInfo>> LoadPageAsync(
         string slotName,
         int pageIndex,
         CancellationToken ct = default)
     {
-        var snapshot = await _dbContext.PageSnapshots
-            .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
+        try
+        {
+            var snapshot = await _dbContext.PageSnapshots
+                .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
 
-        if (snapshot == null)
-            return Result<PageInfo>.Fail($"Page {pageIndex} introuvable");
+            if (snapshot == null)
+                return Result<PageInfo>.Fail($"Page {pageIndex} introuvable");
 
-        return Result<PageInfo>.Ok(new PageInfo(
-            snapshot.PageIndex,
-            snapshot.NarrativeText ?? "",
-            snapshot.GeneratedAt));
+            return Result<PageInfo>.Ok(new PageInfo(
+                snapshot.PageIndex,
+                snapshot.NarrativeText ?? "",
+                snapshot.GeneratedAt));
+        }
+        catch (Exception ex)
+        {
+            return Result<PageInfo>.Fail($"Erreur chargement: {ex.Message}", ex);
+        }
     }
 
+    /// <summary>
+    /// Gets timeline summary (all page indices).
+    /// </summary>
     public async Task<List<int>> GetPageHistoryAsync(
         string slotName,
         CancellationToken ct = default)
@@ -66,6 +205,9 @@ public class GenerationService
     }
 }
 
+/// <summary>
+/// Simple DTO for page information.
+/// </summary>
 public record PageInfo(
     int PageIndex,
     string NarrativeText,
