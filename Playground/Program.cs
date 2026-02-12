@@ -19,11 +19,12 @@ while (shouldContinue)
             .Title("[yellow]Quelle phase voulez-vous tester ?[/]")
             .PageSize(10)
             .MoreChoicesText("[grey](Utilisez les flèches pour naviguer)[/]")
-            .AddChoices(MenuChoice.Phase1And2, MenuChoice.Phase4, MenuChoice.Quit)
+            .AddChoices(MenuChoice.Phase1And2, MenuChoice.Phase4, MenuChoice.Phase5, MenuChoice.Quit)
             .UseConverter(choice => choice switch
             {
                 MenuChoice.Phase1And2 => "Phase 1 & 2 - Story Walkthrough + Memory System",
                 MenuChoice.Phase4 => "Phase 4 - LLM Integration (Foundry Local)",
+                MenuChoice.Phase5 => "Phase 5 - Full Narrative Generation (E2E Test)",
                 MenuChoice.Quit => "Quitter",
                 _ => choice.ToString()
             }));
@@ -43,6 +44,9 @@ while (shouldContinue)
                 break;
             case MenuChoice.Phase4:
                 await Phase4FoundryLocalDemo.RunAsync();
+                break;
+            case MenuChoice.Phase5:
+                await Phase5NarrativeGenerationDemo.RunAsync();
                 break;
         }
 
@@ -66,5 +70,6 @@ enum MenuChoice
 {
     Phase1And2,
     Phase4,
+    Phase5,
     Quit
 }
