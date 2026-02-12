@@ -204,9 +204,60 @@ public class SnapshotService : ISnapshotService
     /// </summary>
     private static Dictionary<Id, CharacterState> DeserializeCharacterStates(string data)
     {
-        // Pour la Phase 1.5, retourner un dictionnaire vide
-        // En Phase 2+, implémenter la désérialisation complète
-        return new Dictionary<Id, CharacterState>();
+        if (string.IsNullOrWhiteSpace(data))
+            return new Dictionary<Id, CharacterState>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(data);
+            var root = doc.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Array)
+                return new Dictionary<Id, CharacterState>();
+
+            var states = new Dictionary<Id, CharacterState>();
+            
+            foreach (var item in root.EnumerateArray())
+            {
+                var characterIdGuid = Guid.Parse(item.GetProperty("characterId").GetString()!);
+                var characterId = new Id(characterIdGuid);
+                var name = item.GetProperty("name").GetString()!;
+                var vitalStatusString = item.GetProperty("vitalStatus").GetString()!;
+                var vitalStatus = Enum.Parse<VitalStatus>(vitalStatusString);
+                
+                Id? currentLocationId = null;
+                if (item.TryGetProperty("currentLocationId", out var locIdElement) && 
+                    locIdElement.ValueKind == JsonValueKind.String)
+                {
+                    var locIdGuid = Guid.Parse(locIdElement.GetString()!);
+                    currentLocationId = new Id(locIdGuid);
+                }
+
+                var knownFacts = new HashSet<string>();
+                if (item.TryGetProperty("knownFacts", out var factsElement) && 
+                    factsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var fact in factsElement.EnumerateArray())
+                    {
+                        knownFacts.Add(fact.GetString()!);
+                    }
+                }
+
+                var charState = new CharacterState(characterId, name, vitalStatus, currentLocationId)
+                {
+                    KnownFacts = knownFacts.AsReadOnly()
+                };
+                
+                states[characterId] = charState;
+            }
+            
+            return states;
+        }
+        catch
+        {
+            // En cas d'erreur de désérialisation, retourner un dictionnaire vide
+            return new Dictionary<Id, CharacterState>();
+        }
     }
 
     /// <summary>
@@ -214,9 +265,30 @@ public class SnapshotService : ISnapshotService
     /// </summary>
     private static List<Event> DeserializeEvents(string data)
     {
-        // Pour la Phase 1.5, retourner une liste vide
-        // En Phase 2+, implémenter la désérialisation complète
-        return new List<Event>();
+        if (string.IsNullOrWhiteSpace(data))
+            return new List<Event>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(data);
+            var root = doc.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Array)
+                return new List<Event>();
+
+            // NOTE: La sérialisation actuelle (SerializeEvents) ne stocke que id, type, timestamp
+            // Pas les ActorIds, LocationId, ou Data. C'est une limitation de Phase 1.5.
+            // Pour une vraie restauration, il faudrait enrichir SerializeEvents.
+            // Pour l'instant, on retourne une liste vide plutôt que de crash.
+            
+            // TODO Phase 2+: Implémenter la désérialisation complète quand SerializeEvents sera enrichie
+            // avec ActorIds, LocationId, Data pour chaque type d'événement
+            return new List<Event>();
+        }
+        catch
+        {
+            return new List<Event>();
+        }
     }
 
     /// <summary>
@@ -224,10 +296,50 @@ public class SnapshotService : ISnapshotService
     /// </summary>
     private static WorldState DeserializeWorldState(string data)
     {
-        // Pour la Phase 1.5, créer un WorldState minimal
-        // En Phase 2+, implémenter la désérialisation complète
-        var world = new StoryWorld(name: "Restored World");
-        return new WorldState(worldId: world.Id, worldName: world.Name);
+        if (string.IsNullOrWhiteSpace(data))
+        {
+            // Fallback : créer un WorldState minimal
+            var world = new StoryWorld(name: "Restored World");
+            return new WorldState(worldId: world.Id, worldName: world.Name);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(data);
+            var root = doc.RootElement;
+
+            var worldIdGuid = Guid.Parse(root.GetProperty("worldId").GetString()!);
+            var worldId = new Id(worldIdGuid);
+            
+            var narrativeTimeTicks = root.GetProperty("narrativeTime").GetInt64();
+            var narrativeTime = new DateTime(narrativeTimeTicks);
+            
+            var totalEventCount = root.GetProperty("totalEventCount").GetInt32();
+            
+            Id? currentChapterId = null;
+            if (root.TryGetProperty("currentChapterId", out var chapterElement) && 
+                chapterElement.ValueKind == JsonValueKind.String)
+            {
+                var chapterGuid = Guid.Parse(chapterElement.GetString()!);
+                currentChapterId = new Id(chapterGuid);
+            }
+
+            // Créer le WorldState avec les données désérialisées
+            // Note: WorldName n'est pas sérialisé dans SerializeWorldState actuel
+            var worldState = new WorldState(worldId, "Restored World", narrativeTime)
+            {
+                TotalEventCount = totalEventCount,
+                CurrentChapterId = currentChapterId
+            };
+
+            return worldState;
+        }
+        catch
+        {
+            // En cas d'erreur, retourner un WorldState minimal
+            var world = new StoryWorld(name: "Restored World");
+            return new WorldState(worldId: world.Id, worldName: world.Name);
+        }
     }
 
     /// <summary>

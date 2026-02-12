@@ -1,0 +1,21 @@
+@* Composant de sélection rapide d'histoire dans le header *@
+<FluentSelect TOption="string" 
+              Items="@AvailableStories"
+              @bind-SelectedOption="@CurrentStory"
+              Placeholder="Sélectionner une histoire..."
+              Style="min-width: 200px;">
+    <OptionTemplate Context="story">
+        @story
+    </OptionTemplate>
+</FluentSelect>
+
+@code {
+    private string? CurrentStory { get; set; }
+    private List<string> AvailableStories { get; set; } = new() { "Histoire 1", "Histoire 2" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO Phase 5.3: Charger depuis PersistenceService
+        await Task.CompletedTask;
+    }
+}

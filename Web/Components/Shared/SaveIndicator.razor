@@ -1,0 +1,22 @@
+@* Indicateur d'état de sauvegarde dans le footer *@
+<FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+    @if (IsSaving)
+    {
+        <FluentProgressRing Style="width: 16px; height: 16px;" />
+        <FluentLabel Typo="Typography.Body">Sauvegarde en cours...</FluentLabel>
+    }
+    else if (SaveError)
+    {
+        <FluentLabel Typo="Typography.Body" Color="Color.Error">❌ Erreur de sauvegarde</FluentLabel>
+    }
+    else if (LastSaveTime.HasValue)
+    {
+        <FluentLabel Typo="Typography.Body" Color="Color.Success">✓ Sauvegardé à @LastSaveTime.Value.ToString("HH:mm:ss")</FluentLabel>
+    }
+</FluentStack>
+
+@code {
+    [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public bool SaveError { get; set; }
+    [Parameter] public DateTime? LastSaveTime { get; set; }
+}

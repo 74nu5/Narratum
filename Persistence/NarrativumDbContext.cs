@@ -29,6 +29,12 @@ public class NarrativumDbContext : DbContext
     public DbSet<SaveSlotMetadata> SaveSlots { get; set; } = null!;
 
     /// <summary>
+    /// Table des snapshots de pages pour navigation temporelle.
+    /// Chaque page générée crée une entrée ici.
+    /// </summary>
+    public DbSet<PageSnapshotEntity> PageSnapshots { get; set; } = null!;
+
+    /// <summary>
     /// Configure le modèle EF Core et les relations.
     /// </summary>
     /// <param name="modelBuilder">Builder pour configurer le modèle</param>
@@ -77,6 +83,32 @@ public class NarrativumDbContext : DbContext
         modelBuilder.Entity<SaveSlotMetadata>()
             .Property(m => m.CurrentChapterId)
             .IsRequired();
+
+        // Configuration de PageSnapshotEntity
+        modelBuilder.Entity<PageSnapshotEntity>()
+            .HasKey(p => p.Id);
+
+        modelBuilder.Entity<PageSnapshotEntity>()
+            .Property(p => p.SlotName)
+            .IsRequired()
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<PageSnapshotEntity>()
+            .Property(p => p.PageIndex)
+            .IsRequired();
+
+        modelBuilder.Entity<PageSnapshotEntity>()
+            .Property(p => p.GeneratedAt)
+            .IsRequired();
+
+        modelBuilder.Entity<PageSnapshotEntity>()
+            .Property(p => p.SerializedState)
+            .IsRequired();
+
+        // Index composite sur (SlotName, PageIndex) pour requêtes efficaces
+        modelBuilder.Entity<PageSnapshotEntity>()
+            .HasIndex(p => new { p.SlotName, p.PageIndex })
+            .IsUnique();
     }
 
     /// <summary>

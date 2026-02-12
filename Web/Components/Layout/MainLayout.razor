@@ -1,0 +1,46 @@
+@using Narratum.Web.Components.Shared
+@inherits LayoutComponentBase
+
+<FluentLayout>
+    <FluentHeader Style="padding: 0.5rem 1rem;">
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Start" VerticalAlignment="VerticalAlignment.Center">
+            <FluentLabel Typo="Typography.H3" Style="cursor: pointer;" @onclick="@(() => NavigationManager.NavigateTo("/"))">
+                ✨ Narratum
+            </FluentLabel>
+            <FluentSpacer />
+            <StorySwitcher />
+            <FluentSpacer />
+            <FluentButton Appearance="Appearance.Outline" Href="/config">
+                ⚙️ Config
+            </FluentButton>
+        </FluentStack>
+    </FluentHeader>
+    
+    <FluentBodyContent Style="padding: 2rem;">
+        <div class="page">
+            <main>
+                @Body
+            </main>
+        </div>
+    </FluentBodyContent>
+    
+    <FluentFooter Style="padding: 1rem; border-top: 1px solid var(--neutral-stroke-divider-rest);">
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
+            <FluentLabel Typo="Typography.Body">Narratum - Générateur d'histoires déterministe</FluentLabel>
+            <SaveIndicator IsSaving="@_isSaving" SaveError="@_saveError" LastSaveTime="@_lastSaveTime" />
+        </FluentStack>
+    </FluentFooter>
+</FluentLayout>
+
+<FluentToastProvider />
+<FluentDialogProvider />
+<FluentTooltipProvider />
+<FluentMessageBarProvider />
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    private bool _isSaving = false;
+    private bool _saveError = false;
+    private DateTime? _lastSaveTime = DateTime.Now;
+}

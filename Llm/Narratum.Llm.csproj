@@ -7,7 +7,8 @@
     <RootNamespace>Narratum.Llm</RootNamespace>
     <AssemblyName>Narratum.Llm</AssemblyName>
     <!-- Requis par Microsoft.AI.Foundry.Local (dépendances natives ONNX Runtime) -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Utilisation de RuntimeIdentifiers (pluriel) pour supporter les projets parents -->
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

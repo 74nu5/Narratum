@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- Requis car Llm référence des dépendances natives (Foundry Local / ONNX Runtime) -->
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Project references -->
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\Domain\Narratum.Domain.csproj" />
+    <ProjectReference Include="..\State\Narratum.State.csproj" />
+    <ProjectReference Include="..\Persistence\Narratum.Persistence.csproj" />
+    <ProjectReference Include="..\Memory\Narratum.Memory.csproj" />
+    <ProjectReference Include="..\Orchestration\Narratum.Orchestration.csproj" />
+    <ProjectReference Include="..\Llm\Narratum.Llm.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Microsoft Fluent UI Blazor -->
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.13.0" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.13.0" />
+  </ItemGroup>
+
+</Project>
