@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Narratum.Core;
 using Narratum.State;
@@ -52,6 +53,9 @@ public class GenerationService
 
             // Create snapshot
             var snapshot = _snapshotService.CreateSnapshot(storyState);
+            
+            // Serialize complete snapshot as JSON
+            var serializedSnapshot = JsonSerializer.Serialize(snapshot);
 
             // Save initial page snapshot (page 0)
             var pageSnapshot = new PageSnapshotEntity
@@ -61,7 +65,7 @@ public class GenerationService
                 PageIndex = 0,
                 GeneratedAt = DateTime.UtcNow,
                 NarrativeText = $"Histoire créée: {worldName}\nGenre: {genreStyle}\nPersonnages: {string.Join(", ", characterNames)}",
-                SerializedState = snapshot.CharacterStatesData, // Store character states
+                SerializedState = serializedSnapshot, // Complete StateSnapshot as JSON
                 IntentDescription = "Création initiale",
                 ModelUsed = "N/A",
                 GenreStyle = genreStyle
@@ -97,19 +101,9 @@ public class GenerationService
             if (latest == null)
                 return Result<PageInfo>.Fail("Aucune histoire trouvée pour ce slot");
 
-            // Deserialize state - use simple approach since we're storing serialized state as string
-            var stateSnapshot = new Narratum.Persistence.StateSnapshot
-            {
-                SnapshotId = Guid.NewGuid(),
-                CreatedAt = latest.GeneratedAt,
-                WorldId = Guid.NewGuid(), // Temporary - will be extracted from state
-                NarrativeTime = 0,
-                TotalEventCount = 0,
-                CharacterStatesData = latest.SerializedState ?? "",
-                EventsData = "[]",
-                WorldStateData = latest.SerializedState ?? "",
-                SnapshotVersion = 1
-            };
+            // Deserialize StateSnapshot from JSON
+            var stateSnapshot = JsonSerializer.Deserialize<Narratum.Persistence.StateSnapshot>(latest.SerializedState)
+                ?? throw new InvalidOperationException("Failed to deserialize StateSnapshot");
 
             var storyStateResult = _snapshotService.RestoreFromSnapshot(stateSnapshot);
             
@@ -132,6 +126,9 @@ public class GenerationService
 
                     // Create new snapshot from updated state
                     var newSnapshot = _snapshotService.CreateSnapshot(storyState);
+                    
+                    // Serialize complete snapshot as JSON
+                    var serializedSnapshot = JsonSerializer.Serialize(newSnapshot);
 
                     // Save new page snapshot
                     var pageSnapshot = new PageSnapshotEntity
@@ -141,7 +138,7 @@ public class GenerationService
                         PageIndex = latest.PageIndex + 1,
                         GeneratedAt = DateTime.UtcNow,
                         NarrativeText = pipelineResult.Output.NarrativeText,
-                        SerializedState = newSnapshot.CharacterStatesData, // Store character states as serialized state
+                        SerializedState = serializedSnapshot, // Complete StateSnapshot as JSON
                         IntentDescription = intentDescription,
                         ModelUsed = "Phi-4-mini",
                         GenreStyle = latest.GenreStyle
