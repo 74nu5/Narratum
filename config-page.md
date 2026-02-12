@@ -1,0 +1,57 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e5]:
+      - heading "✨ Narratum" [level=3] [ref=e6] [cursor=pointer]
+      - combobox [ref=e7]:
+        - generic [ref=e9] [cursor=pointer]:
+          - generic [ref=e10]: Sélectionner une histoire...
+          - img [ref=e13]
+        - generic: Histoire 1
+        - generic: Histoire 2
+      - switch "🔧 Expert" [ref=e15]:
+        - generic [ref=e16] [cursor=pointer]:
+          - generic: 🔧 Expert
+        - img [ref=e19] [cursor=pointer]
+      - button "⚙️ Config" [ref=e22] [cursor=pointer]:
+        - generic:
+          - generic: ⚙️ Config
+  - main [ref=e25]:
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - heading "⚙️ Configuration LLM" [level=2] [ref=e66]
+        - button "← Dashboard" [ref=e68] [cursor=pointer]:
+          - generic:
+            - generic: ← Dashboard
+      - generic [ref=e70]:
+        - heading "Modèle de narration" [level=4] [ref=e71]
+        - generic "Modèle" [ref=e72] [cursor=pointer]
+        - combobox "Modèle" [ref=e73]:
+          - generic [ref=e75] [cursor=pointer]:
+            - generic [ref=e76]: Phi-4-mini (Rapide, recommandé)
+            - img [ref=e79]
+          - generic: Phi-4-mini (Rapide, recommandé)
+          - generic: Phi-4 (Plus précis)
+          - generic: Modèle personnalisé...
+        - button "💾 Sauvegarder" [ref=e82] [cursor=pointer]:
+          - generic:
+            - generic: 💾 Sauvegarder
+      - generic [ref=e84]:
+        - heading "Informations système" [level=4] [ref=e85]
+        - paragraph [ref=e86]:
+          - strong [ref=e87]: "Modèle actuel :"
+          - text: Phi-4-mini
+        - paragraph [ref=e88]:
+          - strong [ref=e89]: "Provider :"
+          - text: Foundry Local
+        - paragraph [ref=e90]:
+          - strong [ref=e91]: "Endpoint :"
+          - text: http://localhost:5272
+      - generic [ref=e93]:
+        - heading "Test de connexion" [level=4] [ref=e94]
+        - button "🔌 Tester la connexion LLM" [ref=e96] [cursor=pointer]:
+          - generic:
+            - generic: 🔌 Tester la connexion LLM
+  - contentinfo [ref=e59]:
+    - generic [ref=e60]:
+      - paragraph [ref=e61]: Narratum - Générateur d'histoires déterministe
+      - paragraph [ref=e63]: ✓ Sauvegardé à 11:20:51
