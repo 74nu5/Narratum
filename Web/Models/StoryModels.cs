@@ -1,6 +1,17 @@
 namespace Narratum.Web.Models;
 
 /// <summary>
+/// Données collectées par le Wizard pour créer une nouvelle histoire.
+/// </summary>
+public record StoryCreationRequest(
+    string WorldName,
+    string GenreStyle,
+    List<(string Name, string? Description)> Characters,
+    string? WorldDescription = null,
+    string? NarrativeStyle = null,
+    List<(string Name, string? Description)>? Locations = null);
+
+/// <summary>
 /// Métadonnées d'une histoire pour la liste/bibliothèque.
 /// </summary>
 public record StoryEntry

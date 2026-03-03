@@ -7,7 +7,7 @@
 <PageTitle>Génération - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">📖 @SlotName</FluentLabel>
+    <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
 
     @* Timeline *@
     <FluentCard>
@@ -53,7 +53,7 @@
                     ✨ Générer la suite
                 </FluentButton>
                 
-                <FluentButton Appearance="Appearance.Neutral" Href="/">
+                <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> 
                     ← Retour au dashboard
                 </FluentButton>
             </FluentStack>
@@ -76,9 +76,11 @@
     private string _userIntent = string.Empty;
     private bool _isGenerating = false;
     private string _errorMessage = string.Empty;
+    private string _displayTitle = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
+        _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
         await LoadPageHistory();
         
         // Load latest page if exists

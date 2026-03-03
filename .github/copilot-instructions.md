@@ -1,267 +1,195 @@
 # Narratum - GitHub Copilot Instructions
 
-Narratum is a deterministic narrative engine built in .NET 10 following hexagonal architecture principles. The project evolves in strict phases, building solid foundations before adding AI features.
+Narratum is a deterministic narrative engine built in .NET 10 following hexagonal architecture principles. It has a Blazor Server UI, a local-LLM integration layer (Foundry Local / Ollama), and a multi-agent orchestration pipeline. **Phases 1–5 are complete** (894 tests passing).
 
 ## Build, Test, and Lint Commands
 
-### Build
 ```bash
 # Build entire solution
 dotnet build Narratum.sln -c Debug
 
-# Build specific project
-dotnet build Core -c Debug
-dotnet build Memory -c Debug
-dotnet build Orchestration -c Debug
-```
-
-### Test
-```bash
 # Run all tests
-dotnet test
+dotnet test Narratum.sln -c Debug --no-build
 
-# Run specific test project
+# Run a specific test project
 dotnet test Tests -c Debug --no-build
 dotnet test Memory.Tests -c Debug --no-build
 dotnet test Orchestration.Tests -c Debug --no-build
+dotnet test Llm.Tests -c Debug --no-build
 
-# Run specific test class
+# Run a specific test class
 dotnet test Memory.Tests --filter "FactExtractorServiceTests" -c Debug --no-build
 
-# Run specific test method
+# Run a specific test method
 dotnet test Tests --filter "ExtractFromEvent_IsDeterministic_SameFacts" -c Debug --no-build
-
-# Run with verbose output
-dotnet test -v normal
 ```
 
-### Code Quality
-- **TreatWarningsAsErrors**: `true` - The build will fail on any warning
-- **EnforceCodeStyleInBuild**: `true` - Code style is enforced at build time
-- **AnalysisLevel**: `latest` - Using latest code analyzers
-- No separate linting command - analysis runs during build
+**Code Quality** — no separate lint step; analysis runs during build:
+- `TreatWarningsAsErrors=true` — build fails on any warning
+- `EnforceCodeStyleInBuild=true` — code style enforced at build time
+- `AnalysisLevel=latest` — latest Roslyn analyzers active
 
 ## High-Level Architecture
 
-### Hexagonal Architecture (Ports & Adapters)
+### Module Dependency Graph
 
-The project follows strict layered architecture with concentric circles:
+Dependencies flow **inward toward Core only** — never outward, never circular:
 
 ```
-Tests → Simulation → Rules → State → Domain → Core
-Tests → Persistence → State, Domain
+Web → Orchestration, Persistence, Memory
+Llm → Orchestration                         (Llm depends on Orchestration.Stages for AgentType)
 Orchestration → Memory, Domain, Core
+Memory → Domain, Core
+Simulation → Rules → State → Domain → Core
+Persistence → State, Domain, Core
+Tests / *.Tests → all modules under test
 ```
 
-**Core (Center)**
-- Pure abstractions and interfaces
-- Zero dependencies
-- Contains: `Id`, `DomainEvent`, `Result<T>`, `IRepository`, `IStoryRule`
+### Modules
 
-**Domain**
-- Business logic
-- Events: `CharacterDeathEvent`, `CharacterMovedEvent`, `CharacterEncounterEvent`
-- Entities: Characters, Locations, Relationships
+| Module | Responsibility |
+|---|---|
+| **Core** | Pure abstractions — `Id`, `DomainEvent`, `Result<T>`, `IRepository`, `IStoryRule`. Zero dependencies. |
+| **Domain** | Business entities & events — `Character`, `Location`, `CharacterDeathEvent`, `CharacterMovedEvent`, etc. |
+| **State** | Immutable world/character/story state snapshots and transitions. |
+| **Rules** | 9 deterministic narrative rules (e.g., `CharacterMustBeAliveRule`, `TimeMonotonicityRule`). |
+| **Simulation** | Orchestrates the simulation loop — time progression, event dispatch. |
+| **Persistence** | EF Core + SQLite. `SnapshotService` saves/loads world state. `PageSnapshotEntity` stores generated pages. |
+| **Memory** | Fact extraction from events, canonical memory store, 4-level hierarchical summaries. LLM-free. |
+| **Orchestration** | Multi-agent pipeline — `NarratorAgent`, `CharacterAgent`, `SummaryAgent`, `ConsistencyAgent`. The application controls flow; LLMs are generation engines. |
+| **Llm** | `ILlmClient` abstraction over `IChatClient` (Microsoft.Extensions.AI). Supports Foundry Local and Ollama. |
+| **Web** | Blazor Server UI — wizard, generation page, reader, story library, config, expert mode. |
 
-**State**
-- Immutable state management
-- State transitions and snapshots
-- No mutations - only replacements
+### Data Flow (Generation)
 
-**Rules**
-- Narrative rule engine
-- 9 rules validating story consistency (e.g., `CharacterMustBeAliveRule`, `TimeMonotonicityRule`)
-- All rules are deterministic and composable
-
-**Simulation**
-- Orchestrates simulation execution
-- Manages time progression
-- Coordinates modules
-
-**Persistence**
-- EF Core with SQLite
-- Serialization/deserialization
-- State saving/loading
-
-**Memory** (Phase 2+)
-- Fact extraction from events
-- Canonical memory store
-- Temporal tracking
-
-**Orchestration** (Phase 2+)
-- Multi-agent pipeline
-- Specialized agents: Narrator, Character, Summary, Consistency
-- Prompt generation
-
-### Module Dependencies
-
-**Never create circular dependencies.** Dependencies flow inward toward Core:
-- Outer layers can depend on inner layers
-- Inner layers never depend on outer layers
-- Domain knows nothing about Persistence, Simulation, or Rules
-- Core has zero dependencies on anything
-
-### Data Flow
-
-1. Inputs (commands, events) → Ports
-2. Simulation orchestrates processing
-3. Rules evaluate applicable rules
-4. State updated immutably
-5. Results persisted via Persistence adapters
-6. Outputs returned via ports
+```
+Web (Blazor) → GenerationService → Orchestration Pipeline
+  → ContextBuilder (Memory facts + State)
+  → PromptBuilder (deterministic prompt assembly)
+  → AgentExecutor → LlmClientFactory → IChatClient (local model)
+  → OutputValidator → StateIntegrator
+  → Persistence (PageSnapshotEntity auto-save)
+```
 
 ## Key Conventions
 
 ### Determinism is Mandatory
 
-**All operations must be deterministic** - same inputs always produce same outputs:
+**Same inputs must always produce same outputs** in all non-LLM code:
 
-- ❌ Never use unseeded random generators
-- ❌ Never access system clock directly in business logic
-- ❌ Never rely on non-deterministic external I/O in domain layer
-- ✅ Use seeded random via `Random(seed)` when needed
-- ✅ Pass timestamps as parameters
-- ✅ Ensure collection ordering is stable (OrderBy, stable sorts)
+- ❌ No unseeded random generators
+- ❌ No direct `DateTime.Now` / `DateTime.UtcNow` in business logic — pass timestamps as parameters
+- ❌ No non-deterministic collection ordering — use `OrderBy` with stable keys
+- ✅ `Random(seed)` when randomness is needed
 
-**Testing determinism:**
+Always write an explicit determinism test for any new service:
 ```csharp
-// Always verify deterministic operations
 var result1 = service.Process(input);
 var result2 = service.Process(input);
-Assert.Equal(result1, result2); // Must be identical
+result1.Should().BeEquivalentTo(result2);
 ```
 
 ### Immutability
 
-**State is never modified, only replaced:**
+State is **never mutated, only replaced**:
 
 ```csharp
-// ❌ Wrong - mutation
+// ❌ Wrong
 state.Characters.Add(newCharacter);
 
-// ✅ Correct - replacement
-var newState = state with { 
-    Characters = state.Characters.Append(newCharacter).ToImmutableList() 
+// ✅ Correct
+var newState = state with {
+    Characters = state.Characters.Append(newCharacter).ToImmutableList()
 };
+```
+
+`CharacterState` and `WorldState` are records — use `Func<T, T>` not `Action<T>` for modifications.
+
+### Result<T> Pattern
+
+`Result<T>` uses discriminated union pattern matching — there is **no `.IsSuccess` or `.Error` property**:
+
+```csharp
+// ✅ Correct — use Match or switch expression
+var output = result.Match(
+    onSuccess: value => value.ToString(),
+    onFailure: msg => $"Error: {msg}"
+);
+
+// Or pattern match
+if (result is Result<T>.Success s) { ... }
+if (result is Result<T>.Failure f) { ... }
 ```
 
 ### ID System
 
-IDs are typed records wrapping Guid:
+`Id` is a typed record wrapping `Guid`, not a string:
 
 ```csharp
-// ✅ Correct
 var id = new Id(Guid.NewGuid());
-var guidString = id.Value.ToString();
-
-// ❌ Wrong - Id is not a string
-var id = new Id("some-string");
+var guidString = id.Value.ToString();   // ✅ Id.Value is Guid
 ```
 
-When using entity name maps (e.g., in Memory module):
+Entity name map keys are `Guid.ToString()`:
 ```csharp
-// ✅ Correct - key is Guid.ToString()
-EntityNameMap: new Dictionary<string, string>
-{
-    { characterGuid.ToString(), "Aric" }
-}
-
-// For name resolution
+EntityNameMap: new Dictionary<string, string> { { characterGuid.ToString(), "Aric" } }
 var name = context.GetEntityName(event.ActorIds[0].Value.ToString());
 ```
 
-### No AI/LLM in Phase 1
+### Llm Module
 
-Phase 1 (current) is **deliberately LLM-free:**
+`LlmClientConfig` is a **sealed record** (immutable). Registered as singleton. To change the model at runtime use `IModelResolver`, not mutation.
 
-- ❌ No LangChain, Semantic Kernel, or similar frameworks
-- ❌ No calls to OpenAI, Anthropic, or other LLM APIs
-- ✅ Pure algorithmic narrative engine
-- ✅ AI integration comes in Phase 4-5
+`LlmClientFactory` implements **`IAsyncDisposable` only** — always `await using`, never `using`:
+```csharp
+await using var factory = new LlmClientFactory(config);  // ✅
+using var factory = new LlmClientFactory(config);          // ❌ IDISP001/IDISP003 error
+```
 
-### Project Structure Conventions
+`LlmProviderType` supports `FoundryLocal` and `Ollama`. Model is resolved per `AgentType` via `LlmClientConfig.ResolveModel(agentType)` with priority: `NarratorModel` > `AgentModelMapping` > `DefaultModel`.
 
-- Each module is a separate project under solution folders
-- Tests are colocated: `Tests/`, `Memory.Tests/`, `Orchestration.Tests/`
-- Use `Directory.Build.props` for shared build settings
-- XML documentation required for public APIs (warning suppression via NoWarn 1591)
+When working with `Microsoft.Extensions.AI` (version 10.2.0), `ChatResponse.Usage` is of type `UsageDetails` (not `ChatResponseUsage`).
 
-### Code Style
+### Orchestration Philosophy
 
-- **Nullable reference types**: Enabled globally
-- **Implicit usings**: Enabled
-- **Latest C# language features**: Use them
-- **File-scoped namespaces**: Preferred
-- **Record types**: Use for immutable data (events, value objects)
-- **FluentAssertions**: Use in tests for better readability
+**The application orchestrates, not the LLM:**
+- All business logic stays in Core/Domain/Rules
+- LLMs only receive structured prompts and return text — they make no decisions
+- Agents (`INarratorAgent`, `ICharacterAgent`, etc.) are adapters
+- `Pipeline` controls stage sequencing: `ContextBuilder` → `PromptBuilder` → `AgentExecutor` → `OutputValidator` → `StateIntegrator`
+
+### Persistence Notes
+
+`SnapshotService.DeserializeCharacterStates`, `DeserializeEvents`, and `DeserializeWorldState` are **Phase 1.5 stubs** that return empty collections. `LoadStateAsync` does **not** actually restore characters, events, or world. These must be implemented before any feature that depends on persisted state restore.
 
 ### Testing Patterns
 
-**Test framework**: xUnit + FluentAssertions + NSubstitute
+**Stack**: xUnit + FluentAssertions + NSubstitute. 4 test projects: `Tests`, `Memory.Tests`, `Orchestration.Tests`, `Llm.Tests`.
+
+Naming: `MethodName_Scenario_ExpectedBehavior`
 
 ```csharp
-// Naming: MethodName_Scenario_ExpectedBehavior
 [Fact]
 public void ExtractFromEvent_IsDeterministic_SameFacts()
 {
-    // Arrange
-    var service = CreateService();
-    
-    // Act
-    var facts1 = service.ExtractFromEvent(event, context);
-    var facts2 = service.ExtractFromEvent(event, context);
-    
-    // Assert
+    // Arrange / Act / Assert
     facts1.Should().BeEquivalentTo(facts2);
 }
 ```
 
-**Determinism tests are critical** - always verify operations produce identical results on repeated calls.
+### Code Style
 
-### Orchestration Philosophy (Phase 2+)
+- File-scoped namespaces preferred
+- Record types for all immutable data (events, value objects, config)
+- Nullable reference types enabled globally
+- XML doc comments required on public APIs (`GenerateDocumentationFile=true`; CS1591 suppressed so missing docs are warnings-not-errors)
+- Implicit usings enabled
 
-**The application orchestrates, not the LLM:**
+### Anti-Patterns
 
-- Business logic stays in Core/Domain
-- LLMs are generation engines, not the decision-makers
-- Prompts are dynamically generated by the application
-- Agents are adapters, not the brain
-- Pipeline controls flow, not agent chaining
-
-### Documentation
-
-- Phase-based documentation in `Docs/` folder
-- Phase completion reports (e.g., `PHASE2.2-COMPLETION.md`)
-- Commands guides for each phase (e.g., `PHASE2.2-COMMANDS-GUIDE.md`)
-- Architecture decisions documented in `ARCHITECTURE.md`
-- Quick reference in `QUICK-REFERENCE.md`
-
-### Anti-Patterns to Avoid
-
-❌ **Never add technical debt** - this project values long-term quality over quick results  
-❌ **Never bypass architecture layers** - respect hexagonal boundaries  
-❌ **Never add LLM dependencies in Phase 1** - foundations first  
-❌ **Never use mutable state** - immutability is non-negotiable  
-❌ **Never skip determinism validation** - test it explicitly  
-❌ **Never introduce circular dependencies** - check dependency flow  
-
-### Development Philosophy
-
-This project follows an **anti-shortcut** approach:
-
-> "Retarder volontairement le plaisir du résultat visible pour construire quelque chose qui dure."
-
-Translated: *Deliberately delay the pleasure of visible results to build something that lasts.*
-
-**Priorities:**
-1. ✅ Clean architecture before features
-2. ✅ Tests > demos
-3. ✅ Guaranteed determinism
-4. ✅ Zero technical debt
-5. ✅ Follow-through to completion
-
-When in doubt:
-- Choose the architecturally sound approach over the quick fix
-- Add tests before declaring something "done"
-- Verify determinism explicitly
-- Document non-obvious design decisions
+❌ Never bypass hexagonal layer boundaries  
+❌ Never mutate state — only replace  
+❌ Never use non-deterministic operations in Core/Domain/Memory/Orchestration  
+❌ Never put business logic in prompts or let the LLM decide narrative structure  
+❌ Never introduce circular project dependencies  
+❌ Never use `using` (sync dispose) on `LlmClientFactory` — it is `IAsyncDisposable` only

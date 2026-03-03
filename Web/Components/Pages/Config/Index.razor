@@ -1,25 +1,27 @@
 @page "/config"
 @rendermode InteractiveServer
 @inject ModelSelectionService ModelService
+@inject Narratum.Orchestration.Llm.ILlmClient LlmClient
+@inject NavigationManager Navigation
 
 <PageTitle>Configuration - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
     <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
         <FluentLabel Typo="Typography.H2">⚙️ Configuration LLM</FluentLabel>
-        <FluentButton Appearance="Appearance.Neutral" Href="/">← Dashboard</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> ← Dashboard</FluentButton>
     </FluentStack>
     
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
             <FluentLabel Typo="Typography.H4">Modèle de narration</FluentLabel>
             <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle" Style="max-width: 400px;">
-                <FluentOption Value="Phi-4-mini">Phi-4-mini (Rapide, recommandé)</FluentOption>
-                <FluentOption Value="Phi-4">Phi-4 (Plus précis)</FluentOption>
-                <FluentOption Value="Custom">Modèle personnalisé...</FluentOption>
+                <FluentOption Value="phi-4-mini">Phi-4-mini (Rapide, recommandé)</FluentOption>
+                <FluentOption Value="phi-4">Phi-4 (Plus précis)</FluentOption>
+                <FluentOption Value="custom">Modèle personnalisé...</FluentOption>
             </FluentSelect>
             
-            @if (_selectedModel == "Custom")
+            @if (_selectedModel == "custom")
             {
                 <FluentTextField @bind-Value="_customModel" Label="Nom du modèle personnalisé" 
                                Placeholder="Ex: llama-3.2" Style="max-width: 400px;" />
@@ -76,12 +78,12 @@
 
     protected override void OnInitialized()
     {
-        _selectedModel = ModelService.CurrentNarratorModel ?? "Phi-4-mini";
+        _selectedModel = ModelService.CurrentNarratorModel ?? "phi-4-mini";
     }
 
     private void SaveConfig()
     {
-        var modelToUse = _selectedModel == "Custom" ? _customModel : _selectedModel;
+        var modelToUse = _selectedModel == "custom" ? _customModel : _selectedModel;
         ModelService.CurrentNarratorModel = modelToUse;
         _saved = true;
 
@@ -97,11 +99,23 @@
         _testing = true;
         _testResult = null;
 
-        await Task.Delay(1000); // Simulate
-        
-        _testSuccess = true;
-        _testResult = "✓ Connexion réussie au service Foundry Local";
-        _testing = false;
+        try
+        {
+            var healthy = await LlmClient.IsHealthyAsync();
+            _testSuccess = healthy;
+            _testResult = healthy
+                ? "✓ Connexion réussie au service Foundry Local"
+                : "✗ Service LLM inaccessible — vérifiez que Foundry Local est démarré";
+        }
+        catch (Exception ex)
+        {
+            _testSuccess = false;
+            _testResult = $"✗ Erreur : {ex.Message}";
+        }
+        finally
+        {
+            _testing = false;
+        }
     }
 }
 

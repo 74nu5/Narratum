@@ -4,6 +4,7 @@ using Narratum.Llm.DependencyInjection;
 using Narratum.Llm.Configuration;
 using Narratum.Web.Services;
 using Narratum.Orchestration.Services;
+using Narratum.Orchestration.Stages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FluentUI.AspNetCore.Components;
 
@@ -18,7 +19,7 @@ builder.Services.AddRazorComponents()
 
 // Add Narratum Persistence (SQLite EF Core)
 builder.Services.AddDbContext<NarrativumDbContext>(options =>
-    options.UseSqlite("Data Source=narratum.db"));
+    options.UseSqlite(builder.Configuration.GetConnectionString("Narratum") ?? "Data Source=narratum.db"));
 
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<PersistenceService>();
@@ -27,7 +28,7 @@ builder.Services.AddScoped<PersistenceService>();
 var llmConfig = new LlmClientConfig
 {
     Provider = LlmProviderType.FoundryLocal,
-    DefaultModel = "Phi-4-mini"
+    DefaultModel = "phi-4-mini"
 };
 builder.Services.AddNarratumLlm(llmConfig);
 
@@ -37,6 +38,7 @@ builder.Services.AddScoped<FullOrchestrationService>();
 // Add Web Services
 builder.Services.AddScoped<StoryLibraryService>();
 builder.Services.AddScoped<ModelSelectionService>();
+builder.Services.AddScoped<IModelResolver>(sp => sp.GetRequiredService<ModelSelectionService>());
 builder.Services.AddScoped<GenerationService>();
 builder.Services.AddScoped<ExpertModeService>();
 

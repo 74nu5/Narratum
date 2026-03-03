@@ -2,13 +2,14 @@
 @rendermode InteractiveServer
 @inject StoryLibraryService LibraryService
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
 
 <PageTitle>Bibliothèque - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
     <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
         <FluentLabel Typo="Typography.H2">📚 Bibliothèque</FluentLabel>
-        <FluentButton Appearance="Appearance.Accent" Href="/wizard">
+        <FluentButton Appearance="Appearance.Accent" @onclick='() => Navigation.NavigateTo("/wizard")'>
             ➕ Nouvelle histoire
         </FluentButton>
     </FluentStack>
@@ -23,7 +24,7 @@
             <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
                 <FluentLabel Typo="Typography.H4">Aucune histoire</FluentLabel>
                 <FluentLabel>Créez votre première histoire pour commencer !</FluentLabel>
-                <FluentButton Appearance="Appearance.Accent" Href="/wizard" Style="margin-top: 16px;">
+                <FluentButton Appearance="Appearance.Accent" @onclick='() => Navigation.NavigateTo("/wizard")' Style="margin-top: 16px;">
                     ✨ Créer une histoire
                 </FluentButton>
             </FluentStack>
@@ -73,8 +74,17 @@
 
     private async Task DeleteStory(string slotName)
     {
-        await LibraryService.DeleteStoryAsync(slotName);
-        _stories = await LibraryService.ListStoriesAsync();
+        var dialog = await DialogService.ShowConfirmationAsync(
+            "Supprimer cette histoire définitivement ?",
+            "Oui, supprimer",
+            "Annuler",
+            "Confirmer la suppression");
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            await LibraryService.DeleteStoryAsync(slotName);
+            _stories = await LibraryService.ListStoriesAsync();
+        }
     }
 }
 

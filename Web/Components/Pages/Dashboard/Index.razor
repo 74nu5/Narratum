@@ -10,10 +10,10 @@
     
     <FluentCard>
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
-            <FluentButton Appearance="Appearance.Accent"  Href="/wizard" Style="flex: 1;">
+            <FluentButton Appearance="Appearance.Accent" @onclick='() => this.Navigation.NavigateTo("/wizard")' Style="flex: 1;">
                 ➕ Créer une nouvelle histoire
             </FluentButton>
-            <FluentButton Appearance="Appearance.Neutral" Href="/library" Style="flex: 1;">
+            <FluentButton Appearance="Appearance.Neutral" @onclick='() => this.Navigation.NavigateTo("/library")' Style="flex: 1;">
                 📚 Voir toutes mes histoires
             </FluentButton>
         </FluentStack>
@@ -21,11 +21,11 @@
 
     <FluentLabel Typo="Typography.H3">Histoires récentes</FluentLabel>
     
-    @if (_recentStories == null)
+    @if (this.recentStories == null)
     {
         <FluentProgressRing />
     }
-    else if (!_recentStories.Any())
+    else if (!this.recentStories.Any())
     {
         <FluentMessageBar Intent="MessageIntent.Info">
             Aucune histoire. Créez-en une pour commencer !
@@ -34,9 +34,9 @@
     else
     {
         <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="16">
-            @foreach (var story in _recentStories)
+            @foreach (var story in this.recentStories)
             {
-                <FluentCard Style="width: 300px; cursor: pointer;" @onclick="@(() => OpenStory(story.SlotName))">
+                <FluentCard Style="width: 300px; cursor: pointer;" @onclick="@(() => this.OpenStory(story.SlotName))">
                     <FluentLabel Typo="Typography.H4">@story.DisplayName</FluentLabel>
                     <FluentLabel>Genre: @story.GenreStyle</FluentLabel>
                     <FluentLabel>Pages: @story.PageCount</FluentLabel>
@@ -50,16 +50,16 @@
 </FluentStack>
 
 @code {
-    private List<StoryEntry>? _recentStories;
+    private List<StoryEntry>? recentStories;
 
     protected override async Task OnInitializedAsync()
     {
-        var allStories = await LibraryService.ListStoriesAsync();
-        _recentStories = allStories.Take(6).ToList();
+        var allStories = await this.LibraryService.ListStoriesAsync();
+        this.recentStories = allStories.Take(6).ToList();
     }
 
     private void OpenStory(string slotName)
     {
-        Navigation.NavigateTo($"/reader/{slotName}");
+        this.Navigation.NavigateTo($"/reader/{slotName}");
     }
 }

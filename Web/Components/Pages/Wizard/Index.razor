@@ -1,8 +1,5 @@
 @page "/wizard"
 @rendermode InteractiveServer
-@using Narratum.Web.Components.Shared
-@using static Narratum.Web.Components.Shared.CharactersEditor
-@using static Narratum.Web.Components.Shared.LocationsEditor
 @inject NavigationManager Navigation
 @inject GenerationService GenService
 
@@ -14,13 +11,13 @@
     @* Step indicator *@
     <FluentCard>
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
-            @for (int i = 0; i < _stepTitles.Length; i++)
+            @for (var i = 0; i < this.stepTitles.Length; i++)
             {
                 var stepIndex = i;
-                <FluentButton Appearance="@(stepIndex == _currentStep ? Appearance.Accent : Appearance.Neutral)"
-                              Disabled="@(stepIndex > _currentStep)"
-                              @onclick="() => _currentStep = stepIndex">
-                    @(stepIndex + 1). @_stepTitles[stepIndex]
+                <FluentButton Appearance="@(stepIndex == this.currentStep ? Appearance.Accent : Appearance.Neutral)"
+                              Disabled="@(stepIndex > this.currentStep)"
+                              @onclick="() => this.currentStep = stepIndex">
+                    @(stepIndex + 1). @this.stepTitles[stepIndex]
                 </FluentButton>
             }
         </FluentStack>
@@ -28,52 +25,56 @@
     
     @* Step content *@
     <div>
-        @switch (_currentStep)
+        @switch (this.currentStep)
         {
             case 0: @* Monde *@
-                <WorldEditor @bind-WorldName="_worldName" @bind-WorldDescription="_worldDescription" />
+                <WorldEditor @bind-WorldName="this.worldName" @bind-WorldDescription="this.worldDescription" />
                 break;
                 
             case 1: @* Genre *@
                 <FluentCard>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-                        <FluentSelect TOption="string" Label="Genre" @bind-Value="_genre">
+                        <FluentSelect TOption="string" Label="Genre" @bind-Value="this.genre">
                             <FluentOption TOption="string" Value="Fantasy">Fantasy</FluentOption>
                             <FluentOption TOption="string" Value="SciFi">Science-Fiction</FluentOption>
                             <FluentOption TOption="string" Value="Mystery">Mystère</FluentOption>
                             <FluentOption TOption="string" Value="Horror">Horreur</FluentOption>
                             <FluentOption TOption="string" Value="Historical">Historique</FluentOption>
                         </FluentSelect>
-                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="_narrativeStyle" Rows="3" 
+                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3" 
                                       Placeholder="Ex: Épique, sombre, humoristique..." />
                     </FluentStack>
                 </FluentCard>
                 break;
                 
             case 2: @* Personnages *@
-                <CharactersEditor @bind-Characters="_characters" />
+                <CharactersEditor @bind-Characters="this.characters" />
                 break;
                 
             case 3: @* Lieux *@
-                <LocationsEditor @bind-Locations="_locations" />
+                <LocationsEditor @bind-Locations="this.locations" />
                 break;
                 
             case 4: @* Résumé *@
                 <FluentCard>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
                         <FluentLabel Typo="Typography.H4">📋 Récapitulatif</FluentLabel>
-                        <FluentLabel><strong>Monde :</strong> @_worldName</FluentLabel>
-                        <FluentLabel><strong>Description :</strong> @(_worldDescription ?? "Aucune")</FluentLabel>
-                        <FluentLabel><strong>Genre :</strong> @_genre</FluentLabel>
-                        <FluentLabel><strong>Style :</strong> @(_narrativeStyle ?? "Par défaut")</FluentLabel>
-                        <FluentLabel><strong>Personnages :</strong> @_characters.Count</FluentLabel>
-                        <FluentLabel><strong>Lieux :</strong> @_locations.Count</FluentLabel>
+                        <FluentLabel><strong>Monde :</strong> @(this.worldName)
+                        </FluentLabel>
+                        <FluentLabel><strong>Description :</strong> @(this.worldDescription ?? "Aucune")
+                        </FluentLabel>
+                        <FluentLabel><strong>Genre :</strong> @(this.genre)
+                        </FluentLabel>
+                        <FluentLabel><strong>Style :</strong> @(this.narrativeStyle ?? "Par défaut")
+                        </FluentLabel>
+                        <FluentLabel><strong>Personnages :</strong> @this.characters.Count</FluentLabel>
+                        <FluentLabel><strong>Lieux :</strong> @this.locations.Count</FluentLabel>
                         
-                        @if (_characters.Count > 0)
+                        @if (this.characters.Count > 0)
                         {
                             <FluentLabel Typo="Typography.Body"><strong>Liste des personnages :</strong></FluentLabel>
                             <ul>
-                                @foreach (var c in _characters)
+                                @foreach (var c in this.characters)
                                 {
                                     <li>@c.Name @(string.IsNullOrEmpty(c.Description) ? "" : $"- {c.Description}")</li>
                                 }
@@ -87,71 +88,26 @@
     
     @* Navigation buttons *@
     <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" HorizontalAlignment="HorizontalAlignment.End">
-        <FluentButton Appearance="Appearance.Neutral" Href="/">Annuler</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" @onclick='() => this.Navigation.NavigateTo("/")'> Annuler</FluentButton>
         
-        @if (_currentStep > 0)
+        @if (this.currentStep > 0)
         {
-            <FluentButton Appearance="Appearance.Neutral" @onclick="PreviousStep">← Précédent</FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" @onclick="this.PreviousStep">← Précédent</FluentButton>
         }
         
-        @if (_currentStep < _stepTitles.Length - 1)
+        @if (this.currentStep < this.stepTitles.Length - 1)
         {
-            <FluentButton Appearance="Appearance.Accent" @onclick="NextStep" Disabled="@(!CanProceed)">
+            <FluentButton Appearance="Appearance.Accent" @onclick="this.NextStep" Disabled="@(!this.CanProceed)">
                 Suivant →
             </FluentButton>
         }
         else
         {
-            <FluentButton Appearance="Appearance.Accent" @onclick="CreateStory" Disabled="@(!CanCreate)">
+            <FluentButton Appearance="Appearance.Accent" @onclick="this.CreateStory" Disabled="@(!this.CanCreate)">
                 🚀 Créer l'histoire
             </FluentButton>
         }
     </FluentStack>
 </FluentStack>
 
-@code {
-    private readonly string[] _stepTitles = { "Monde", "Genre", "Personnages", "Lieux", "Résumé" };
-    private int _currentStep = 0;
-    
-    private string _worldName = string.Empty;
-    private string _worldDescription = string.Empty;
-    private string _genre = "Fantasy";
-    private string _narrativeStyle = string.Empty;
-    private List<CharacterInput> _characters = new();
-    private List<LocationInput> _locations = new();
-    
-    private bool CanProceed => _currentStep switch
-    {
-        0 => !string.IsNullOrWhiteSpace(_worldName),
-        2 => _characters.Count > 0,
-        _ => true
-    };
-    
-    private bool CanCreate => !string.IsNullOrWhiteSpace(_worldName) && _characters.Count > 0;
-    
-    private void NextStep()
-    {
-        if (_currentStep < _stepTitles.Length - 1)
-            _currentStep++;
-    }
-    
-    private void PreviousStep()
-    {
-        if (_currentStep > 0)
-            _currentStep--;
-    }
-    
-    private async Task CreateStory()
-    {
-        var slotName = $"story-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
-        
-        // Create story via service
-        await GenService.CreateStoryAsync(
-            slotName,
-            _worldName,
-            _genre,
-            _characters.Select(c => c.Name).ToList());
-        
-        Navigation.NavigateTo($"/generation/{slotName}");
-    }
-}
+

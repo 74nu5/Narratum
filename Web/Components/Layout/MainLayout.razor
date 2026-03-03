@@ -12,7 +12,7 @@
             <StorySwitcher />
             <FluentSpacer />
             <FluentSwitch Label="🔧 Expert" @bind-Value="@ExpertMode.IsExpertModeEnabled" />
-            <FluentButton Appearance="Appearance.Outline" Href="/config">
+            <FluentButton Appearance="Appearance.Outline" @onclick='() => NavigationManager.NavigateTo("/config")'>
                 ⚙️ Config
             </FluentButton>
         </FluentStack>
@@ -44,5 +44,5 @@
 
     private bool _isSaving = false;
     private bool _saveError = false;
-    private DateTime? _lastSaveTime = DateTime.Now;
+    private DateTime? _lastSaveTime = null;
 }

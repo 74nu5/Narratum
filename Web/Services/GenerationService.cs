@@ -5,6 +5,7 @@ using Narratum.State;
 using Narratum.Orchestration.Services;
 using Narratum.Orchestration.Models;
 using Narratum.Persistence;
+using Narratum.Web.Models;
 
 namespace Narratum.Web.Services;
 
@@ -17,15 +18,18 @@ public class GenerationService
     private readonly FullOrchestrationService _orchestrator;
     private readonly ISnapshotService _snapshotService;
     private readonly NarrativumDbContext _dbContext;
+    private readonly ModelSelectionService _modelSelector;
 
     public GenerationService(
         FullOrchestrationService orchestrator,
         ISnapshotService snapshotService,
-        NarrativumDbContext dbContext)
+        NarrativumDbContext dbContext,
+        ModelSelectionService modelSelector)
     {
         _orchestrator = orchestrator;
         _snapshotService = snapshotService;
         _dbContext = dbContext;
+        _modelSelector = modelSelector;
     }
 
     /// <summary>
@@ -33,29 +37,29 @@ public class GenerationService
     /// </summary>
     public async Task<Result<string>> CreateStoryAsync(
         string slotName,
-        string worldName,
-        string genreStyle,
-        List<string> characterNames,
+        StoryCreationRequest request,
         CancellationToken ct = default)
     {
         try
         {
             // Create initial state with characters
             var worldId = Id.New();
-            var characterStates = characterNames.Select(name =>
+            var characterStates = request.Characters.Select(c =>
             {
                 var id = Id.New();
-                return new CharacterState(id, name);
+                return new CharacterState(id, c.Name);
             }).ToArray();
 
-            var storyState = StoryState.Create(worldId, worldName)
+            var storyState = StoryState.Create(worldId, request.WorldName)
                 .WithCharacters(characterStates);
 
             // Create snapshot
             var snapshot = _snapshotService.CreateSnapshot(storyState);
-            
-            // Serialize complete snapshot as JSON
             var serializedSnapshot = JsonSerializer.Serialize(snapshot);
+
+            var initText = $"Histoire créée: {request.WorldName}\nGenre: {request.GenreStyle}" +
+                (string.IsNullOrWhiteSpace(request.WorldDescription) ? "" : $"\nMonde: {request.WorldDescription}") +
+                $"\nPersonnages: {string.Join(", ", request.Characters.Select(c => c.Name))}";
 
             // Save initial page snapshot (page 0)
             var pageSnapshot = new PageSnapshotEntity
@@ -64,14 +68,29 @@ public class GenerationService
                 SlotName = slotName,
                 PageIndex = 0,
                 GeneratedAt = DateTime.UtcNow,
-                NarrativeText = $"Histoire créée: {worldName}\nGenre: {genreStyle}\nPersonnages: {string.Join(", ", characterNames)}",
-                SerializedState = serializedSnapshot, // Complete StateSnapshot as JSON
+                NarrativeText = initText,
+                SerializedState = serializedSnapshot,
                 IntentDescription = "Création initiale",
                 ModelUsed = "N/A",
-                GenreStyle = genreStyle
+                GenreStyle = request.GenreStyle
             };
 
             _dbContext.PageSnapshots.Add(pageSnapshot);
+
+            // Register slot metadata so the library can list this story
+            var metadata = new SaveSlotMetadata
+            {
+                SlotName = slotName,
+                LastSavedAt = DateTime.UtcNow,
+                TotalEvents = 0,
+                CurrentChapterId = Guid.Empty,
+                DisplayName = request.WorldName,
+                Description = string.IsNullOrWhiteSpace(request.NarrativeStyle)
+                    ? request.GenreStyle
+                    : $"{request.GenreStyle} — {request.NarrativeStyle}"
+            };
+
+            _dbContext.SaveSlots.Add(metadata);
             await _dbContext.SaveChangesAsync(ct);
 
             return Result<string>.Ok(slotName);
@@ -106,7 +125,7 @@ public class GenerationService
                 ?? throw new InvalidOperationException("Failed to deserialize StateSnapshot");
 
             var storyStateResult = _snapshotService.RestoreFromSnapshot(stateSnapshot);
-            
+
             if (storyStateResult is not Result<StoryState>.Success successResult)
                 return Result<PageInfo>.Fail("Impossible de restaurer l'état de l'histoire");
 
@@ -118,19 +137,15 @@ public class GenerationService
             // Execute pipeline
             var result = await _orchestrator.ExecuteCycleAsync(storyState, intent, ct);
 
-            return result.Match<Result<PageInfo>>(
-                onSuccess: pipelineResult =>
+            return await result.MatchAsync<Result<PageInfo>>(
+                onSuccess: async pipelineResult =>
                 {
                     if (!pipelineResult.IsSuccess || pipelineResult.Output == null)
                         return Result<PageInfo>.Fail(pipelineResult.ErrorMessage ?? "Génération échouée");
 
-                    // Create new snapshot from updated state
                     var newSnapshot = _snapshotService.CreateSnapshot(storyState);
-                    
-                    // Serialize complete snapshot as JSON
                     var serializedSnapshot = JsonSerializer.Serialize(newSnapshot);
 
-                    // Save new page snapshot
                     var pageSnapshot = new PageSnapshotEntity
                     {
                         Id = Guid.NewGuid(),
@@ -138,21 +153,21 @@ public class GenerationService
                         PageIndex = latest.PageIndex + 1,
                         GeneratedAt = DateTime.UtcNow,
                         NarrativeText = pipelineResult.Output.NarrativeText,
-                        SerializedState = serializedSnapshot, // Complete StateSnapshot as JSON
+                        SerializedState = serializedSnapshot,
                         IntentDescription = intentDescription,
-                        ModelUsed = "Phi-4-mini",
+                        ModelUsed = _modelSelector.CurrentNarratorModel,
                         GenreStyle = latest.GenreStyle
                     };
 
                     _dbContext.PageSnapshots.Add(pageSnapshot);
-                    _dbContext.SaveChanges(); // Sync because we're in Result.Match
+                    await _dbContext.SaveChangesAsync(ct);
 
                     return Result<PageInfo>.Ok(new PageInfo(
                         pageSnapshot.PageIndex,
                         pageSnapshot.NarrativeText,
                         pageSnapshot.GeneratedAt));
                 },
-                onFailure: error => Result<PageInfo>.Fail(error));
+                onFailure: error => Task.FromResult(Result<PageInfo>.Fail(error)));
         }
         catch (Exception ex)
         {
@@ -199,6 +214,18 @@ public class GenerationService
             .OrderBy(p => p.PageIndex)
             .Select(p => p.PageIndex)
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Gets the display name for a story slot (falls back to slot name).
+    /// </summary>
+    public async Task<string> GetDisplayNameAsync(
+        string slotName,
+        CancellationToken ct = default)
+    {
+        var slot = await _dbContext.SaveSlots
+            .FirstOrDefaultAsync(s => s.SlotName == slotName, ct);
+        return slot?.DisplayName ?? slotName;
     }
 }
 

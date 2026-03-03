@@ -1,16 +1,28 @@
-@using Narratum.Domain
-
 <FluentCard>
     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-        <FluentTextField @bind-Value="WorldName" Label="Nom du monde" Required Style="width: 100%;" />
-        <FluentTextArea @bind-Value="WorldDescription" Label="Description du monde" Rows="4" Style="width: 100%;" />
+        <FluentTextField @bind-Value="this.WorldName" @bind-Value:after="this.OnWorldNameChanged" Label="Nom du monde" Required Style="width: 100%;"/>
+        <FluentTextArea @bind-Value="this.WorldDescription" @bind-Value:after="this.OnWorldDescriptionChanged" Label="Description du monde" Rows="4" Style="width: 100%;"/>
     </FluentStack>
 </FluentCard>
 
 @code {
-    [Parameter] public string WorldName { get; set; } = string.Empty;
-    [Parameter] public EventCallback<string> WorldNameChanged { get; set; }
-    
-    [Parameter] public string WorldDescription { get; set; } = string.Empty;
-    [Parameter] public EventCallback<string> WorldDescriptionChanged { get; set; }
+
+    [Parameter]
+    public string WorldName { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> WorldNameChanged { get; set; }
+
+    [Parameter]
+    public string WorldDescription { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> WorldDescriptionChanged { get; set; }
+
+    private void OnWorldNameChanged()
+        => this.WorldNameChanged.InvokeAsync(this.WorldName);
+
+    private void OnWorldDescriptionChanged()
+        => this.WorldDescriptionChanged.InvokeAsync(this.WorldDescription);
+
 }

@@ -7,7 +7,7 @@
 <PageTitle>Lecture - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">📖 @SlotName</FluentLabel>
+    <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
 
     @* Current page *@
     <FluentCard Style="min-height: 300px;">
@@ -35,7 +35,7 @@
         
         <FluentSpacer />
         
-        <FluentButton Appearance="Appearance.Neutral" Href="/">
+        <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> 
             ← Retour au dashboard
         </FluentButton>
     </FluentStack>
@@ -54,9 +54,11 @@
     private int _maxPage = 0;
     private string _currentNarrative = string.Empty;
     private string _errorMessage = string.Empty;
+    private string _displayTitle = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
+        _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
         var history = await GenService.GetPageHistoryAsync(SlotName);
         if (history.Any())
         {
