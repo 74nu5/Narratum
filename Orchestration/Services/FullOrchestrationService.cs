@@ -427,7 +427,7 @@ public sealed class FullOrchestrationService
         Guid pipelineId,
         CancellationToken cancellationToken)
     {
-        var responses = new List<AgentResponse>();
+        var responses = new List<NarrativeAgentResponse>();
         var stopwatch = Stopwatch.StartNew();
 
         foreach (var prompt in prompts.Prompts)
@@ -453,7 +453,7 @@ public sealed class FullOrchestrationService
 
             if (llmResult is Result<LlmResponse>.Failure llmFailure)
             {
-                var failResponse = AgentResponse.CreateFailure(
+                var failResponse = NarrativeAgentResponse.CreateFailure(
                     prompt.TargetAgent,
                     llmFailure.Message,
                     agentStopwatch.Elapsed);
@@ -472,7 +472,7 @@ public sealed class FullOrchestrationService
             }
 
             var llmResponse = ((Result<LlmResponse>.Success)llmResult).Value;
-            var response = AgentResponse.CreateSuccess(
+            var response = NarrativeAgentResponse.CreateSuccess(
                 prompt.TargetAgent,
                 llmResponse.Content,
                 agentStopwatch.Elapsed);
@@ -566,8 +566,7 @@ public sealed class FullOrchestrationService
             metadata: new Dictionary<string, object>
             {
                 ["agentCount"] = rawOutput.Responses.Count,
-                ["totalDuration"] = rawOutput.TotalDuration.TotalMilliseconds,
-                ["isMock"] = _llmClient.IsMock
+                ["totalDuration"] = rawOutput.TotalDuration.TotalMilliseconds
             });
     }
 

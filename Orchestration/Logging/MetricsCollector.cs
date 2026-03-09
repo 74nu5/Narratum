@@ -45,13 +45,14 @@ public sealed record MetricDataPoint(
     public static MetricDataPoint Duration(
         string name,
         TimeSpan duration,
-        IReadOnlyDictionary<string, string>? tags = null)
+        IReadOnlyDictionary<string, string>? tags = null,
+        TimeProvider? clock = null)
     {
         return new MetricDataPoint(
             name,
             MetricType.Duration,
             duration.TotalMilliseconds,
-            DateTime.UtcNow,
+            (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime,
             tags ?? new Dictionary<string, string>());
     }
 
@@ -61,13 +62,14 @@ public sealed record MetricDataPoint(
     public static MetricDataPoint Counter(
         string name,
         long count,
-        IReadOnlyDictionary<string, string>? tags = null)
+        IReadOnlyDictionary<string, string>? tags = null,
+        TimeProvider? clock = null)
     {
         return new MetricDataPoint(
             name,
             MetricType.Counter,
             count,
-            DateTime.UtcNow,
+            (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime,
             tags ?? new Dictionary<string, string>());
     }
 
@@ -77,13 +79,14 @@ public sealed record MetricDataPoint(
     public static MetricDataPoint Gauge(
         string name,
         double value,
-        IReadOnlyDictionary<string, string>? tags = null)
+        IReadOnlyDictionary<string, string>? tags = null,
+        TimeProvider? clock = null)
     {
         return new MetricDataPoint(
             name,
             MetricType.Gauge,
             value,
-            DateTime.UtcNow,
+            (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime,
             tags ?? new Dictionary<string, string>());
     }
 }
@@ -184,10 +187,12 @@ public sealed class MetricsCollector
     private readonly Dictionary<Guid, PipelineMetricsBuilder> _pipelineBuilders = new();
     private readonly object _lock = new();
     private readonly MetricsCollectorConfig _config;
+    private readonly TimeProvider _clock;
 
-    public MetricsCollector(MetricsCollectorConfig? config = null)
+    public MetricsCollector(MetricsCollectorConfig? config = null, TimeProvider? clock = null)
     {
         _config = config ?? MetricsCollectorConfig.Default;
+        _clock = clock ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -479,7 +484,7 @@ public sealed class MetricsCollector
     public MetricsReport GenerateReport()
     {
         var allStats = GetAllStatistics();
-        return new MetricsReport(DateTime.UtcNow, allStats);
+        return new MetricsReport(_clock.GetUtcNow().UtcDateTime, allStats);
     }
 
     /// <summary>

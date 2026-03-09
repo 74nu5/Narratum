@@ -105,7 +105,7 @@ public sealed class PipelineLogger : IPipelineLogger
         }
     }
 
-    public void LogAgentResponse(Guid pipelineId, AgentType agent, AgentResponse response)
+    public void LogAgentResponse(Guid pipelineId, AgentType agent, NarrativeAgentResponse response)
     {
         var evt = PipelineEvent.AgentResponded(
             pipelineId,
@@ -394,7 +394,7 @@ public sealed class NullPipelineLogger : IPipelineLogger
     public void LogStageComplete(Guid pipelineId, string stageName, TimeSpan duration) { }
     public void LogStageFailure(Guid pipelineId, string stageName, string error) { }
     public void LogAgentCall(Guid pipelineId, AgentType agent, string prompt) { }
-    public void LogAgentResponse(Guid pipelineId, AgentType agent, AgentResponse response) { }
+    public void LogAgentResponse(Guid pipelineId, AgentType agent, NarrativeAgentResponse response) { }
     public void LogRetry(Guid pipelineId, int attemptNumber, IEnumerable<string> errors) { }
     public void LogValidation(Guid pipelineId, ValidationResult result) { }
     public void LogDebug(Guid pipelineId, string message, IReadOnlyDictionary<string, object>? data = null) { }

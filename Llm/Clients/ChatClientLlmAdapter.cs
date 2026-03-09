@@ -37,8 +37,6 @@ public sealed class ChatClientLlmAdapter : ILlmClient
         _ => "ChatClient"
     };
 
-    public bool IsMock => false;
-
     public ChatClientLlmAdapter(
         IChatClient chatClient,
         LlmClientConfig config,
@@ -95,7 +93,6 @@ public sealed class ChatClientLlmAdapter : ILlmClient
 
             var metadata = new Dictionary<string, object>
             {
-                ["isMock"] = false,
                 ["provider"] = _config.Provider.ToString()
             };
 

@@ -28,7 +28,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "This is a valid narrative text that meets the minimum length requirements.",
                     TimeSpan.FromMilliseconds(100))
@@ -62,7 +62,7 @@ public class OutputValidatorTests
         // Arrange
         var validator = new OutputValidator();
         var output = RawOutput.Create(
-            new[] { AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
+            new[] { NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
             TimeSpan.Zero);
 
         // Act
@@ -77,7 +77,7 @@ public class OutputValidatorTests
     {
         // Arrange
         var validator = new OutputValidator();
-        var output = RawOutput.Create(Array.Empty<AgentResponse>(), TimeSpan.Zero);
+        var output = RawOutput.Create(Array.Empty<NarrativeAgentResponse>(), TimeSpan.Zero);
 
         // Act
         var result = await validator.ValidateAsync(output, _testContext);
@@ -96,7 +96,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateFailure(AgentType.Narrator, "LLM timeout", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateFailure(AgentType.Narrator, "LLM timeout", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -118,7 +118,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -139,7 +139,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Short.", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Short.", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -163,7 +163,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, longContent, TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, longContent, TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -188,7 +188,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "This is valid content but has a [TODO] marker.",
                     TimeSpan.Zero)
@@ -215,7 +215,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Bob marcha dans la salle et dit bonjour.",
                     TimeSpan.Zero)
@@ -243,7 +243,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Alice remembered Bob fondly. His memory lived on.",
                     TimeSpan.Zero)
@@ -273,7 +273,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Alice sat down and contemplated life. The weather was nice.",
                     TimeSpan.Zero)
@@ -304,7 +304,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Alice wandered deeper into the Dark Forest, leaves crunching underfoot.",
                     TimeSpan.Zero)
@@ -327,7 +327,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, shortContent, TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, shortContent, TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -349,7 +349,7 @@ public class OutputValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "This has [ERROR] in it.",
                     TimeSpan.Zero)

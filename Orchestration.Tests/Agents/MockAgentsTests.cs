@@ -82,8 +82,8 @@ public class MockSummaryAgentTests
         var result = await _agent.ProcessAsync(prompt, context);
 
         // Assert
-        result.Should().BeOfType<Result<AgentResponse>.Success>();
-        var response = ((Result<AgentResponse>.Success)result).Value;
+        result.Should().BeOfType<Result<NarrativeAgentResponse>.Success>();
+        var response = ((Result<NarrativeAgentResponse>.Success)result).Value;
         response.Agent.Should().Be(AgentType.Summary);
         response.Success.Should().BeTrue();
         response.Content.Should().NotBeEmpty();
@@ -241,8 +241,8 @@ public class MockNarratorAgentTests
         var result = await _agent.ProcessAsync(prompt, context);
 
         // Assert
-        result.Should().BeOfType<Result<AgentResponse>.Success>();
-        var response = ((Result<AgentResponse>.Success)result).Value;
+        result.Should().BeOfType<Result<NarrativeAgentResponse>.Success>();
+        var response = ((Result<NarrativeAgentResponse>.Success)result).Value;
         response.Agent.Should().Be(AgentType.Narrator);
         response.Success.Should().BeTrue();
         response.Content.Should().NotBeEmpty();
@@ -403,8 +403,8 @@ public class MockCharacterAgentTests
         var result = await _agent.ProcessAsync(prompt, context);
 
         // Assert
-        result.Should().BeOfType<Result<AgentResponse>.Success>();
-        var response = ((Result<AgentResponse>.Success)result).Value;
+        result.Should().BeOfType<Result<NarrativeAgentResponse>.Success>();
+        var response = ((Result<NarrativeAgentResponse>.Success)result).Value;
         response.Agent.Should().Be(AgentType.Character);
         response.Success.Should().BeTrue();
         response.Content.Should().NotBeEmpty();
@@ -540,8 +540,8 @@ public class MockConsistencyAgentTests
         var result = await _agent.ProcessAsync(prompt, context);
 
         // Assert
-        result.Should().BeOfType<Result<AgentResponse>.Success>();
-        var response = ((Result<AgentResponse>.Success)result).Value;
+        result.Should().BeOfType<Result<NarrativeAgentResponse>.Success>();
+        var response = ((Result<NarrativeAgentResponse>.Success)result).Value;
         response.Success.Should().BeTrue();
         response.Metadata.Should().ContainKey("skipped");
         response.Metadata["skipped"].Should().Be(true);
@@ -561,8 +561,8 @@ public class MockConsistencyAgentTests
         var result = await _agent.ProcessAsync(prompt, context);
 
         // Assert
-        result.Should().BeOfType<Result<AgentResponse>.Success>();
-        var response = ((Result<AgentResponse>.Success)result).Value;
+        result.Should().BeOfType<Result<NarrativeAgentResponse>.Success>();
+        var response = ((Result<NarrativeAgentResponse>.Success)result).Value;
         response.Success.Should().BeTrue();
         response.Metadata.Should().ContainKey("isConsistent");
     }

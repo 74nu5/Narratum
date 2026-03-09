@@ -245,13 +245,13 @@ public class StageTypesTests
 
     #endregion
 
-    #region AgentResponse Tests
+    #region NarrativeAgentResponse Tests
 
     [Fact]
     public void AgentResponse_CreateSuccess_ShouldSetCorrectValues()
     {
         // Act
-        var response = AgentResponse.CreateSuccess(
+        var response = NarrativeAgentResponse.CreateSuccess(
             AgentType.Narrator,
             "Generated content",
             TimeSpan.FromMilliseconds(500));
@@ -268,7 +268,7 @@ public class StageTypesTests
     public void AgentResponse_CreateFailure_ShouldSetCorrectValues()
     {
         // Act
-        var response = AgentResponse.CreateFailure(
+        var response = NarrativeAgentResponse.CreateFailure(
             AgentType.Character,
             "LLM timeout",
             TimeSpan.FromSeconds(30));
@@ -284,7 +284,7 @@ public class StageTypesTests
     public void AgentResponse_WithMetadata_ShouldAddMetadata()
     {
         // Arrange
-        var response = AgentResponse.CreateSuccess(AgentType.Summary, "Content", TimeSpan.Zero);
+        var response = NarrativeAgentResponse.CreateSuccess(AgentType.Summary, "Content", TimeSpan.Zero);
 
         // Act
         var updated = response.WithMetadata("tokens", 150);
@@ -304,8 +304,8 @@ public class StageTypesTests
         // Arrange
         var responses = new[]
         {
-            AgentResponse.CreateSuccess(AgentType.Narrator, "Narrative", TimeSpan.FromMilliseconds(100)),
-            AgentResponse.CreateSuccess(AgentType.Summary, "Summary", TimeSpan.FromMilliseconds(50))
+            NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Narrative", TimeSpan.FromMilliseconds(100)),
+            NarrativeAgentResponse.CreateSuccess(AgentType.Summary, "Summary", TimeSpan.FromMilliseconds(50))
         };
 
         // Act
@@ -324,13 +324,13 @@ public class StageTypesTests
         // Arrange
         var successfulResponses = new[]
         {
-            AgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
-            AgentResponse.CreateSuccess(AgentType.Summary, "B", TimeSpan.Zero)
+            NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
+            NarrativeAgentResponse.CreateSuccess(AgentType.Summary, "B", TimeSpan.Zero)
         };
         var mixedResponses = new[]
         {
-            AgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
-            AgentResponse.CreateFailure(AgentType.Summary, "Error", TimeSpan.Zero)
+            NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
+            NarrativeAgentResponse.CreateFailure(AgentType.Summary, "Error", TimeSpan.Zero)
         };
 
         // Act
@@ -348,8 +348,8 @@ public class StageTypesTests
         // Arrange
         var responses = new[]
         {
-            AgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
-            AgentResponse.CreateFailure(AgentType.Summary, "Error", TimeSpan.Zero)
+            NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
+            NarrativeAgentResponse.CreateFailure(AgentType.Summary, "Error", TimeSpan.Zero)
         };
         var output = RawOutput.Create(responses, TimeSpan.Zero);
 

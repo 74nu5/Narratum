@@ -28,7 +28,7 @@ public sealed class MockConsistencyAgent : IConsistencyAgent
         _config = config ?? MockConsistencyConfig.Default;
     }
 
-    public async Task<Result<AgentResponse>> ProcessAsync(
+    public async Task<Result<NarrativeAgentResponse>> ProcessAsync(
         AgentPrompt prompt,
         NarrativeContext context,
         CancellationToken cancellationToken = default)
@@ -42,7 +42,7 @@ public sealed class MockConsistencyAgent : IConsistencyAgent
         if (context.CanonicalState == null)
         {
             stopwatch.Stop();
-            return Result<AgentResponse>.Ok(AgentResponse.CreateSuccess(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateSuccess(
                 Type,
                 "No canonical state available for consistency check. Assuming consistent.",
                 stopwatch.Elapsed)
@@ -62,7 +62,7 @@ public sealed class MockConsistencyAgent : IConsistencyAgent
             var check = success.Value;
             var response = FormatConsistencyResult(check);
 
-            return Result<AgentResponse>.Ok(AgentResponse.CreateSuccess(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateSuccess(
                 Type,
                 response,
                 stopwatch.Elapsed)
@@ -72,13 +72,13 @@ public sealed class MockConsistencyAgent : IConsistencyAgent
         }
         else if (checkResult is Result<ConsistencyCheck>.Failure failure)
         {
-            return Result<AgentResponse>.Ok(AgentResponse.CreateFailure(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateFailure(
                 Type,
                 failure.Message,
                 stopwatch.Elapsed));
         }
 
-        return Result<AgentResponse>.Fail("Unknown error in MockConsistencyAgent");
+        return Result<NarrativeAgentResponse>.Fail("Unknown error in MockConsistencyAgent");
     }
 
     public bool CanHandle(NarrativeIntent intent)

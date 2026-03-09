@@ -28,7 +28,7 @@ public sealed class MockSummaryAgent : ISummaryAgent
         _config = config ?? MockSummaryConfig.Default;
     }
 
-    public async Task<Result<AgentResponse>> ProcessAsync(
+    public async Task<Result<NarrativeAgentResponse>> ProcessAsync(
         AgentPrompt prompt,
         NarrativeContext context,
         CancellationToken cancellationToken = default)
@@ -51,7 +51,7 @@ public sealed class MockSummaryAgent : ISummaryAgent
 
         if (summaryResult is Result<string>.Success success)
         {
-            return Result<AgentResponse>.Ok(AgentResponse.CreateSuccess(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateSuccess(
                 Type,
                 success.Value,
                 stopwatch.Elapsed)
@@ -60,13 +60,13 @@ public sealed class MockSummaryAgent : ISummaryAgent
         }
         else if (summaryResult is Result<string>.Failure failure)
         {
-            return Result<AgentResponse>.Ok(AgentResponse.CreateFailure(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateFailure(
                 Type,
                 failure.Message,
                 stopwatch.Elapsed));
         }
 
-        return Result<AgentResponse>.Fail("Unknown error in MockSummaryAgent");
+        return Result<NarrativeAgentResponse>.Fail("Unknown error in MockSummaryAgent");
     }
 
     public bool CanHandle(NarrativeIntent intent)

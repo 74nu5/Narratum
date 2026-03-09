@@ -34,9 +34,4 @@ public interface ILlmClient
     /// Nom du client (pour le logging).
     /// </summary>
     string ClientName { get; }
-
-    /// <summary>
-    /// Indique si ce client est un mock.
-    /// </summary>
-    bool IsMock { get; }
 }

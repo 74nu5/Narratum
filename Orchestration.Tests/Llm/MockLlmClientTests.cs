@@ -18,7 +18,6 @@ public class MockLlmClientTests
 
         // Assert
         client.ClientName.Should().Be("MockLlmClient");
-        client.IsMock.Should().BeTrue();
         client.RequestCount.Should().Be(0);
     }
 
@@ -261,7 +260,6 @@ public class StupidLlmClientTests
 
         // Assert
         client.ClientName.Should().Be("StupidLlmClient");
-        client.IsMock.Should().BeTrue();
     }
 
     [Fact]

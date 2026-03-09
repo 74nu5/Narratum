@@ -576,7 +576,7 @@ public class FullOrchestrationEndToEndTests
     }
 
     [Fact]
-    public async Task FullCycle_OutputMetadata_ShouldContainIsMock()
+    public async Task FullCycle_OutputMetadata_ShouldContainAgentCount()
     {
         var service = CreateService();
         var intent = NarrativeIntent.Continue();
@@ -584,8 +584,8 @@ public class FullOrchestrationEndToEndTests
         var result = await service.ExecuteCycleAsync(_richState, intent);
 
         var pipeline = ((Result<FullPipelineResult>.Success)result).Value;
-        pipeline.Output!.Metadata.Should().ContainKey("isMock");
-        pipeline.Output.Metadata["isMock"].Should().Be(true);
+        pipeline.Output!.Metadata.Should().ContainKey("agentCount");
+        pipeline.Output.Metadata.Should().ContainKey("totalDuration");
     }
 
     #endregion

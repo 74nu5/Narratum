@@ -188,7 +188,7 @@ public class AgentExecutorTests
         var previousOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Original content", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Original content", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -225,7 +225,7 @@ public class AgentExecutorTests
         var client = new MockLlmClient();
         var executor = new AgentExecutor(client);
         var previousOutput = RawOutput.Create(
-            new[] { AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
+            new[] { NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
             TimeSpan.Zero);
 
         // Act
@@ -245,8 +245,8 @@ public class AgentExecutorTests
         var previousOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero),
-                AgentResponse.CreateFailure(AgentType.Character, "Previous error", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero),
+                NarrativeAgentResponse.CreateFailure(AgentType.Character, "Previous error", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 

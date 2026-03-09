@@ -86,7 +86,7 @@ public class AgentExecutor : IAgentExecutor
                 "Rewriting output with {ErrorCount} errors to fix",
                 validationResult.Errors.Count);
 
-            var responses = new List<AgentResponse>();
+            var responses = new List<NarrativeAgentResponse>();
             var errorMessages = string.Join("; ", validationResult.ErrorMessages);
 
             // Réexécuter chaque agent avec les erreurs à corriger
@@ -127,7 +127,7 @@ public class AgentExecutor : IAgentExecutor
     /// <summary>
     /// Exécute les prompts en parallèle.
     /// </summary>
-    private async Task<IReadOnlyList<AgentResponse>> ExecuteParallelAsync(
+    private async Task<IReadOnlyList<NarrativeAgentResponse>> ExecuteParallelAsync(
         PromptSet prompts,
         NarrativeContext context,
         CancellationToken cancellationToken)
@@ -143,12 +143,12 @@ public class AgentExecutor : IAgentExecutor
     /// <summary>
     /// Exécute les prompts séquentiellement.
     /// </summary>
-    private async Task<IReadOnlyList<AgentResponse>> ExecuteSequentialAsync(
+    private async Task<IReadOnlyList<NarrativeAgentResponse>> ExecuteSequentialAsync(
         PromptSet prompts,
         NarrativeContext context,
         CancellationToken cancellationToken)
     {
-        var responses = new List<AgentResponse>();
+        var responses = new List<NarrativeAgentResponse>();
 
         foreach (var prompt in prompts.Prompts)
         {
@@ -171,12 +171,12 @@ public class AgentExecutor : IAgentExecutor
     /// <summary>
     /// Exécute les prompts de manière conditionnelle.
     /// </summary>
-    private async Task<IReadOnlyList<AgentResponse>> ExecuteConditionalAsync(
+    private async Task<IReadOnlyList<NarrativeAgentResponse>> ExecuteConditionalAsync(
         PromptSet prompts,
         NarrativeContext context,
         CancellationToken cancellationToken)
     {
-        var responses = new List<AgentResponse>();
+        var responses = new List<NarrativeAgentResponse>();
         var previousResults = new Dictionary<AgentType, bool>();
 
         foreach (var prompt in prompts.Prompts)
@@ -199,7 +199,7 @@ public class AgentExecutor : IAgentExecutor
             else
             {
                 // Créer une réponse "skipped"
-                responses.Add(new AgentResponse(
+                responses.Add(new NarrativeAgentResponse(
                     prompt.TargetAgent,
                     string.Empty,
                     Success: true,
@@ -215,7 +215,7 @@ public class AgentExecutor : IAgentExecutor
     /// <summary>
     /// Exécute un seul agent.
     /// </summary>
-    private async Task<AgentResponse> ExecuteAgentAsync(
+    private async Task<NarrativeAgentResponse> ExecuteAgentAsync(
         AgentPrompt prompt,
         NarrativeContext context,
         CancellationToken cancellationToken)
@@ -239,7 +239,7 @@ public class AgentExecutor : IAgentExecutor
 
             if (result is Result<LlmResponse>.Success success)
             {
-                return AgentResponse.CreateSuccess(
+                return NarrativeAgentResponse.CreateSuccess(
                     prompt.TargetAgent,
                     success.Value.Content,
                     stopwatch.Elapsed)
@@ -247,13 +247,13 @@ public class AgentExecutor : IAgentExecutor
             }
             else if (result is Result<LlmResponse>.Failure failure)
             {
-                return AgentResponse.CreateFailure(
+                return NarrativeAgentResponse.CreateFailure(
                     prompt.TargetAgent,
                     failure.Message,
                     stopwatch.Elapsed);
             }
 
-            return AgentResponse.CreateFailure(
+            return NarrativeAgentResponse.CreateFailure(
                 prompt.TargetAgent,
                 "Unknown error",
                 stopwatch.Elapsed);
@@ -263,7 +263,7 @@ public class AgentExecutor : IAgentExecutor
             stopwatch.Stop();
             _logger?.LogError(ex, "Agent {Agent} execution failed", prompt.TargetAgent);
 
-            return AgentResponse.CreateFailure(
+            return NarrativeAgentResponse.CreateFailure(
                 prompt.TargetAgent,
                 ex.Message,
                 stopwatch.Elapsed);

@@ -28,7 +28,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "The hero ventured into the dark forest.",
                     TimeSpan.FromMilliseconds(100))
@@ -63,7 +63,7 @@ public class StateIntegratorTests
         // Arrange
         var integrator = new StateIntegrator();
         var rawOutput = RawOutput.Create(
-            new[] { AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
+            new[] { NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
             TimeSpan.Zero);
 
         // Act
@@ -81,11 +81,11 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "The sun set over the mountains.",
                     TimeSpan.FromMilliseconds(50)),
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Character,
                     "\"We should make camp here,\" said Alice.",
                     TimeSpan.FromMilliseconds(50))
@@ -108,8 +108,8 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Character, "Character speaks first.", TimeSpan.Zero),
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Narrator comes second.", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Character, "Character speaks first.", TimeSpan.Zero),
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Narrator comes second.", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -130,7 +130,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateFailure(AgentType.Narrator, "Failed", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateFailure(AgentType.Narrator, "Failed", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -149,7 +149,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Some narrative content here.", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Some narrative content here.", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -170,7 +170,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Character, "\"Hello there!\" said Bob.", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Character, "\"Hello there!\" said Bob.", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -190,7 +190,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.FromMilliseconds(100))
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.FromMilliseconds(100))
             },
             TimeSpan.FromMilliseconds(100));
 
@@ -212,7 +212,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.FromMilliseconds(500))
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.FromMilliseconds(500))
             },
             TimeSpan.FromMilliseconds(500));
 
@@ -232,8 +232,8 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "", TimeSpan.Zero),
-                AgentResponse.CreateSuccess(AgentType.Summary, "Valid summary content here.", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "", TimeSpan.Zero),
+                NarrativeAgentResponse.CreateSuccess(AgentType.Summary, "Valid summary content here.", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -253,8 +253,8 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
-                AgentResponse.CreateSuccess(AgentType.Character, "B", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "A", TimeSpan.Zero),
+                NarrativeAgentResponse.CreateSuccess(AgentType.Character, "B", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -276,7 +276,7 @@ public class StateIntegratorTests
         var rawOutput = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Summary,
                     "In the previous chapter, the heroes found a magical artifact.",
                     TimeSpan.Zero)

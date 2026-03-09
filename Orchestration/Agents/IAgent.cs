@@ -29,7 +29,7 @@ public interface IAgent
     /// <param name="context">Contexte narratif.</param>
     /// <param name="cancellationToken">Token d'annulation.</param>
     /// <returns>Réponse de l'agent.</returns>
-    Task<Result<AgentResponse>> ProcessAsync(
+    Task<Result<NarrativeAgentResponse>> ProcessAsync(
         AgentPrompt prompt,
         NarrativeContext context,
         CancellationToken cancellationToken = default);

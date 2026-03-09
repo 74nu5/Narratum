@@ -24,7 +24,7 @@ public interface IStructureValidator
     /// </summary>
     /// <param name="response">La réponse à valider.</param>
     /// <returns>Le résultat de la validation.</returns>
-    StructureValidationResult ValidateResponse(AgentResponse response);
+    StructureValidationResult ValidateResponse(NarrativeAgentResponse response);
 }
 
 /// <summary>

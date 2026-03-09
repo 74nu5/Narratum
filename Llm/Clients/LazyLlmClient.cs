@@ -21,7 +21,6 @@ internal sealed class LazyLlmClient : ILlmClient
     }
 
     public string ClientName => _client?.ClientName ?? "Lazy(Not Initialized)";
-    public bool IsMock => _client?.IsMock ?? false;
 
     public async Task<Result<LlmResponse>> GenerateAsync(
         LlmRequest request,

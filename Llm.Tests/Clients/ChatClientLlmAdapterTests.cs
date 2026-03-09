@@ -72,7 +72,7 @@ public sealed class ChatClientLlmAdapterTests
         return ((Result<LlmResponse>.Failure)result).Message;
     }
 
-    #region ClientName et IsMock
+    #region ClientName
 
     [Fact]
     public void ClientName_FoundryLocal_ReturnsFoundryLocalClient()
@@ -92,14 +92,7 @@ public sealed class ChatClientLlmAdapterTests
         adapter.ClientName.Should().Be("OllamaClient");
     }
 
-    [Fact]
-    public void IsMock_ReturnsFalse()
-    {
-        var adapter = CreateAdapter(Substitute.For<IChatClient>());
-        adapter.IsMock.Should().BeFalse();
-    }
-
-    #endregion
+#endregion
 
     #region GenerateAsync — Succès
 
@@ -154,8 +147,6 @@ public sealed class ChatClientLlmAdapterTests
         var result = await adapter.GenerateAsync(request);
 
         var response = AssertSuccess(result);
-        response.Metadata.Should().ContainKey("isMock");
-        response.Metadata["isMock"].Should().Be(false);
         response.Metadata.Should().ContainKey("provider");
         response.Metadata["provider"].Should().Be("FoundryLocal");
         response.Metadata.Should().ContainKey("model");

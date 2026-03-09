@@ -98,12 +98,13 @@ public sealed record AuditEntry(
         string description,
         AuditSeverity severity = AuditSeverity.Info,
         AuditCategory category = AuditCategory.Pipeline,
-        IReadOnlyDictionary<string, object>? details = null)
+        IReadOnlyDictionary<string, object>? details = null,
+        TimeProvider? clock = null)
     {
         return new AuditEntry(
             Guid.NewGuid(),
             pipelineId,
-            DateTime.UtcNow,
+            (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime,
             action,
             actor,
             description,

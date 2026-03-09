@@ -127,14 +127,15 @@ public sealed record NarrativeOutput
         string narrativeText,
         Memorandum? generatedMemorandum = null,
         IEnumerable<object>? extractedEvents = null,
-        IReadOnlyDictionary<string, object>? metadata = null)
+        IReadOnlyDictionary<string, object>? metadata = null,
+        TimeProvider? clock = null)
     {
         OutputId = Id.New();
         NarrativeText = narrativeText ?? throw new ArgumentNullException(nameof(narrativeText));
         GeneratedMemorandum = generatedMemorandum;
         ExtractedEvents = (extractedEvents?.ToList() ?? new List<object>()).AsReadOnly();
         Metadata = metadata ?? new Dictionary<string, object>();
-        GeneratedAt = DateTime.UtcNow;
+        GeneratedAt = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     }
 
     /// <summary>
@@ -230,9 +231,10 @@ public sealed record PipelineResult
         NarrativeOutput output,
         IEnumerable<PipelineStageResult> stageResults,
         TimeSpan duration,
-        int retryCount = 0)
+        int retryCount = 0,
+        TimeProvider? clock = null)
     {
-        var now = DateTime.UtcNow;
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         return new PipelineResult(
             context,
             output,
@@ -253,9 +255,10 @@ public sealed record PipelineResult
         string errorMessage,
         IEnumerable<PipelineStageResult> stageResults,
         TimeSpan duration,
-        int retryCount = 0)
+        int retryCount = 0,
+        TimeProvider? clock = null)
     {
-        var now = DateTime.UtcNow;
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         return new PipelineResult(
             context,
             output: null,

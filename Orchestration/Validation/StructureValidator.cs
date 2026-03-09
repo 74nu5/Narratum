@@ -55,7 +55,7 @@ public sealed class StructureValidator : IStructureValidator
         return new StructureValidationResult(isValid, errors, warnings);
     }
 
-    public StructureValidationResult ValidateResponse(AgentResponse response)
+    public StructureValidationResult ValidateResponse(NarrativeAgentResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
 
@@ -69,7 +69,7 @@ public sealed class StructureValidator : IStructureValidator
 
     private void ValidateAgentResponse(
         AgentType agentType,
-        AgentResponse response,
+        NarrativeAgentResponse response,
         List<StructureValidationError> errors,
         List<StructureValidationWarning> warnings)
     {

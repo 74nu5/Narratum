@@ -143,7 +143,7 @@ public class PipelineLoggerTests
         // Arrange
         var logger = new PipelineLogger();
         var pipelineId = Guid.NewGuid();
-        var response = AgentResponse.CreateSuccess(
+        var response = NarrativeAgentResponse.CreateSuccess(
             AgentType.Narrator,
             "Generated narrative content",
             TimeSpan.FromMilliseconds(200));
@@ -165,7 +165,7 @@ public class PipelineLoggerTests
         // Arrange
         var logger = new PipelineLogger();
         var pipelineId = Guid.NewGuid();
-        var response = AgentResponse.CreateFailure(
+        var response = NarrativeAgentResponse.CreateFailure(
             AgentType.Narrator,
             "Agent failed",
             TimeSpan.FromMilliseconds(50));

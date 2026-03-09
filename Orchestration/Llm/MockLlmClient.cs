@@ -74,7 +74,6 @@ public sealed class MockLlmClient : ILlmClient
     private int _requestCount;
 
     public string ClientName => "MockLlmClient";
-    public bool IsMock => true;
 
     /// <summary>
     /// Nombre de requêtes traitées.
@@ -177,7 +176,6 @@ public sealed class StupidLlmClient : ILlmClient
     private const string StupidResponse = "TEXTE FAUX MAIS STRUCTURELLEMENT VALIDE";
 
     public string ClientName => "StupidLlmClient";
-    public bool IsMock => true;
 
     public Task<Result<LlmResponse>> GenerateAsync(
         LlmRequest request,

@@ -68,7 +68,8 @@ public sealed record PipelineContext
         IReadOnlyDictionary<MemoryLevel, string>? summaries = null,
         IEnumerable<Id>? activeCharacterIds = null,
         Id? currentLocationId = null,
-        IReadOnlyDictionary<string, object>? metadata = null)
+        IReadOnlyDictionary<string, object>? metadata = null,
+        TimeProvider? clock = null)
     {
         ContextId = Id.New();
         StoryState = storyState ?? throw new ArgumentNullException(nameof(storyState));
@@ -79,7 +80,7 @@ public sealed record PipelineContext
         ActiveCharacterIds = (activeCharacterIds?.ToList() ?? new List<Id>()).AsReadOnly();
         CurrentLocationId = currentLocationId;
         Metadata = metadata ?? new Dictionary<string, object>();
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     }
 
     /// <summary>

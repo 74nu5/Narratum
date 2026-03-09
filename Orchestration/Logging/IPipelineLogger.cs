@@ -317,7 +317,7 @@ public interface IPipelineLogger
     /// <summary>
     /// Enregistre la réponse d'un agent.
     /// </summary>
-    void LogAgentResponse(Guid pipelineId, AgentType agent, AgentResponse response);
+    void LogAgentResponse(Guid pipelineId, AgentType agent, NarrativeAgentResponse response);
 
     /// <summary>
     /// Enregistre une tentative de retry.

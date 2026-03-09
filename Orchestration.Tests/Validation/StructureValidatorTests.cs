@@ -18,7 +18,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "This is a valid narrative text with sufficient length.",
                     TimeSpan.FromMilliseconds(100))
@@ -51,7 +51,7 @@ public class StructureValidatorTests
     {
         // Arrange
         var validator = new StructureValidator();
-        var output = RawOutput.Create(Array.Empty<AgentResponse>(), TimeSpan.Zero);
+        var output = RawOutput.Create(Array.Empty<NarrativeAgentResponse>(), TimeSpan.Zero);
 
         // Act
         var result = validator.Validate(output);
@@ -70,7 +70,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -90,7 +90,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "   \t\n  ", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "   \t\n  ", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -110,7 +110,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateFailure(AgentType.Narrator, "LLM timeout", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateFailure(AgentType.Narrator, "LLM timeout", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -131,7 +131,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, "Short.", TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Short.", TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -157,7 +157,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, longContent, TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, longContent, TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -183,7 +183,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(AgentType.Narrator, longContent, TimeSpan.Zero)
+                NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, longContent, TimeSpan.Zero)
             },
             TimeSpan.Zero);
 
@@ -208,7 +208,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "This is valid content with [TODO] marker.",
                     TimeSpan.Zero)
@@ -236,7 +236,7 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "This is content with PLACEHOLDER text.",
                     TimeSpan.Zero)
@@ -269,12 +269,12 @@ public class StructureValidatorTests
             new[]
             {
                 // Narrator with 50 chars - should fail (needs 100)
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     new string('x', 50),
                     TimeSpan.Zero),
                 // Summary with 30 chars - should fail (needs 50)
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Summary,
                     new string('y', 30),
                     TimeSpan.Zero)
@@ -299,15 +299,15 @@ public class StructureValidatorTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Valid narrative content here.",
                     TimeSpan.Zero),
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Summary,
                     "Valid summary content here.",
                     TimeSpan.Zero),
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Character,
                     "", // Empty - should fail
                     TimeSpan.Zero)
@@ -328,7 +328,7 @@ public class StructureValidatorTests
     {
         // Arrange
         var validator = new StructureValidator();
-        var response = AgentResponse.CreateSuccess(
+        var response = NarrativeAgentResponse.CreateSuccess(
             AgentType.Narrator,
             "Valid content here.",
             TimeSpan.Zero);
@@ -345,7 +345,7 @@ public class StructureValidatorTests
     {
         // Arrange
         var validator = new StructureValidator();
-        var response = AgentResponse.CreateFailure(
+        var response = NarrativeAgentResponse.CreateFailure(
             AgentType.Narrator,
             "Error message",
             TimeSpan.Zero);

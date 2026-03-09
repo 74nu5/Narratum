@@ -178,7 +178,8 @@ public sealed record NarrativeContext
         LocationContext? currentLocation = null,
         IEnumerable<object>? recentEvents = null,
         string? recentSummary = null,
-        IReadOnlyDictionary<string, object>? metadata = null)
+        IReadOnlyDictionary<string, object>? metadata = null,
+        TimeProvider? clock = null)
     {
         ContextId = Id.New();
         State = state ?? throw new ArgumentNullException(nameof(state));
@@ -188,7 +189,7 @@ public sealed record NarrativeContext
         CurrentLocation = currentLocation;
         RecentEvents = (recentEvents?.ToList() ?? new List<object>()).AsReadOnly();
         RecentSummary = recentSummary;
-        ContextBuiltAt = DateTime.UtcNow;
+        ContextBuiltAt = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         Metadata = metadata ?? new Dictionary<string, object>();
     }
 
@@ -240,9 +241,9 @@ public sealed record PromptSet(
 }
 
 /// <summary>
-/// Réponse d'un agent.
+/// Réponse d'un agent narratif.
 /// </summary>
-public sealed record AgentResponse(
+public sealed record NarrativeAgentResponse(
     AgentType Agent,
     string Content,
     bool Success,
@@ -250,13 +251,13 @@ public sealed record AgentResponse(
     TimeSpan Duration,
     IReadOnlyDictionary<string, object> Metadata)
 {
-    public static AgentResponse CreateSuccess(AgentType agent, string content, TimeSpan duration)
+    public static NarrativeAgentResponse CreateSuccess(AgentType agent, string content, TimeSpan duration)
         => new(agent, content, true, null, duration, new Dictionary<string, object>());
 
-    public static AgentResponse CreateFailure(AgentType agent, string error, TimeSpan duration)
+    public static NarrativeAgentResponse CreateFailure(AgentType agent, string error, TimeSpan duration)
         => new(agent, string.Empty, false, error, duration, new Dictionary<string, object>());
 
-    public AgentResponse WithMetadata(string key, object value)
+    public NarrativeAgentResponse WithMetadata(string key, object value)
     {
         var newMeta = new Dictionary<string, object>(Metadata) { [key] = value };
         return this with { Metadata = newMeta };
@@ -267,17 +268,17 @@ public sealed record AgentResponse(
 /// Sortie brute de l'exécution des agents.
 /// </summary>
 public sealed record RawOutput(
-    IReadOnlyDictionary<AgentType, AgentResponse> Responses,
+    IReadOnlyDictionary<AgentType, NarrativeAgentResponse> Responses,
     DateTime GeneratedAt,
     TimeSpan TotalDuration)
 {
-    public static RawOutput Create(IEnumerable<AgentResponse> responses, TimeSpan duration)
+    public static RawOutput Create(IEnumerable<NarrativeAgentResponse> responses, TimeSpan duration, TimeProvider? clock = null)
     {
         var dict = responses.ToDictionary(r => r.Agent, r => r);
-        return new RawOutput(dict, DateTime.UtcNow, duration);
+        return new RawOutput(dict, (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime, duration);
     }
 
-    public AgentResponse? GetResponse(AgentType agent)
+    public NarrativeAgentResponse? GetResponse(AgentType agent)
         => Responses.GetValueOrDefault(agent);
 
     public bool HasSuccessfulResponse(AgentType agent)

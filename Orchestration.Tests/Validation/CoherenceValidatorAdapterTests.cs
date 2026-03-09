@@ -32,7 +32,7 @@ public class CoherenceValidatorAdapterTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Alice walked through the forest, enjoying the scenery.",
                     TimeSpan.Zero)
@@ -66,7 +66,7 @@ public class CoherenceValidatorAdapterTests
         // Arrange
         var adapter = new CoherenceValidatorAdapter();
         var output = RawOutput.Create(
-            new[] { AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
+            new[] { NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
             TimeSpan.Zero);
 
         // Act
@@ -88,7 +88,7 @@ public class CoherenceValidatorAdapterTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Bob walked into the room and smiled at everyone.",
                     TimeSpan.Zero)
@@ -118,7 +118,7 @@ public class CoherenceValidatorAdapterTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Character,
                     "\"I have something to say,\" Alice said firmly.",
                     TimeSpan.Zero)
@@ -145,7 +145,7 @@ public class CoherenceValidatorAdapterTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Everyone remembered Bob. His legacy lived on in their hearts.",
                     TimeSpan.Zero)
@@ -185,7 +185,7 @@ public class CoherenceValidatorAdapterTests
 
         var adapter = new CoherenceValidatorAdapter(mockValidator);
         var output = RawOutput.Create(
-            new[] { AgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
+            new[] { NarrativeAgentResponse.CreateSuccess(AgentType.Narrator, "Content", TimeSpan.Zero) },
             TimeSpan.Zero);
 
         // Act
@@ -259,7 +259,7 @@ public class CoherenceValidatorAdapterTests
         var output = RawOutput.Create(
             new[]
             {
-                AgentResponse.CreateSuccess(
+                NarrativeAgentResponse.CreateSuccess(
                     AgentType.Narrator,
                     "Alice walked in. Bob smiled at her. They looked at each other.",
                     TimeSpan.Zero)

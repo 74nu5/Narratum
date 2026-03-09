@@ -89,7 +89,8 @@ public sealed record NarrativeIntent
         string? description = null,
         IEnumerable<Id>? targetCharacterIds = null,
         Id? targetLocationId = null,
-        IReadOnlyDictionary<string, object>? parameters = null)
+        IReadOnlyDictionary<string, object>? parameters = null,
+        TimeProvider? clock = null)
     {
         Id = Id.New();
         Type = type;
@@ -97,7 +98,7 @@ public sealed record NarrativeIntent
         TargetCharacterIds = (targetCharacterIds?.ToList() ?? new List<Id>()).AsReadOnly();
         TargetLocationId = targetLocationId;
         Parameters = parameters ?? new Dictionary<string, object>();
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     }
 
     /// <summary>

@@ -28,7 +28,7 @@ public sealed class MockCharacterAgent : ICharacterAgent
         _config = config ?? MockCharacterConfig.Default;
     }
 
-    public async Task<Result<AgentResponse>> ProcessAsync(
+    public async Task<Result<NarrativeAgentResponse>> ProcessAsync(
         AgentPrompt prompt,
         NarrativeContext context,
         CancellationToken cancellationToken = default)
@@ -43,7 +43,7 @@ public sealed class MockCharacterAgent : ICharacterAgent
         if (speaker == null)
         {
             stopwatch.Stop();
-            return Result<AgentResponse>.Ok(AgentResponse.CreateFailure(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateFailure(
                 Type,
                 "No active character available for dialogue",
                 stopwatch.Elapsed));
@@ -68,7 +68,7 @@ public sealed class MockCharacterAgent : ICharacterAgent
 
         if (dialogueResult is Result<string>.Success success)
         {
-            return Result<AgentResponse>.Ok(AgentResponse.CreateSuccess(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateSuccess(
                 Type,
                 success.Value,
                 stopwatch.Elapsed)
@@ -77,13 +77,13 @@ public sealed class MockCharacterAgent : ICharacterAgent
         }
         else if (dialogueResult is Result<string>.Failure failure)
         {
-            return Result<AgentResponse>.Ok(AgentResponse.CreateFailure(
+            return Result<NarrativeAgentResponse>.Ok(NarrativeAgentResponse.CreateFailure(
                 Type,
                 failure.Message,
                 stopwatch.Elapsed));
         }
 
-        return Result<AgentResponse>.Fail("Unknown error in MockCharacterAgent");
+        return Result<NarrativeAgentResponse>.Fail("Unknown error in MockCharacterAgent");
     }
 
     public bool CanHandle(NarrativeIntent intent)
