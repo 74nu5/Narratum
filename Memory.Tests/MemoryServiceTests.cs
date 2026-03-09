@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Narratum.Core;
-using Narratum.Memory;
 using Narratum.Memory.Services;
 using Narratum.Memory.Store;
 

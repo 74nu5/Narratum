@@ -1,5 +1,3 @@
-using Narratum.Core;
-using Narratum.Memory;
 using Narratum.Memory.Services;
 
 namespace Narratum.Memory.Tests;

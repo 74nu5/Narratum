@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Narratum.State;
 
 namespace Narratum.Persistence;
 

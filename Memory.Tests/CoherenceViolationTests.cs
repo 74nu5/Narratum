@@ -1,5 +1,3 @@
-using Narratum.Memory;
-
 namespace Narratum.Memory.Tests;
 
 public class CoherenceViolationTests

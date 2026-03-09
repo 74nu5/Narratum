@@ -107,38 +107,38 @@ public class PromptBuilder : IPromptBuilder
         return agentType switch
         {
             AgentType.Narrator => $"""
-                You are a narrative engine for the world "{worldName}".
-                Generate coherent, engaging narrative content that advances the story.
-                Maintain consistency with established facts and character behaviors.
-                Write in third person, past tense.
-                Focus on showing rather than telling.
+                Tu es un moteur narratif pour le monde "{worldName}".
+                Génère du contenu narratif cohérent et captivant qui fait avancer l'histoire.
+                Maintiens la cohérence avec les faits établis et les comportements des personnages.
+                Écris à la troisième personne, au passé.
+                Privilégie le montrer plutôt que dire.
                 """,
 
             AgentType.Character => $"""
-                You are a character dialogue generator for "{worldName}".
-                Generate authentic, in-character dialogue and reactions.
-                Each character has distinct personality traits and speech patterns.
-                Dialogue should reveal character and advance plot.
-                Use appropriate emotional tone based on context.
+                Tu es un générateur de dialogues pour "{worldName}".
+                Génère des dialogues et réactions authentiques, dans le personnage.
+                Chaque personnage a des traits de personnalité et un style d'élocution distincts.
+                Les dialogues doivent révéler le personnage et faire avancer l'intrigue.
+                Utilise un ton émotionnel adapté au contexte.
                 """,
 
             AgentType.Summary => $"""
-                You are a narrative summarizer for "{worldName}".
-                Generate concise, factual summaries of story events.
-                Focus on key plot points, character actions, and state changes.
-                Maintain chronological accuracy.
-                Avoid interpretation or embellishment.
+                Tu es un résumeur narratif pour "{worldName}".
+                Génère des résumés concis et factuels des événements de l'histoire.
+                Concentre-toi sur les points clés de l'intrigue, les actions des personnages et les changements d'état.
+                Maintiens une précision chronologique.
+                Évite toute interprétation ou embellissement.
                 """,
 
             AgentType.Consistency => $"""
-                You are a consistency checker for "{worldName}".
-                Verify that narrative content aligns with established facts.
-                Identify contradictions with character states, locations, or events.
-                Flag any logical inconsistencies.
-                Report issues clearly and specifically.
+                Tu es un vérificateur de cohérence pour "{worldName}".
+                Vérifie que le contenu narratif est aligné avec les faits établis.
+                Identifie les contradictions avec les états des personnages, les lieux ou les événements.
+                Signale toute incohérence logique.
+                Rapporte les problèmes clairement et précisément.
                 """,
 
-            _ => $"You are an AI assistant for the narrative world \"{worldName}\"."
+            _ => $"Tu es un assistant IA pour le monde narratif \"{worldName}\"."
         };
     }
 
@@ -153,11 +153,11 @@ public class PromptBuilder : IPromptBuilder
         var sb = new StringBuilder();
 
         // Ajouter l'intention
-        sb.AppendLine($"## Intent: {GetIntentDescription(intent)}");
+        sb.AppendLine($"## Intention : {GetIntentDescription(intent)}");
 
         if (!string.IsNullOrEmpty(intent.Description))
         {
-            sb.AppendLine($"Details: {intent.Description}");
+            sb.AppendLine($"Détails : {intent.Description}");
         }
 
         sb.AppendLine();
@@ -165,14 +165,14 @@ public class PromptBuilder : IPromptBuilder
         // Ajouter le contexte des personnages
         if (context.ActiveCharacters.Count > 0)
         {
-            sb.AppendLine("## Active Characters:");
+            sb.AppendLine("## Personnages actifs :");
             foreach (var character in context.ActiveCharacters)
             {
                 sb.AppendLine($"- {character.Name} ({character.Status})");
                 if (character.KnownFacts.Count > 0)
                 {
                     var facts = string.Join(", ", character.KnownFacts.Take(5));
-                    sb.AppendLine($"  Known facts: {facts}");
+                    sb.AppendLine($"  Faits connus : {facts}");
                 }
             }
             sb.AppendLine();
@@ -181,7 +181,7 @@ public class PromptBuilder : IPromptBuilder
         // Ajouter le contexte du lieu
         if (context.CurrentLocation != null)
         {
-            sb.AppendLine($"## Location: {context.CurrentLocation.Name}");
+            sb.AppendLine($"## Lieu : {context.CurrentLocation.Name}");
             sb.AppendLine($"{context.CurrentLocation.Description}");
             sb.AppendLine();
         }
@@ -189,7 +189,7 @@ public class PromptBuilder : IPromptBuilder
         // Ajouter le résumé récent
         if (!string.IsNullOrEmpty(context.RecentSummary))
         {
-            sb.AppendLine("## Recent Events Summary:");
+            sb.AppendLine("## Résumé des événements récents :");
             sb.AppendLine(context.RecentSummary);
             sb.AppendLine();
         }
@@ -280,14 +280,14 @@ public class PromptBuilder : IPromptBuilder
     {
         return intent.Type switch
         {
-            IntentType.ContinueNarrative => "Continue the narrative naturally",
-            IntentType.GenerateDialogue => "Generate dialogue between characters",
-            IntentType.DescribeScene => "Describe the current scene in detail",
-            IntentType.CreateTension => "Create dramatic tension",
-            IntentType.ResolveConflict => "Resolve the current conflict",
-            IntentType.Summarize => "Summarize recent events",
-            IntentType.IntroduceEvent => "Introduce a new event",
-            _ => "Generate narrative content"
+            IntentType.ContinueNarrative => "Continuer la narration naturellement",
+            IntentType.GenerateDialogue => "Générer un dialogue entre les personnages",
+            IntentType.DescribeScene => "Décrire la scène actuelle en détail",
+            IntentType.CreateTension => "Créer une tension dramatique",
+            IntentType.ResolveConflict => "Résoudre le conflit actuel",
+            IntentType.Summarize => "Résumer les événements récents",
+            IntentType.IntroduceEvent => "Introduire un nouvel événement",
+            _ => "Générer du contenu narratif"
         };
     }
 
@@ -300,23 +300,23 @@ public class PromptBuilder : IPromptBuilder
         {
             AgentType.Narrator => intent.Type switch
             {
-                IntentType.ContinueNarrative => "Continue the story from where it left off. Maintain pacing and tone.",
-                IntentType.DescribeScene => "Describe the scene with sensory details. Set the atmosphere.",
-                IntentType.CreateTension => "Build suspense and dramatic tension. Use pacing techniques.",
-                IntentType.ResolveConflict => "Bring the conflict to a satisfying resolution.",
-                _ => "Generate appropriate narrative content."
+                IntentType.ContinueNarrative => "Continuez l'histoire là où elle s'est arrêtée. Maintenez le rythme et le ton.",
+                IntentType.DescribeScene => "Décrivez la scène avec des détails sensoriels. Installez l'atmosphère.",
+                IntentType.CreateTension => "Construisez le suspense et la tension dramatique. Utilisez des techniques de rythme.",
+                IntentType.ResolveConflict => "Amenez le conflit vers une résolution satisfaisante.",
+                _ => "Générez du contenu narratif approprié."
             },
 
             AgentType.Character => intent.Type switch
             {
-                IntentType.GenerateDialogue => "Generate a natural conversation. Each character should have a distinct voice.",
-                IntentType.ResolveConflict => "Generate character reactions and dialogue for the resolution.",
-                _ => "Generate in-character dialogue and reactions."
+                IntentType.GenerateDialogue => "Générez une conversation naturelle. Chaque personnage doit avoir une voix distincte.",
+                IntentType.ResolveConflict => "Générez les réactions et dialogues des personnages pour la résolution.",
+                _ => "Générez des dialogues et réactions dans le personnage."
             },
 
-            AgentType.Summary => "Provide a concise summary of the key events and state changes.",
+            AgentType.Summary => "Fournissez un résumé concis des événements clés et des changements d'état.",
 
-            AgentType.Consistency => "Check the generated content for consistency with established facts.",
+            AgentType.Consistency => "Vérifiez la cohérence du contenu généré avec les faits établis.",
 
             _ => ""
         };

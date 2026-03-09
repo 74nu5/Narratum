@@ -3,7 +3,6 @@ using FluentAssertions;
 using Narratum.Core;
 using Narratum.Persistence;
 using Narratum.State;
-using Narratum.Domain;
 
 namespace Narratum.Tests;
 

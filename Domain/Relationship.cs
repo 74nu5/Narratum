@@ -1,5 +1,3 @@
-using Narratum.Core;
-
 namespace Narratum.Domain;
 
 /// <summary>

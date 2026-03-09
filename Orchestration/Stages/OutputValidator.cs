@@ -228,14 +228,19 @@ public class OutputValidator : IOutputValidator
             // Vérifier les personnages morts parlant/agissant
             foreach (var deadName in deadCharacters)
             {
-                // Patterns qui suggèrent qu'un personnage mort agit
+                // Patterns qui suggèrent qu'un personnage mort agit (passé simple + passé composé)
                 var actionPatterns = new[]
                 {
-                    $"{deadName} said",
-                    $"{deadName} spoke",
-                    $"{deadName} walked",
-                    $"{deadName} ran",
-                    $"{deadName} looked"
+                    $"{deadName} dit",
+                    $"{deadName} parla",
+                    $"{deadName} marcha",
+                    $"{deadName} courut",
+                    $"{deadName} regarda",
+                    $"{deadName} a dit",
+                    $"{deadName} a parlé",
+                    $"{deadName} a marché",
+                    $"{deadName} a couru",
+                    $"{deadName} a regardé"
                 };
 
                 foreach (var pattern in actionPatterns)

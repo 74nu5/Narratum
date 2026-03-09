@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Narratum.Core;
-using Narratum.Memory;
 using Narratum.Memory.Store;
 
 namespace Narratum.Memory.Services;

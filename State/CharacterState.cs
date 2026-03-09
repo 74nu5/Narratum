@@ -1,5 +1,4 @@
 using Narratum.Core;
-using Narratum.Domain;
 
 namespace Narratum.State;
 

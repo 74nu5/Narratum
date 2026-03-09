@@ -1,18 +1,19 @@
+namespace Narratum.Orchestration.Prompts.Templates;
+
 using System.Text;
+
 using Narratum.Orchestration.Models;
 using Narratum.Orchestration.Stages;
 
-namespace Narratum.Orchestration.Prompts.Templates;
-
 /// <summary>
-/// Template de prompt pour l'agent narrateur.
-///
-/// Génère des prompts pour créer de la prose narrative
-/// qui avance l'histoire tout en respectant les faits établis.
+///     Template de prompt pour l'agent narrateur.
+///     Génère des prompts pour créer de la prose narrative
+///     qui avance l'histoire tout en respectant les faits établis.
 /// </summary>
 public sealed class NarratorPromptTemplate : PromptTemplateBase
 {
     public override string Name => "NarratorPrompt";
+
     public override AgentType TargetAgent => AgentType.Narrator;
 
     public override IReadOnlySet<IntentType> SupportedIntents { get; } = new HashSet<IntentType>
@@ -20,45 +21,55 @@ public sealed class NarratorPromptTemplate : PromptTemplateBase
         IntentType.ContinueNarrative,
         IntentType.DescribeScene,
         IntentType.CreateTension,
-        IntentType.ResolveConflict
+        IntentType.ResolveConflict,
     };
 
     public override string BuildSystemPrompt(NarrativeContext context)
-    {
-        return """
-            You are a narrative writer for an interactive story engine.
+        => """
+           Tu es un auteur narratif pour un moteur d'histoire interactif.
 
-            ROLE:
-            - Generate descriptive prose that advances the narrative
-            - Maintain consistency with all established facts
-            - Write immersive, engaging narrative content
+           RÔLE :
 
-            STYLE:
-            - Third person, past tense
-            - Rich descriptive language
-            - Show, don't tell - use actions and sensory details
-            - Vary sentence structure for rhythm
+           * Générer une narration centrée sur les actions, décisions et conséquences
+           * Faire progresser l’intrigue à chaque paragraphe
+           * Maintenir la cohérence avec tous les faits établis
+           * Adapter la narration à la personne grammaticale demandée (première ou troisième)
 
-            RULES:
-            1. NEVER contradict established facts
-            2. NEVER kill characters without explicit instruction
-            3. NEVER introduce new characters or locations not mentioned
-            4. ALWAYS mention characters by their established names
-            5. ALWAYS respect character traits and relationships
-            6. Keep generated content between 150-300 words
+           STYLE :
 
-            FORMAT:
-            - 2-3 paragraphs of prose
-            - Natural transitions between scenes
-            - End with a subtle narrative hook
+           * Utiliser **strictement** la personne grammaticale spécifiée dans le contexte (première ou troisième)
+           * Temps : passé composé, imparfait ou présent narratif selon la continuité existante
+           * Rythme soutenu, phrases dynamiques
+           * Priorité aux verbes d’action, aux choix et aux interactions
+           * Limiter les descriptions statiques de décor ou d’ambiance
+           * Exprimer émotions et tensions à travers les actions et décisions
 
-            FORBIDDEN:
-            - Breaking the fourth wall
-            - Modern anachronisms in fantasy settings
-            - Out-of-character actions
-            - Deus ex machina resolutions
-            """;
-    }
+           RÈGLES :
+
+           1. NE JAMAIS changer la personne grammaticale en cours de génération
+           2. NE JAMAIS contredire les faits établis
+           3. NE JAMAIS tuer des personnages sans instruction explicite
+           4. NE JAMAIS introduire de nouveaux personnages ou lieux non mentionnés
+           5. TOUJOURS nommer les personnages par leurs noms établis (sauf en narration à la première personne si le narrateur est ce personnage)
+           6. TOUJOURS respecter les traits et relations des personnages
+           7. Chaque paragraphe doit contenir au moins un événement, une décision ou une action qui modifie la situation
+           8. Garder le contenu généré entre 150 et 300 mots
+
+           FORMAT :
+
+           * 2 à 3 paragraphes de prose
+           * Transitions brèves et fonctionnelles
+           * Terminer par une action imminente, une décision critique ou une tension immédiate
+
+           INTERDIT :
+
+           * Longues descriptions contemplatives
+           * Monologues introspectifs prolongés sans action
+           * Briser le quatrième mur
+           * Anachronismes modernes dans les univers fantastiques
+           * Actions contraires au personnage
+           * Résolutions deus ex machina
+           """;
 
     public override string BuildUserPrompt(NarrativeContext context, NarrativeIntent intent)
     {
@@ -67,55 +78,56 @@ public sealed class NarratorPromptTemplate : PromptTemplateBase
         // En-tête basé sur l'intention
         var header = intent.Type switch
         {
-            IntentType.DescribeScene => "Describe the following scene:",
-            IntentType.CreateTension => "Create tension in the following scene:",
-            IntentType.ResolveConflict => "Resolve the conflict in the following scene:",
-            _ => "Continue the narrative:"
+            IntentType.DescribeScene   => "Décrivez la scène suivante :",
+            IntentType.CreateTension   => "Créez une tension dans la scène suivante :",
+            IntentType.ResolveConflict => "Résolvez le conflit dans la scène suivante :",
+            _                          => "Continuez la narration :",
         };
+
         sb.AppendLine(header);
         sb.AppendLine();
 
         // Lieu actuel
         if (context.CurrentLocation != null)
         {
-            sb.AppendLine($"LOCATION: {context.CurrentLocation.Name}");
+            sb.AppendLine($"LIEU : {context.CurrentLocation.Name}");
+
             if (!string.IsNullOrEmpty(context.CurrentLocation.Description))
-            {
-                sb.AppendLine($"  Description: {context.CurrentLocation.Description}");
-            }
+                sb.AppendLine($"  Description : {context.CurrentLocation.Description}");
+
             sb.AppendLine();
         }
 
         // Personnages présents
-        sb.AppendLine("PRESENT CHARACTERS:");
-        sb.AppendLine(FormatCharacterList(context.ActiveCharacters));
+        sb.AppendLine("PERSONNAGES PRÉSENTS :");
+        sb.AppendLine(this.FormatCharacterList(context.ActiveCharacters));
         sb.AppendLine();
 
         // Résumé récent
         if (!string.IsNullOrEmpty(context.RecentSummary))
         {
-            sb.AppendLine("RECENT EVENTS SUMMARY:");
+            sb.AppendLine("RÉSUMÉ DES ÉVÉNEMENTS RÉCENTS :");
             sb.AppendLine(context.RecentSummary);
             sb.AppendLine();
         }
 
         // Faits établis (si disponibles via les personnages)
         var allKnownFacts = context.ActiveCharacters
-            .SelectMany(c => c.KnownFacts)
-            .Distinct()
-            .ToList();
+                                   .SelectMany(c => c.KnownFacts)
+                                   .Distinct()
+                                   .ToList();
 
         if (allKnownFacts.Count > 0)
         {
-            sb.AppendLine("ESTABLISHED FACTS:");
-            sb.AppendLine(FormatKnownFacts(new HashSet<string>(allKnownFacts)));
+            sb.AppendLine("FAITS ÉTABLIS :");
+            sb.AppendLine(this.FormatKnownFacts(new HashSet<string>(allKnownFacts)));
             sb.AppendLine();
         }
 
         // Intention spécifique
         if (!string.IsNullOrEmpty(intent.Description))
         {
-            sb.AppendLine($"NARRATIVE DIRECTION: {intent.Description}");
+            sb.AppendLine($"DIRECTION NARRATIVE : {intent.Description}");
             sb.AppendLine();
         }
 
@@ -123,13 +135,14 @@ public sealed class NarratorPromptTemplate : PromptTemplateBase
         if (intent.TargetCharacterIds.Count > 0)
         {
             var targetCharacters = context.ActiveCharacters
-                .Where(c => intent.TargetCharacterIds.Contains(c.CharacterId))
-                .Select(c => c.Name);
-            sb.AppendLine($"FOCUS ON: {string.Join(", ", targetCharacters)}");
+                                          .Where(c => intent.TargetCharacterIds.Contains(c.CharacterId))
+                                          .Select(c => c.Name);
+
+            sb.AppendLine($"FOCUS SUR : {string.Join(", ", targetCharacters)}");
             sb.AppendLine();
         }
 
-        sb.AppendLine("Generate the narrative.");
+        sb.AppendLine("Générez la narration.");
 
         return sb.ToString();
     }
@@ -141,7 +154,7 @@ public sealed class NarratorPromptTemplate : PromptTemplateBase
         {
             { "narrative_style", "descriptive" },
             { "min_words", "150" },
-            { "max_words", "300" }
+            { "max_words", "300" },
         };
 
         // Ajouter le lieu s'il existe

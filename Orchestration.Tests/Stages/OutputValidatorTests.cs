@@ -217,7 +217,7 @@ public class OutputValidatorTests
             {
                 AgentResponse.CreateSuccess(
                     AgentType.Narrator,
-                    "Bob walked into the room and said hello.",
+                    "Bob marcha dans la salle et dit bonjour.",
                     TimeSpan.Zero)
             },
             TimeSpan.Zero);

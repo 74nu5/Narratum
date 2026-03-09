@@ -24,37 +24,37 @@ public sealed class CharacterPromptTemplate : PromptTemplateBase
     public override string BuildSystemPrompt(NarrativeContext context)
     {
         return """
-            You are a character dialogue writer for an interactive story engine.
+            Tu es un auteur de dialogues pour un moteur d'histoire interactif.
 
-            ROLE:
-            - Generate authentic dialogue for story characters
-            - Capture each character's unique voice and personality
-            - Create meaningful exchanges that advance relationships
+            RÔLE :
+            - Générer des dialogues authentiques pour les personnages de l'histoire
+            - Capturer la voix et la personnalité uniques de chaque personnage
+            - Créer des échanges significatifs qui font avancer les relations
 
-            DIALOGUE PRINCIPLES:
-            - Each character has a distinct voice based on their traits
-            - Dialogue should reveal character, not just convey information
-            - Subtext matters - characters don't always say what they mean
-            - Reactions should be proportional and in-character
+            PRINCIPES DU DIALOGUE :
+            - Chaque personnage a une voix distincte basée sur ses traits
+            - Le dialogue doit révéler le personnage, pas seulement transmettre de l'information
+            - Le sous-texte compte — les personnages ne disent pas toujours ce qu'ils pensent
+            - Les réactions doivent être proportionnelles et dans le personnage
 
-            RULES:
-            1. Stay true to established character traits
-            2. Consider relationships between characters
-            3. Account for what characters know vs. don't know
-            4. Dead characters cannot speak (unless flashback/memory)
-            5. Match the emotional tone of the scene
+            RÈGLES :
+            1. Rester fidèle aux traits établis du personnage
+            2. Tenir compte des relations entre les personnages
+            3. Prendre en compte ce que les personnages savent et ne savent pas
+            4. Les personnages morts ne peuvent pas parler (sauf en flashback ou souvenir)
+            5. Correspondre au ton émotionnel de la scène
 
-            FORMAT:
-            - Use quotation marks for spoken dialogue
-            - Include brief action beats between lines
-            - Keep exchanges focused and purposeful
-            - 3-6 dialogue exchanges maximum
+            FORMAT :
+            - Utiliser des guillemets pour les dialogues parlés
+            - Inclure de brèves indications d'action entre les répliques
+            - Garder les échanges ciblés et intentionnels
+            - Maximum 3 à 6 échanges de dialogue
 
-            FORBIDDEN:
-            - Characters acting out of character
-            - Modern slang in historical/fantasy settings
-            - Characters knowing information they shouldn't
-            - Overly expository dialogue ("As you know, Bob...")
+            INTERDIT :
+            - Personnages agissant en dehors de leur caractère
+            - Argot moderne dans les contextes historiques ou fantastiques
+            - Personnages connaissant des informations qu'ils ne devraient pas
+            - Dialogue trop explicatif ("Comme tu le sais, Bob...")
             """;
     }
 
@@ -62,36 +62,36 @@ public sealed class CharacterPromptTemplate : PromptTemplateBase
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("Generate dialogue for the following scene:");
+        sb.AppendLine("Générez un dialogue pour la scène suivante :");
         sb.AppendLine();
 
         // Lieu de la scène
         if (context.CurrentLocation != null)
         {
-            sb.AppendLine($"SETTING: {context.CurrentLocation.Name}");
+            sb.AppendLine($"CADRE : {context.CurrentLocation.Name}");
             sb.AppendLine();
         }
 
         // Personnages dans la scène
-        sb.AppendLine("CHARACTERS IN SCENE:");
+        sb.AppendLine("PERSONNAGES DANS LA SCÈNE :");
         foreach (var character in context.ActiveCharacters)
         {
             sb.AppendLine($"  {character.Name}:");
-            sb.AppendLine($"    - Status: {character.Status}");
+            sb.AppendLine($"    - Statut : {character.Status}");
 
             if (character.CharacterTraits.Count > 0)
             {
-                sb.AppendLine($"    - Traits: {string.Join(", ", character.CharacterTraits)}");
+                sb.AppendLine($"    - Traits : {string.Join(", ", character.CharacterTraits)}");
             }
 
             if (!string.IsNullOrEmpty(character.CurrentMood))
             {
-                sb.AppendLine($"    - Current mood: {character.CurrentMood}");
+                sb.AppendLine($"    - Humeur actuelle : {character.CurrentMood}");
             }
 
             if (character.KnownFacts.Count > 0)
             {
-                sb.AppendLine($"    - Knows: {string.Join("; ", character.KnownFacts.Take(3))}");
+                sb.AppendLine($"    - Sait : {string.Join("; ", character.KnownFacts.Take(3))}");
             }
         }
         sb.AppendLine();
@@ -99,7 +99,7 @@ public sealed class CharacterPromptTemplate : PromptTemplateBase
         // Contexte de la conversation
         if (!string.IsNullOrEmpty(context.RecentSummary))
         {
-            sb.AppendLine("CONTEXT:");
+            sb.AppendLine("CONTEXTE :");
             sb.AppendLine($"  {context.RecentSummary}");
             sb.AppendLine();
         }
@@ -110,14 +110,14 @@ public sealed class CharacterPromptTemplate : PromptTemplateBase
             var targetCharacters = context.ActiveCharacters
                 .Where(c => intent.TargetCharacterIds.Contains(c.CharacterId))
                 .Select(c => c.Name);
-            sb.AppendLine($"PRIMARY SPEAKER: {string.Join(", ", targetCharacters)}");
+            sb.AppendLine($"LOCUTEUR PRINCIPAL : {string.Join(", ", targetCharacters)}");
             sb.AppendLine();
         }
 
         // Direction spécifique
         if (!string.IsNullOrEmpty(intent.Description))
         {
-            sb.AppendLine($"DIALOGUE OBJECTIVE: {intent.Description}");
+            sb.AppendLine($"OBJECTIF DU DIALOGUE : {intent.Description}");
             sb.AppendLine();
         }
 
@@ -126,16 +126,16 @@ public sealed class CharacterPromptTemplate : PromptTemplateBase
         {
             if (intent.Parameters.TryGetValue("tone", out var tone))
             {
-                sb.AppendLine($"EMOTIONAL TONE: {tone}");
+                sb.AppendLine($"TON ÉMOTIONNEL : {tone}");
             }
             if (intent.Parameters.TryGetValue("topic", out var topic))
             {
-                sb.AppendLine($"TOPIC: {topic}");
+                sb.AppendLine($"SUJET : {topic}");
             }
             sb.AppendLine();
         }
 
-        sb.AppendLine("Generate the dialogue exchange.");
+        sb.AppendLine("Générez l'échange de dialogue.");
 
         return sb.ToString();
     }

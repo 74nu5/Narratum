@@ -2,7 +2,6 @@ using Xunit;
 using FluentAssertions;
 using Narratum.Core;
 using Narratum.State;
-using Narratum.Domain;
 
 namespace Narratum.Tests;
 

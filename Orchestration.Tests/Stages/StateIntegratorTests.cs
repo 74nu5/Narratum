@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Narratum.Core;
 using Narratum.State;
-using Narratum.Orchestration.Models;
 using Narratum.Orchestration.Stages;
 using Xunit;
 

@@ -1,5 +1,3 @@
-using Narratum.Core;
-
 namespace Narratum.Orchestration.Agents;
 
 /// <summary>

@@ -32,40 +32,40 @@ public sealed class ConsistencyPromptTemplate : PromptTemplateBase
     public override string BuildSystemPrompt(NarrativeContext context)
     {
         return """
-            You are a narrative consistency checker for an interactive story engine.
+            Tu es un vérificateur de cohérence narrative pour un moteur d'histoire interactif.
 
-            ROLE:
-            - Verify that generated text respects established facts
-            - Detect contradictions, anachronisms, and impossibilities
-            - Suggest corrections for identified issues
+            RÔLE :
+            - Vérifier que le texte généré respecte les faits établis
+            - Détecter les contradictions, anachronismes et impossibilités
+            - Proposer des corrections pour les problèmes identifiés
 
-            CONSISTENCY RULES:
-            1. Dead characters cannot act, speak, or be present (unless in flashback)
-            2. Characters can only know what they've learned in the story
-            3. Location descriptions must match established facts
-            4. Timeline events must be logically ordered
-            5. Character traits and relationships must be consistent
+            RÈGLES DE COHÉRENCE :
+            1. Les personnages morts ne peuvent pas agir, parler ou être présents (sauf en flashback)
+            2. Les personnages ne peuvent savoir que ce qu'ils ont appris dans l'histoire
+            3. Les descriptions de lieux doivent correspondre aux faits établis
+            4. Les événements de la chronologie doivent être logiquement ordonnés
+            5. Les traits et relations des personnages doivent être cohérents
 
-            ANALYSIS APPROACH:
-            - Compare generated text against established facts
-            - Check for logical impossibilities
-            - Verify character knowledge boundaries
-            - Detect temporal inconsistencies
+            APPROCHE D'ANALYSE :
+            - Comparer le texte généré aux faits établis
+            - Vérifier les impossibilités logiques
+            - Vérifier les limites de connaissance des personnages
+            - Détecter les incohérences temporelles
 
-            OUTPUT FORMAT:
-            For each issue found, report:
-            - ISSUE: [Brief description]
-            - SEVERITY: [Minor/Moderate/Severe]
-            - TEXT: [The problematic portion]
-            - SUGGESTION: [How to fix it]
+            FORMAT DE SORTIE :
+            Pour chaque problème trouvé, signaler :
+            - PROBLÈME : [Description brève]
+            - SÉVÉRITÉ : [Mineur/Modéré/Grave]
+            - TEXTE : [La portion problématique]
+            - SUGGESTION : [Comment le corriger]
 
-            If no issues found, report:
-            - CONSISTENT: The text respects all established facts.
+            Si aucun problème trouvé, signaler :
+            - COHÉRENT : Le texte respecte tous les faits établis.
 
-            IMPORTANT:
-            - Be thorough but not overly pedantic
-            - Focus on factual contradictions, not style preferences
-            - Consider context and reasonable inferences
+            IMPORTANT :
+            - Être approfondi mais pas trop pointilleux
+            - Se concentrer sur les contradictions factuelles, pas les préférences stylistiques
+            - Prendre en compte le contexte et les inférences raisonnables
             """;
     }
 
@@ -73,13 +73,13 @@ public sealed class ConsistencyPromptTemplate : PromptTemplateBase
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("Check the following text for consistency with established facts:");
+        sb.AppendLine("Vérifiez la cohérence du texte suivant avec les faits établis :");
         sb.AppendLine();
 
         // Le texte à vérifier sera passé via intent.Description ou parameters
         if (!string.IsNullOrEmpty(intent.Description))
         {
-            sb.AppendLine("TEXT TO VERIFY:");
+            sb.AppendLine("TEXTE À VÉRIFIER :");
             sb.AppendLine("---");
             sb.AppendLine(intent.Description);
             sb.AppendLine("---");
@@ -87,21 +87,21 @@ public sealed class ConsistencyPromptTemplate : PromptTemplateBase
         }
 
         // Faits établis
-        sb.AppendLine("ESTABLISHED FACTS:");
+        sb.AppendLine("FAITS ÉTABLIS :");
         sb.AppendLine();
 
         // État des personnages
-        sb.AppendLine("Character States:");
+        sb.AppendLine("États des personnages :");
         foreach (var character in context.ActiveCharacters)
         {
             sb.AppendLine($"  - {character.Name}: {character.Status}");
             if (character.CharacterTraits.Count > 0)
             {
-                sb.AppendLine($"    Traits: {string.Join(", ", character.CharacterTraits)}");
+                sb.AppendLine($"    Traits : {string.Join(", ", character.CharacterTraits)}");
             }
             if (character.KnownFacts.Count > 0)
             {
-                sb.AppendLine($"    Known facts: {string.Join("; ", character.KnownFacts)}");
+                sb.AppendLine($"    Faits connus : {string.Join("; ", character.KnownFacts)}");
             }
         }
         sb.AppendLine();
@@ -109,18 +109,18 @@ public sealed class ConsistencyPromptTemplate : PromptTemplateBase
         // Lieu actuel
         if (context.CurrentLocation != null)
         {
-            sb.AppendLine("Current Location:");
-            sb.AppendLine($"  - Name: {context.CurrentLocation.Name}");
+            sb.AppendLine("Lieu actuel :");
+            sb.AppendLine($"  - Nom : {context.CurrentLocation.Name}");
             if (!string.IsNullOrEmpty(context.CurrentLocation.Description))
             {
-                sb.AppendLine($"  - Description: {context.CurrentLocation.Description}");
+                sb.AppendLine($"  - Description : {context.CurrentLocation.Description}");
             }
             if (context.CurrentLocation.PresentCharacterIds.Count > 0)
             {
                 var presentNames = context.ActiveCharacters
                     .Where(c => context.CurrentLocation.PresentCharacterIds.Contains(c.CharacterId))
                     .Select(c => c.Name);
-                sb.AppendLine($"  - Characters present: {string.Join(", ", presentNames)}");
+                sb.AppendLine($"  - Personnages présents : {string.Join(", ", presentNames)}");
             }
             sb.AppendLine();
         }
@@ -128,7 +128,7 @@ public sealed class ConsistencyPromptTemplate : PromptTemplateBase
         // Événements récents
         if (context.RecentEvents.Count > 0)
         {
-            sb.AppendLine("Recent Events (for timeline reference):");
+            sb.AppendLine("Événements récents (référence chronologique) :");
             sb.AppendLine(FormatEventList(context.RecentEvents));
             sb.AppendLine();
         }
@@ -136,12 +136,12 @@ public sealed class ConsistencyPromptTemplate : PromptTemplateBase
         // Résumé récent
         if (!string.IsNullOrEmpty(context.RecentSummary))
         {
-            sb.AppendLine("Recent Summary:");
+            sb.AppendLine("Résumé récent :");
             sb.AppendLine($"  {context.RecentSummary}");
             sb.AppendLine();
         }
 
-        sb.AppendLine("Analyze the text for consistency issues.");
+        sb.AppendLine("Analysez le texte pour détecter les incohérences.");
 
         return sb.ToString();
     }

@@ -23,29 +23,29 @@ public sealed class SummaryPromptTemplate : PromptTemplateBase
     public override string BuildSystemPrompt(NarrativeContext context)
     {
         return """
-            You are a narrative summarizer for an interactive story engine.
+            Tu es un résumeur narratif pour un moteur d'histoire interactif.
 
-            ROLE:
-            - Create concise, factual summaries of story events
-            - Preserve the essential facts and character states
-            - Maintain chronological order of events
+            RÔLE :
+            - Créer des résumés concis et factuels des événements de l'histoire
+            - Préserver les faits essentiels et les états des personnages
+            - Maintenir l'ordre chronologique des événements
 
-            RULES:
-            1. Be factual and objective - no embellishment
-            2. Include ALL major events (deaths, encounters, revelations)
-            3. Mention characters by their exact names
-            4. Note any state changes explicitly
-            5. Keep the summary under 500 words
+            RÈGLES :
+            1. Être factuel et objectif — pas d'embellissement
+            2. Inclure TOUS les événements majeurs (morts, rencontres, révélations)
+            3. Nommer les personnages par leurs noms exacts
+            4. Noter explicitement tout changement d'état
+            5. Garder le résumé sous 500 mots
 
-            FORMAT:
-            - Plain prose, past tense, third person
-            - One paragraph per major event group
-            - End with current state of key characters
+            FORMAT :
+            - Prose simple, passé composé ou imparfait, troisième personne
+            - Un paragraphe par groupe d'événements majeurs
+            - Terminer par l'état actuel des personnages clés
 
-            FORBIDDEN:
-            - Adding details not in the source events
-            - Speculation about character motivations
-            - Future predictions
+            INTERDIT :
+            - Ajouter des détails absents des événements sources
+            - Spéculer sur les motivations des personnages
+            - Prédictions futures
             """;
     }
 
@@ -53,14 +53,14 @@ public sealed class SummaryPromptTemplate : PromptTemplateBase
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("Summarize the following narrative events:");
+        sb.AppendLine("Résumez les événements narratifs suivants :");
         sb.AppendLine();
 
         // Liste des événements
-        sb.AppendLine("EVENTS:");
+        sb.AppendLine("ÉVÉNEMENTS :");
         if (context.RecentEvents.Count == 0)
         {
-            sb.AppendLine("- No events to summarize.");
+            sb.AppendLine("- Aucun événement à résumer.");
         }
         else
         {
@@ -69,14 +69,14 @@ public sealed class SummaryPromptTemplate : PromptTemplateBase
         sb.AppendLine();
 
         // Personnages actifs
-        sb.AppendLine("ACTIVE CHARACTERS:");
+        sb.AppendLine("PERSONNAGES ACTIFS :");
         sb.AppendLine(FormatCharacterList(context.ActiveCharacters));
         sb.AppendLine();
 
         // Lieu actuel
         if (context.CurrentLocation != null)
         {
-            sb.AppendLine($"CURRENT LOCATION: {context.CurrentLocation.Name}");
+            sb.AppendLine($"LIEU ACTUEL : {context.CurrentLocation.Name}");
             if (!string.IsNullOrEmpty(context.CurrentLocation.Description))
             {
                 sb.AppendLine($"  {context.CurrentLocation.Description}");
@@ -87,11 +87,11 @@ public sealed class SummaryPromptTemplate : PromptTemplateBase
         // Directive spécifique si présente
         if (!string.IsNullOrEmpty(intent.Description))
         {
-            sb.AppendLine($"SPECIFIC FOCUS: {intent.Description}");
+            sb.AppendLine($"FOCUS SPÉCIFIQUE : {intent.Description}");
             sb.AppendLine();
         }
 
-        sb.AppendLine("Generate a summary of these events.");
+        sb.AppendLine("Générez un résumé de ces événements.");
 
         return sb.ToString();
     }

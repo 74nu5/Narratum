@@ -100,11 +100,11 @@ public abstract class PromptTemplateBase : IPromptTemplate
     protected string FormatCharacterList(IReadOnlyList<CharacterContext> characters)
     {
         if (characters.Count == 0)
-            return "No characters present.";
+            return "Aucun personnage présent.";
 
         var lines = characters.Select(c =>
             $"- {c.Name} ({c.Status})" +
-            (c.CharacterTraits.Count > 0 ? $" - Traits: {string.Join(", ", c.CharacterTraits)}" : ""));
+            (c.CharacterTraits.Count > 0 ? $" - Traits : {string.Join(", ", c.CharacterTraits)}" : ""));
 
         return string.Join(Environment.NewLine, lines);
     }
@@ -115,7 +115,7 @@ public abstract class PromptTemplateBase : IPromptTemplate
     protected string FormatEventList(IReadOnlyList<object> events)
     {
         if (events.Count == 0)
-            return "No recent events.";
+            return "Aucun événement récent.";
 
         var lines = events.Select((e, i) => $"{i + 1}. {FormatEvent(e)}");
         return string.Join(Environment.NewLine, lines);
@@ -129,9 +129,9 @@ public abstract class PromptTemplateBase : IPromptTemplate
         // Utiliser le type dynamique pour accéder aux propriétés
         var type = evt.GetType();
         var typeProp = type.GetProperty("Type");
-        var eventType = typeProp?.GetValue(evt)?.ToString() ?? "Unknown";
+        var eventType = typeProp?.GetValue(evt)?.ToString() ?? "Inconnu";
 
-        return $"Event: {eventType}";
+        return $"Événement : {eventType}";
     }
 
     /// <summary>
@@ -140,7 +140,7 @@ public abstract class PromptTemplateBase : IPromptTemplate
     protected string FormatKnownFacts(IReadOnlySet<string> facts)
     {
         if (facts.Count == 0)
-            return "No established facts.";
+            return "Aucun fait établi.";
 
         var lines = facts.Select(f => $"- {f}");
         return string.Join(Environment.NewLine, lines);

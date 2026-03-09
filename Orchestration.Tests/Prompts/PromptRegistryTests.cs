@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Narratum.Core;
-using Narratum.Orchestration.Agents;
 using Narratum.Orchestration.Models;
 using Narratum.Orchestration.Prompts;
 using Narratum.Orchestration.Prompts.Templates;
@@ -336,8 +335,8 @@ public class PromptSystemIntegrationTests
         var systemPrompt = template!.BuildSystemPrompt(context);
         var userPrompt = template.BuildUserPrompt(context, intent);
 
-        systemPrompt.Should().Contain("narrative writer");
-        userPrompt.Should().Contain("Continue the narrative");
+        systemPrompt.Should().Contain("auteur narratif");
+        userPrompt.Should().Contain("Continuez la narration");
     }
 
     private NarrativeContext CreateTestContext()

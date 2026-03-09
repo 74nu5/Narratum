@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Narratum.Core;
-using Narratum.Memory;
 using Narratum.Memory.Services;
 using Narratum.Memory.Store;
-using Xunit;
 
 namespace Narratum.Memory.Tests;
 

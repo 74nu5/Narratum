@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Narratum.Core;
+
 using Narratum.Orchestration.Logging;
 using Narratum.Orchestration.Models;
 using Narratum.Orchestration.Stages;

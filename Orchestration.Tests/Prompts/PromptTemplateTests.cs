@@ -1,8 +1,6 @@
 using FluentAssertions;
 using Narratum.Core;
-using Narratum.Orchestration.Agents;
 using Narratum.Orchestration.Models;
-using Narratum.Orchestration.Prompts;
 using Narratum.Orchestration.Prompts.Templates;
 using Narratum.Orchestration.Stages;
 using Narratum.State;
@@ -110,10 +108,10 @@ public class SummaryPromptTemplateTests
         var prompt = _template.BuildSystemPrompt(context);
 
         // Assert
-        prompt.Should().Contain("narrative summarizer");
-        prompt.Should().Contain("RULES");
+        prompt.Should().Contain("résumeur narratif");
+        prompt.Should().Contain("RÈGLES");
         prompt.Should().Contain("FORMAT");
-        prompt.Should().Contain("FORBIDDEN");
+        prompt.Should().Contain("INTERDIT");
     }
 
     [Fact]
@@ -127,8 +125,8 @@ public class SummaryPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("EVENTS:");
-        prompt.Should().Contain("ACTIVE CHARACTERS:");
+        prompt.Should().Contain("ÉVÉNEMENTS :");
+        prompt.Should().Contain("PERSONNAGES ACTIFS :");
     }
 
     [Fact]
@@ -142,7 +140,7 @@ public class SummaryPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("CURRENT LOCATION:");
+        prompt.Should().Contain("LIEU ACTUEL :");
         prompt.Should().Contain("Test Location");
     }
 
@@ -157,7 +155,7 @@ public class SummaryPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("SPECIFIC FOCUS:");
+        prompt.Should().Contain("FOCUS SPÉCIFIQUE :");
         prompt.Should().Contain("Focus on combat events");
     }
 
@@ -228,17 +226,17 @@ public class NarratorPromptTemplateTests
         var prompt = _template.BuildSystemPrompt(context);
 
         // Assert
-        prompt.Should().Contain("narrative writer");
-        prompt.Should().Contain("Third person");
-        prompt.Should().Contain("NEVER contradict");
-        prompt.Should().Contain("NEVER kill characters");
+        prompt.Should().Contain("auteur narratif");
+        prompt.Should().Contain("Troisième personne");
+        prompt.Should().Contain("NE JAMAIS contredire");
+        prompt.Should().Contain("NE JAMAIS tuer");
     }
 
     [Theory]
-    [InlineData(IntentType.ContinueNarrative, "Continue the narrative")]
-    [InlineData(IntentType.DescribeScene, "Describe the following scene")]
-    [InlineData(IntentType.CreateTension, "Create tension")]
-    [InlineData(IntentType.ResolveConflict, "Resolve the conflict")]
+    [InlineData(IntentType.ContinueNarrative, "Continuez la narration")]
+    [InlineData(IntentType.DescribeScene, "Décrivez la scène suivante")]
+    [InlineData(IntentType.CreateTension, "Créez une tension")]
+    [InlineData(IntentType.ResolveConflict, "Résolvez le conflit")]
     public void BuildUserPrompt_ShouldHaveIntentSpecificHeader(IntentType intentType, string expectedHeader)
     {
         // Arrange
@@ -269,7 +267,7 @@ public class NarratorPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("FOCUS ON:");
+        prompt.Should().Contain("FOCUS SUR :");
         prompt.Should().Contain("Alice");
     }
 
@@ -321,9 +319,9 @@ public class CharacterPromptTemplateTests
         var prompt = _template.BuildSystemPrompt(context);
 
         // Assert
-        prompt.Should().Contain("dialogue writer");
-        prompt.Should().Contain("distinct voice");
-        prompt.Should().Contain("quotation marks");
+        prompt.Should().Contain("auteur de dialogues");
+        prompt.Should().Contain("voix distincte");
+        prompt.Should().Contain("guillemets");
     }
 
     [Fact]
@@ -337,9 +335,9 @@ public class CharacterPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("CHARACTERS IN SCENE:");
+        prompt.Should().Contain("PERSONNAGES DANS LA SCÈNE :");
         prompt.Should().Contain("Alice");
-        prompt.Should().Contain("Status:");
+        prompt.Should().Contain("Statut :");
     }
 
     [Fact]
@@ -358,7 +356,7 @@ public class CharacterPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("Traits:");
+        prompt.Should().Contain("Traits :");
         prompt.Should().Contain("brave");
     }
 
@@ -375,7 +373,7 @@ public class CharacterPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("EMOTIONAL TONE:");
+        prompt.Should().Contain("TON ÉMOTIONNEL :");
         prompt.Should().Contain("hostile");
     }
 
@@ -451,10 +449,10 @@ public class ConsistencyPromptTemplateTests
         var prompt = _template.BuildSystemPrompt(context);
 
         // Assert
-        prompt.Should().Contain("consistency checker");
-        prompt.Should().Contain("Dead characters cannot act");
-        prompt.Should().Contain("SEVERITY:");
-        prompt.Should().Contain("CONSISTENT:");
+        prompt.Should().Contain("vérificateur de cohérence");
+        prompt.Should().Contain("Les personnages morts ne peuvent pas agir");
+        prompt.Should().Contain("SÉVÉRITÉ :");
+        prompt.Should().Contain("COHÉRENT :");
     }
 
     [Fact]
@@ -468,7 +466,7 @@ public class ConsistencyPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("TEXT TO VERIFY:");
+        prompt.Should().Contain("TEXTE À VÉRIFIER :");
         prompt.Should().Contain("Alice walked through the forest.");
     }
 
@@ -483,7 +481,7 @@ public class ConsistencyPromptTemplateTests
         var prompt = _template.BuildUserPrompt(context, intent);
 
         // Assert
-        prompt.Should().Contain("Character States:");
+        prompt.Should().Contain("États des personnages :");
         prompt.Should().Contain("Alice:");
         prompt.Should().Contain("Alive");
     }
