@@ -8,43 +8,84 @@ Narratum est un moteur narratif conçu selon les principes d'architecture hexago
 
 ## Statut actuel
 
-📍 **PHASE 1 - Fondations (SANS IA)**
+📍 **PHASES 1-4 COMPLÈTES | PHASES 5-6 EN COURS**
 
-> **Principe directeur** : Aucun LLM ne doit écrire une ligne tant que le moteur narratif n'est pas béton.
+> **Projet en Production** : Moteur narratif déterministe + IA intégrée + Interface Web fonctionnelle
 
-## Caractéristiques (Phase 1)
+## Caractéristiques Actuelles
 
+### ✅ Moteur Narratif (Phases 1-2)
 - **Déterminisme** : Toutes les opérations sont reproductibles avec les mêmes entrées
 - **Architecture hexagonale** : Séparation claire entre logique métier et infrastructure
-- **Aucune dépendance LLM** : Moteur purement algorithmique (pour l'instant)
-- **Sans interface utilisateur** : Bibliothèque core réutilisable (UI viendra en Phase 6)
+- **Mémoire hiérarchique** : 4 niveaux (Event, Chapter, Arc, World)
+- **Validation de cohérence** : Détection automatique de contradictions
+
+### ✅ Orchestration & IA (Phases 3-4)
+- **Pipeline multi-agents** : NarratorAgent, CharacterAgent, SummaryAgent, ConsistencyAgent
+- **LLM local intégré** : Foundry Local pour génération 100% locale
+- **Prompts localisés** : Support FR/EN
+- **Skills system** : Capacités narratives modulaires
+
+### 🔄 Interface Utilisateur (Phase 6 - 70%)
+- **Application Web** : ASP.NET Core + Blazor
+- **Wizard de création** : Création guidée d'histoires
+- **Dashboard** : Gestion et visualisation
+- **Persistance complète** : SQLite intégré
 
 ## Structure du projet
 
-- **Core** : Abstractions et interfaces fondamentales
+### Modules Core (Phase 1)
+- **Core** : Abstractions et interfaces fondamentales (0 dépendances)
 - **Domain** : Logique métier du moteur narratif
-- **State** : Gestion de l'état du système
+- **State** : Gestion de l'état immutable
 - **Rules** : Moteur de règles narratives
 - **Simulation** : Orchestration de la simulation
-- **Persistence** : Sauvegarde et chargement des états
-- **Tests** : Tests unitaires et d'intégration
-- **Docs** : Documentation technique
+- **Persistence** : Sauvegarde et chargement des états (SQLite)
+- **Tests** : Tests Phase 1 (110 tests)
+
+### Modules Avancés (Phases 2-6)
+- **Memory** : Système de mémoire hiérarchique (Phase 2)
+- **Orchestration** : Pipeline multi-agents (Phase 3)
+- **Llm** : Abstraction LLM locale (Phase 4)
+- **Web** : Application Web Blazor (Phase 6)
+- **Playground** : Application console de démonstration
+
+### Tests
+- **Memory.Tests** : 171 tests Phase 2
+- **Orchestration.Tests** : Tests Phase 3
+- **Llm.Tests** : Tests Phase 4
+- **E2E Tests** : Playwright pour tests end-to-end
+
+### Documentation
+- **Docs/** : Documentation complète par phase
+- **STATUS-CURRENT.md** : État actuel détaillé
 
 ## Prérequis
 
 - .NET 10 SDK
 
-## Vision à long terme
+## État d'avancement
 
-Narratum évoluera pour intégrer :
+| Phase | Statut | Modules | Tests | Documentation |
+|-------|--------|---------|-------|---------------|
+| **Phase 1** - Fondations | ✅ 100% | 7 modules | 110 tests | ✅ Complète |
+| **Phase 2** - Mémoire | ✅ 100% | 2 modules | 171 tests | ✅ Complète |
+| **Phase 3** - Orchestration | ✅ 100% | 2 modules | ~50 tests | 📝 À finaliser |
+| **Phase 4** - LLM | ✅ 100% | 2 modules | ~30 tests | 📝 À finaliser |
+| **Phase 5** - Narration | 🔄 90% | Intégré | E2E tests | 📝 À créer |
+| **Phase 6** - Web UI | 🔄 70% | 1 module | Playwright | 📝 À créer |
 
-- Agents IA spécialisés (Narrator, Character, Summary, Consistency)
-- Mémoire narrative longue
-- Orchestration multi-agents
-- Interface utilisateur immersive
-- Fonctionnement 100% local (128 Go RAM, GPU AMD RX 6950 XT)
+### Fonctionnalités Disponibles MAINTENANT
 
-**Mais pas avant que les fondations soient solides.**
+✅ Moteur narratif déterministe complet  
+✅ Agents IA spécialisés (4 agents)  
+✅ Mémoire narrative hiérarchique  
+✅ Orchestration multi-agents  
+✅ Interface utilisateur Web  
+✅ Génération narrative locale (Foundry Local)  
+✅ Fonctionnement 100% local  
+
+**Les fondations sont solides. L'IA est intégrée. L'interface fonctionne.**
 
 ## Documentation
 
