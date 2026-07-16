@@ -8,12 +8,13 @@ namespace Narratum.Llm.Clients;
 /// Lazy wrapper for ILlmClient that defers async initialization until first use.
 /// Prevents blocking application startup with Foundry Local initialization.
 /// </summary>
-internal sealed class LazyLlmClient : ILlmClient
+internal sealed class LazyLlmClient : ILlmClient, IDisposable
 {
     private readonly ILlmClientFactory _factory;
     private ILlmClient? _client;
     private bool _initialized;
     private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _disposed;
 
     public LazyLlmClient(ILlmClientFactory factory)
     {
@@ -26,12 +27,14 @@ internal sealed class LazyLlmClient : ILlmClient
         LlmRequest request,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         await EnsureInitializedAsync(cancellationToken);
         return await _client!.GenerateAsync(request, cancellationToken);
     }
 
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         await EnsureInitializedAsync(cancellationToken);
         return await _client!.IsHealthyAsync(cancellationToken);
     }
@@ -52,5 +55,23 @@ internal sealed class LazyLlmClient : ILlmClient
         {
             _initLock.Release();
         }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(LazyLlmClient));
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        _initLock?.Dispose();
+
+        if (_client is IDisposable disposableClient)
+            disposableClient.Dispose();
+
+        _disposed = true;
     }
 }

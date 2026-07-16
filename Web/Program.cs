@@ -4,6 +4,7 @@ using Narratum.Llm.DependencyInjection;
 using Narratum.Llm.Configuration;
 using Narratum.Web.Services;
 using Narratum.Orchestration.Services;
+using Narratum.Core;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FluentUI.AspNetCore.Components;
@@ -22,6 +23,7 @@ builder.Services.AddDbContext<NarrativumDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Narratum") ?? "Data Source=narratum.db"));
 
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
+builder.Services.AddScoped<IStoryRepository, StoryRepository>();
 builder.Services.AddScoped<PersistenceService>();
 
 // Add Narratum LLM (Foundry Local)

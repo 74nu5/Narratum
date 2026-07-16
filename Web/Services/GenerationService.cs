@@ -1,35 +1,29 @@
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Narratum.Core;
 using Narratum.State;
 using Narratum.Orchestration.Services;
 using Narratum.Orchestration.Models;
-using Narratum.Persistence;
 using Narratum.Web.Models;
 
 namespace Narratum.Web.Services;
 
 /// <summary>
 /// Service for Blazor UI to interact with narrative generation.
-/// Wraps FullOrchestrationService and PersistenceService.
+/// Wraps FullOrchestrationService and IStoryRepository (hexagonal architecture).
 /// </summary>
 public class GenerationService
 {
     private readonly FullOrchestrationService _orchestrator;
-    private readonly ISnapshotService _snapshotService;
-    private readonly NarrativumDbContext _dbContext;
+    private readonly IStoryRepository _storyRepository;
     private readonly ModelSelectionService _modelSelector;
 
     public GenerationService(
         FullOrchestrationService orchestrator,
-        ISnapshotService snapshotService,
-        NarrativumDbContext dbContext,
+        IStoryRepository storyRepository,
         ModelSelectionService modelSelector)
     {
-        _orchestrator = orchestrator;
-        _snapshotService = snapshotService;
-        _dbContext = dbContext;
-        _modelSelector = modelSelector;
+        _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
+        _storyRepository = storyRepository ?? throw new ArgumentNullException(nameof(storyRepository));
+        _modelSelector = modelSelector ?? throw new ArgumentNullException(nameof(modelSelector));
     }
 
     /// <summary>
@@ -40,65 +34,51 @@ public class GenerationService
         StoryCreationRequest request,
         CancellationToken ct = default)
     {
-        try
+        // Validate inputs
+        if (string.IsNullOrWhiteSpace(slotName))
+            return Result<string>.Fail("Le nom du slot ne peut pas être vide");
+
+        if (request == null)
+            return Result<string>.Fail("La requête ne peut pas être nulle");
+
+        if (string.IsNullOrWhiteSpace(request.WorldName))
+            return Result<string>.Fail("Le nom du monde ne peut pas être vide");
+
+        if (!request.Characters.Any())
+            return Result<string>.Fail("Au moins un personnage est requis");
+
+        // Create initial state with characters
+        var worldId = Id.New();
+        var characterStates = request.Characters.Select(c =>
         {
-            // Create initial state with characters
-            var worldId = Id.New();
-            var characterStates = request.Characters.Select(c =>
-            {
-                var id = Id.New();
-                return new CharacterState(id, c.Name);
-            }).ToArray();
+            var id = Id.New();
+            return new CharacterState(id, c.Name);
+        }).ToArray();
 
-            var storyState = StoryState.Create(worldId, request.WorldName)
-                .WithCharacters(characterStates);
+        var storyState = StoryState.Create(worldId, request.WorldName)
+            .WithCharacters(characterStates);
 
-            // Create snapshot
-            var snapshot = _snapshotService.CreateSnapshot(storyState);
-            var serializedSnapshot = JsonSerializer.Serialize(snapshot);
+        var initText = $"Histoire créée: {request.WorldName}\nGenre: {request.GenreStyle}" +
+            (string.IsNullOrWhiteSpace(request.WorldDescription) ? "" : $"\nMonde: {request.WorldDescription}") +
+            $"\nPersonnages: {string.Join(", ", request.Characters.Select(c => c.Name))}";
 
-            var initText = $"Histoire créée: {request.WorldName}\nGenre: {request.GenreStyle}" +
-                (string.IsNullOrWhiteSpace(request.WorldDescription) ? "" : $"\nMonde: {request.WorldDescription}") +
-                $"\nPersonnages: {string.Join(", ", request.Characters.Select(c => c.Name))}";
+        var displayDescription = string.IsNullOrWhiteSpace(request.NarrativeStyle)
+            ? request.GenreStyle
+            : $"{request.GenreStyle} — {request.NarrativeStyle}";
 
-            // Save initial page snapshot (page 0)
-            var pageSnapshot = new PageSnapshotEntity
-            {
-                Id = Guid.NewGuid(),
-                SlotName = slotName,
-                PageIndex = 0,
-                GeneratedAt = DateTime.UtcNow,
-                NarrativeText = initText,
-                SerializedState = serializedSnapshot,
-                IntentDescription = "Création initiale",
-                ModelUsed = "N/A",
-                GenreStyle = request.GenreStyle
-            };
+        // Use repository (hexagonal architecture)
+        var result = await _storyRepository.CreateStoryAsync(
+            slotName,
+            request.WorldName,
+            request.GenreStyle,
+            displayDescription,
+            storyState,
+            initText,
+            ct);
 
-            _dbContext.PageSnapshots.Add(pageSnapshot);
-
-            // Register slot metadata so the library can list this story
-            var metadata = new SaveSlotMetadata
-            {
-                SlotName = slotName,
-                LastSavedAt = DateTime.UtcNow,
-                TotalEvents = 0,
-                CurrentChapterId = Guid.Empty,
-                DisplayName = request.WorldName,
-                Description = string.IsNullOrWhiteSpace(request.NarrativeStyle)
-                    ? request.GenreStyle
-                    : $"{request.GenreStyle} — {request.NarrativeStyle}"
-            };
-
-            _dbContext.SaveSlots.Add(metadata);
-            await _dbContext.SaveChangesAsync(ct);
-
-            return Result<string>.Ok(slotName);
-        }
-        catch (Exception ex)
-        {
-            return Result<string>.Fail($"Erreur création: {ex.Message}", ex);
-        }
+        return result.Match<Result<string>>(
+            onSuccess: metadata => Result<string>.Ok(metadata.SlotName),
+            onFailure: error => Result<string>.Fail(error));
     }
 
     /// <summary>
@@ -109,70 +89,55 @@ public class GenerationService
         string intentDescription,
         CancellationToken ct = default)
     {
-        try
-        {
-            // Load latest snapshot
-            var latest = await _dbContext.PageSnapshots
-                .Where(p => p.SlotName == slotName)
-                .OrderByDescending(p => p.PageIndex)
-                .FirstOrDefaultAsync(ct);
+        // Validate inputs
+        if (string.IsNullOrWhiteSpace(slotName))
+            return Result<PageInfo>.Fail("Le nom du slot ne peut pas être vide");
 
-            if (latest == null)
-                return Result<PageInfo>.Fail("Aucune histoire trouvée pour ce slot");
+        if (string.IsNullOrWhiteSpace(intentDescription))
+            return Result<PageInfo>.Fail("La description de l'intention ne peut pas être vide");
 
-            // Deserialize StateSnapshot from JSON
-            var stateSnapshot = JsonSerializer.Deserialize<Narratum.Persistence.StateSnapshot>(latest.SerializedState)
-                ?? throw new InvalidOperationException("Failed to deserialize StateSnapshot");
+        if (intentDescription.Length > 1000)
+            return Result<PageInfo>.Fail("La description de l'intention est trop longue (max 1000 caractères)");
 
-            var storyStateResult = _snapshotService.RestoreFromSnapshot(stateSnapshot);
+        // Load latest page using repository
+        var loadResult = await _storyRepository.LoadLatestPageAsync(slotName, ct);
 
-            if (storyStateResult is not Result<StoryState>.Success successResult)
-                return Result<PageInfo>.Fail("Impossible de restaurer l'état de l'histoire");
+        if (!loadResult.IsSuccess)
+            return Result<PageInfo>.Fail(loadResult.Error);
 
-            var storyState = successResult.Value;
+        var latestPage = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
+        var storyState = latestPage.State;
 
-            // Create intent
-            var intent = NarrativeIntent.Continue(intentDescription);
+        // Create intent
+        var intent = NarrativeIntent.Continue(intentDescription);
 
-            // Execute pipeline
-            var result = await _orchestrator.ExecuteCycleAsync(storyState, intent, ct);
+        // Execute pipeline
+        var result = await _orchestrator.ExecuteCycleAsync(storyState, intent, ct);
 
-            return await result.MatchAsync<Result<PageInfo>>(
-                onSuccess: async pipelineResult =>
-                {
-                    if (!pipelineResult.IsSuccess || pipelineResult.Output == null)
-                        return Result<PageInfo>.Fail(pipelineResult.ErrorMessage ?? "Génération échouée");
+        return await result.MatchAsync<Result<PageInfo>>(
+            onSuccess: async pipelineResult =>
+            {
+                if (!pipelineResult.IsSuccess || pipelineResult.Output == null)
+                    return Result<PageInfo>.Fail(pipelineResult.ErrorMessage ?? "Génération échouée");
 
-                    var newSnapshot = _snapshotService.CreateSnapshot(storyState);
-                    var serializedSnapshot = JsonSerializer.Serialize(newSnapshot);
+                // Save new page using repository
+                var saveResult = await _storyRepository.SavePageAsync(
+                    slotName,
+                    latestPage.PageIndex + 1,
+                    pipelineResult.Output.NarrativeText,
+                    intentDescription,
+                    _modelSelector.CurrentNarratorModel,
+                    storyState,
+                    ct);
 
-                    var pageSnapshot = new PageSnapshotEntity
-                    {
-                        Id = Guid.NewGuid(),
-                        SlotName = slotName,
-                        PageIndex = latest.PageIndex + 1,
-                        GeneratedAt = DateTime.UtcNow,
-                        NarrativeText = pipelineResult.Output.NarrativeText,
-                        SerializedState = serializedSnapshot,
-                        IntentDescription = intentDescription,
-                        ModelUsed = _modelSelector.CurrentNarratorModel,
-                        GenreStyle = latest.GenreStyle
-                    };
-
-                    _dbContext.PageSnapshots.Add(pageSnapshot);
-                    await _dbContext.SaveChangesAsync(ct);
-
-                    return Result<PageInfo>.Ok(new PageInfo(
-                        pageSnapshot.PageIndex,
-                        pageSnapshot.NarrativeText,
-                        pageSnapshot.GeneratedAt));
-                },
-                onFailure: error => Task.FromResult(Result<PageInfo>.Fail(error)));
-        }
-        catch (Exception ex)
-        {
-            return Result<PageInfo>.Fail($"Erreur génération: {ex.Message}", ex);
-        }
+                return saveResult.Match<Result<PageInfo>>(
+                    onSuccess: savedPage => Result<PageInfo>.Ok(new PageInfo(
+                        savedPage.PageIndex,
+                        savedPage.NarrativeText,
+                        savedPage.GeneratedAt)),
+                    onFailure: error => Result<PageInfo>.Fail(error));
+            },
+            onFailure: error => Task.FromResult(Result<PageInfo>.Fail(error)));
     }
 
     /// <summary>
@@ -183,23 +148,14 @@ public class GenerationService
         int pageIndex,
         CancellationToken ct = default)
     {
-        try
-        {
-            var snapshot = await _dbContext.PageSnapshots
-                .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
+        var result = await _storyRepository.LoadPageAsync(slotName, pageIndex, ct);
 
-            if (snapshot == null)
-                return Result<PageInfo>.Fail($"Page {pageIndex} introuvable");
-
-            return Result<PageInfo>.Ok(new PageInfo(
-                snapshot.PageIndex,
-                snapshot.NarrativeText ?? "",
-                snapshot.GeneratedAt));
-        }
-        catch (Exception ex)
-        {
-            return Result<PageInfo>.Fail($"Erreur chargement: {ex.Message}", ex);
-        }
+        return result.Match<Result<PageInfo>>(
+            onSuccess: page => Result<PageInfo>.Ok(new PageInfo(
+                page.PageIndex,
+                page.NarrativeText,
+                page.GeneratedAt)),
+            onFailure: error => Result<PageInfo>.Fail(error));
     }
 
     /// <summary>
@@ -209,11 +165,7 @@ public class GenerationService
         string slotName,
         CancellationToken ct = default)
     {
-        return await _dbContext.PageSnapshots
-            .Where(p => p.SlotName == slotName)
-            .OrderBy(p => p.PageIndex)
-            .Select(p => p.PageIndex)
-            .ToListAsync(ct);
+        return await _storyRepository.GetPageHistoryAsync(slotName, ct);
     }
 
     /// <summary>
@@ -223,9 +175,7 @@ public class GenerationService
         string slotName,
         CancellationToken ct = default)
     {
-        var slot = await _dbContext.SaveSlots
-            .FirstOrDefaultAsync(s => s.SlotName == slotName, ct);
-        return slot?.DisplayName ?? slotName;
+        return await _storyRepository.GetDisplayNameAsync(slotName, ct);
     }
 }
 
