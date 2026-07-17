@@ -10,6 +10,7 @@ using Narratum.Orchestration.Logging;
 using Narratum.Orchestration.Stages;
 using Narratum.Orchestration.Validation;
 using Narratum.Orchestration.Prompts;
+using Narratum.Orchestration.Configuration;
 
 namespace Narratum.Orchestration.Services;
 
@@ -106,6 +107,10 @@ public sealed class FullOrchestrationService
     private readonly IStructureValidator _structureValidator;
     private readonly ICoherenceValidatorAdapter? _coherenceValidator;
     private readonly PromptRegistry _promptRegistry;
+    private readonly PromptOptimizationService _promptOptimizationService;
+    private readonly NarrativeContextCache _contextCache;
+    private readonly ContextCompressionService _contextCompressionService;
+    private readonly AgentTemperatureConfig _temperatureConfig;
     private readonly FullOrchestrationConfig _config;
     private readonly ILogger<FullOrchestrationService>? _logger;
 
@@ -121,6 +126,10 @@ public sealed class FullOrchestrationService
         ICoherenceValidatorAdapter? coherenceValidator = null,
         PromptRegistry? promptRegistry = null,
         IMemoryService? memoryService = null,
+        PromptOptimizationService? promptOptimizationService = null,
+        NarrativeContextCache? contextCache = null,
+        ContextCompressionService? contextCompressionService = null,
+        AgentTemperatureConfig? temperatureConfig = null,
         ILogger<FullOrchestrationService>? logger = null)
     {
         _llmClient = llmClient ?? throw new ArgumentNullException(nameof(llmClient));
@@ -132,6 +141,10 @@ public sealed class FullOrchestrationService
         _coherenceValidator = coherenceValidator;
         _promptRegistry = promptRegistry ?? PromptRegistry.CreateWithDefaults();
         _memoryService = memoryService;
+        _contextCache = contextCache ?? new NarrativeContextCache();
+        _contextCompressionService = contextCompressionService ?? new ContextCompressionService(_contextCache);
+        _promptOptimizationService = promptOptimizationService ?? new PromptOptimizationService();
+        _temperatureConfig = temperatureConfig ?? AgentTemperatureConfig.Default;
         _logger = logger;
     }
 
@@ -411,6 +424,7 @@ public sealed class FullOrchestrationService
 
     /// <summary>
     /// Construit les prompts pour les agents.
+    /// Uses PromptOptimizationService for rich, contextual prompts.
     /// </summary>
     private Task<Result<PromptSet>> BuildPromptsAsync(
         NarrativeContext context,
@@ -421,29 +435,18 @@ public sealed class FullOrchestrationService
         {
             var prompts = new List<AgentPrompt>();
 
-            // Sélectionner le template approprié
-            var template = _promptRegistry.GetTemplate(AgentType.Narrator, intent.Type);
+            // Use optimized prompt building for Narrator agent
+            var optimizedPrompt = _promptOptimizationService.BuildOptimizedNarratorPrompt(
+                context.State,
+                intent,
+                previousNarrative: null, // Could retrieve from last page
+                genre: null,
+                tone: null);
 
-            if (template != null)
-            {
-                var systemPrompt = template.BuildSystemPrompt(context);
-                var userPrompt = template.BuildUserPrompt(context, intent);
-                var variables = template.GetVariables(context);
-
-                prompts.Add(new AgentPrompt(
-                    template.TargetAgent,
-                    systemPrompt,
-                    userPrompt,
-                    variables));
-            }
-            else
-            {
-                // Prompt par défaut si pas de template
-                prompts.Add(AgentPrompt.Create(
-                    AgentType.Narrator,
-                    $"You are a narrative engine for the world \"{context.State.WorldState.WorldName}\".",
-                    $"Intent: {intent.Type}. {intent.Description ?? ""}"));
-            }
+            prompts.Add(AgentPrompt.Create(
+                AgentType.Narrator,
+                "You are a master storyteller crafting engaging narrative.",
+                optimizedPrompt));
 
             return Task.FromResult(Result<PromptSet>.Ok(
                 new PromptSet(prompts, ExecutionOrder.Sequential)));
@@ -486,14 +489,22 @@ public sealed class FullOrchestrationService
             var agentStopwatch = Stopwatch.StartNew();
 
             // Appeler le LLM avec le type d'agent pour le routing de modèle
+            // et la température appropriée
+            var temperature = _temperatureConfig.GetTemperature(prompt.TargetAgent);
+            var parameters = new LlmParameters(
+                Temperature: temperature,
+                MaxTokens: LlmParameters.Default.MaxTokens,
+                TopP: LlmParameters.Default.TopP);
+
             var metadata = new Dictionary<string, object>
             {
-                ["llm.agentType"] = prompt.TargetAgent
+                ["llm.agentType"] = prompt.TargetAgent,
+                ["llm.temperature"] = temperature
             };
             var request = new LlmRequest(
                 prompt.SystemPrompt,
                 prompt.UserPrompt,
-                LlmParameters.Default,
+                parameters,
                 metadata);
 
             var llmResult = await _llmClient.GenerateAsync(request, cancellationToken);
