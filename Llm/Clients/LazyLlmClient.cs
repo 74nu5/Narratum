@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Narratum.Core;
 using Narratum.Llm.Factory;
 using Narratum.Orchestration.Llm;
@@ -8,7 +9,7 @@ namespace Narratum.Llm.Clients;
 /// Lazy wrapper for ILlmClient that defers async initialization until first use.
 /// Prevents blocking application startup with Foundry Local initialization.
 /// </summary>
-internal sealed class LazyLlmClient : ILlmClient, IDisposable
+internal sealed class LazyLlmClient : ILlmClient, IStreamingLlmClient, IDisposable
 {
     private readonly ILlmClientFactory _factory;
     private ILlmClient? _client;
@@ -37,6 +38,31 @@ internal sealed class LazyLlmClient : ILlmClient, IDisposable
         ThrowIfDisposed();
         await EnsureInitializedAsync(cancellationToken);
         return await _client!.IsHealthyAsync(cancellationToken);
+    }
+
+    public async IAsyncEnumerable<string> GenerateStreamingAsync(
+        LlmRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        await EnsureInitializedAsync(cancellationToken);
+
+        if (_client is IStreamingLlmClient streamingClient)
+        {
+            await foreach (var chunk in streamingClient
+                .GenerateStreamingAsync(request, cancellationToken)
+                .WithCancellation(cancellationToken))
+            {
+                yield return chunk;
+            }
+        }
+        else
+        {
+            // Underlying client does not support streaming: emit the full response once.
+            var result = await _client!.GenerateAsync(request, cancellationToken);
+            if (result is Result<LlmResponse>.Success success)
+                yield return success.Value.Content;
+        }
     }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)

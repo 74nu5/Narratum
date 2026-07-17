@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,7 +15,7 @@ namespace Narratum.Llm.Clients;
 /// à l'interface ILlmClient de Narratum.
 /// Supporte le routing par agent via les métadonnées de LlmRequest.
 /// </summary>
-public sealed class ChatClientLlmAdapter : ILlmClient
+public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient
 {
     private readonly IChatClient _chatClient;
     private readonly LlmClientConfig _config;
@@ -138,6 +139,45 @@ public sealed class ChatClientLlmAdapter : ILlmClient
             return Result<LlmResponse>.Fail($"Invalid argument: {ex.Message}");
         }
         // Let critical exceptions (OutOfMemoryException) propagate
+    }
+
+    /// <summary>
+    /// Streams the response incrementally, yielding text fragments as the model produces them.
+    /// Exceptions (network, timeout, cancellation) propagate to the consumer.
+    /// </summary>
+    public async IAsyncEnumerable<string> GenerateStreamingAsync(
+        LlmRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var modelName = ResolveModelName(request);
+        _logger.LogDebug("Streaming with model {Model} via {Provider}", modelName, _config.Provider);
+
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, request.SystemPrompt),
+            new(ChatRole.User, request.UserPrompt)
+        };
+
+        var options = new ChatOptions
+        {
+            ModelId = modelName,
+            Temperature = (float)request.Parameters.Temperature,
+            MaxOutputTokens = request.Parameters.MaxTokens,
+            TopP = (float)request.Parameters.TopP,
+            StopSequences = request.Parameters.StopTokens.Count > 0
+                ? request.Parameters.StopTokens.ToList()
+                : null
+        };
+
+        await foreach (var update in _chatClient
+            .GetStreamingResponseAsync(messages, options, cancellationToken)
+            .WithCancellation(cancellationToken))
+        {
+            if (!string.IsNullOrEmpty(update.Text))
+                yield return update.Text;
+        }
     }
 
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)

@@ -24,8 +24,9 @@
 
     @* Current page content *@
     <FluentCard Style="min-height: 300px;">
-        @if (_isGenerating)
+        @if (_isGenerating && string.IsNullOrEmpty(_currentNarrative))
         {
+            @* Waiting for the first token *@
             <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
                 <FluentProgressRing />
                 <FluentLabel>Génération en cours...</FluentLabel>
@@ -33,7 +34,8 @@
         }
         else if (!string.IsNullOrEmpty(_currentNarrative))
         {
-            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative</div>
+            @* Streams in live; a caret shows while more text is arriving *@
+            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
         }
         else
         {
@@ -109,26 +111,30 @@
     {
         _isGenerating = true;
         _errorMessage = string.Empty;
+        _currentNarrative = string.Empty;
+        var intent = _userIntent;
 
         try
         {
-            var result = await GenService.GenerateNextPageAsync(SlotName, _userIntent);
-            
-            result.Match<int>(
-                onSuccess: pageInfo =>
+            // Throttle re-renders so a fast token stream doesn't flood the circuit.
+            var lastRender = DateTime.UtcNow;
+            await foreach (var chunk in GenService.GenerateNextPageStreamingAsync(SlotName, intent))
+            {
+                _currentNarrative += chunk;
+
+                var now = DateTime.UtcNow;
+                if ((now - lastRender).TotalMilliseconds >= 60)
                 {
-                    _currentNarrative = pageInfo.NarrativeText;
-                    _currentPageIndex = pageInfo.PageIndex;
-                    _userIntent = string.Empty; // Clear input
-                    return 0;
-                },
-                onFailure: error =>
-                {
-                    _errorMessage = error;
-                    return -1;
-                });
-            
-            await LoadPageHistory(); // Refresh timeline
+                    lastRender = now;
+                    StateHasChanged();
+                }
+            }
+
+            // Generation + save completed successfully.
+            _userIntent = string.Empty; // Clear input
+            await LoadPageHistory();    // Refresh timeline
+            if (_pageHistory.Any())
+                _currentPageIndex = _pageHistory.Max();
         }
         catch (Exception ex)
         {

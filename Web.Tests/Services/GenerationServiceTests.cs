@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -38,6 +39,7 @@ public class GenerationServiceTests
             orchestrator,
             _mockRepository.Object,
             modelSelector,
+            new Mock<ILlmClient>().Object,
             NullLogger<GenerationService>.Instance);
     }
 
@@ -234,6 +236,88 @@ public class GenerationServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Should().BeEquivalentTo(expectedIndices);
+    }
+
+    [Fact]
+    public async Task GenerateNextPageStreamingAsync_YieldsEachChunkAndSavesTheConcatenatedText()
+    {
+        // Arrange
+        var slotName = "test-slot";
+        var state = StoryState.Create(Id.New(), "Test World");
+
+        _mockRepository
+            .Setup(r => r.LoadLatestPageAsync(slotName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Narratum.Core.PageSnapshot>.Ok(new Narratum.Core.PageSnapshot(
+                slotName, 0, "Previous page", "intent", "phi-4-mini", DateTime.UtcNow, state)));
+
+        string? savedText = null;
+        _mockRepository
+            .Setup(r => r.SavePageAsync(slotName, 1,
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<StoryState>(), It.IsAny<CancellationToken>()))
+            .Callback<string, int, string, string, string, StoryState, CancellationToken>(
+                (_, _, text, _, _, _, _) => savedText = text)
+            .ReturnsAsync(Result<Narratum.Core.PageSnapshot>.Ok(new Narratum.Core.PageSnapshot(
+                slotName, 1, "saved", "intent", "phi-4-mini", DateTime.UtcNow, state)));
+
+        var service = new GenerationService(
+            new FullOrchestrationService(new Mock<ILlmClient>().Object),
+            _mockRepository.Object,
+            new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini", NarratorModel = "phi-4-mini" }),
+            new FakeStreamingLlmClient("Once ", "upon ", "a time."),
+            NullLogger<GenerationService>.Instance);
+
+        // Act
+        var received = new List<string>();
+        await foreach (var chunk in service.GenerateNextPageStreamingAsync(slotName, "Continue the story"))
+            received.Add(chunk);
+
+        // Assert
+        received.Should().Equal("Once ", "upon ", "a time.");
+        savedText.Should().Be("Once upon a time.");
+        _mockRepository.Verify(r => r.SavePageAsync(slotName, 1, "Once upon a time.",
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<StoryState>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateNextPageStreamingAsync_WhenIntentTooLong_Throws()
+    {
+        var service = new GenerationService(
+            new FullOrchestrationService(new Mock<ILlmClient>().Object),
+            _mockRepository.Object,
+            new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini" }),
+            new FakeStreamingLlmClient("x"),
+            NullLogger<GenerationService>.Instance);
+
+        var act = async () =>
+        {
+            await foreach (var _ in service.GenerateNextPageStreamingAsync("slot", new string('x', 1001)))
+            {
+            }
+        };
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    /// <summary>Fake client that streams a fixed set of fragments.</summary>
+    private sealed class FakeStreamingLlmClient(params string[] chunks) : ILlmClient, IStreamingLlmClient
+    {
+        public string ClientName => "Fake";
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<Result<LlmResponse>> GenerateAsync(LlmRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result<LlmResponse>.Ok(new LlmResponse(request.RequestId, string.Concat(chunks))));
+
+        public async IAsyncEnumerable<string> GenerateStreamingAsync(
+            LlmRequest request,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var chunk in chunks)
+            {
+                await Task.Yield();
+                yield return chunk;
+            }
+        }
     }
 
     [Fact]

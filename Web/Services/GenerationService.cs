@@ -1,8 +1,13 @@
+using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Narratum.Core;
 using Narratum.State;
 using Narratum.Orchestration.Services;
 using Narratum.Orchestration.Models;
+using Narratum.Orchestration.Llm;
+using Narratum.Orchestration.Prompts;
+using Narratum.Orchestration.Stages;
 using Narratum.Web.Models;
 
 namespace Narratum.Web.Services;
@@ -16,17 +21,21 @@ public class GenerationService : IGenerationService
     private readonly FullOrchestrationService _orchestrator;
     private readonly IStoryRepository _storyRepository;
     private readonly ModelSelectionService _modelSelector;
+    private readonly ILlmClient _llmClient;
     private readonly ILogger<GenerationService> _logger;
+    private readonly PromptOptimizationService _promptOptimizer = new();
 
     public GenerationService(
         FullOrchestrationService orchestrator,
         IStoryRepository storyRepository,
         ModelSelectionService modelSelector,
+        ILlmClient llmClient,
         ILogger<GenerationService> logger)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _storyRepository = storyRepository ?? throw new ArgumentNullException(nameof(storyRepository));
         _modelSelector = modelSelector ?? throw new ArgumentNullException(nameof(modelSelector));
+        _llmClient = llmClient ?? throw new ArgumentNullException(nameof(llmClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -214,6 +223,91 @@ public class GenerationService : IGenerationService
                 _logger.LogError("Pipeline execution failed: {Error}", error);
                 return Task.FromResult(Result<PageInfo>.Fail(error));
             });
+    }
+
+    /// <summary>
+    /// Streams the next page's narrative fragment-by-fragment, then persists it.
+    /// This path calls the Narrator LLM directly (bypassing the batch orchestration
+    /// pipeline) so text can be surfaced live; the completed page is saved at the end.
+    /// </summary>
+    public async IAsyncEnumerable<string> GenerateNextPageStreamingAsync(
+        string slotName,
+        string intentDescription,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        using var scope = _logger.BeginScope(new Dictionary<string, object>
+        {
+            ["SlotName"] = slotName,
+            ["OperationId"] = Guid.NewGuid()
+        });
+
+        // Validate inputs (thrown errors are surfaced to the component's try/catch)
+        if (string.IsNullOrWhiteSpace(slotName))
+            throw new ArgumentException("Le nom du slot ne peut pas être vide", nameof(slotName));
+        if (string.IsNullOrWhiteSpace(intentDescription))
+            throw new ArgumentException("La description de l'intention ne peut pas être vide", nameof(intentDescription));
+        if (intentDescription.Length > 1000)
+            throw new ArgumentException("La description de l'intention est trop longue (max 1000 caractères)", nameof(intentDescription));
+
+        if (_llmClient is not IStreamingLlmClient streamingClient)
+            throw new InvalidOperationException("Le client LLM ne supporte pas le streaming");
+
+        _logger.LogInformation("Starting streaming page generation for slot {SlotName}", slotName);
+
+        // Load the latest page to continue from
+        var loadResult = await _storyRepository.LoadLatestPageAsync(slotName, ct);
+        if (loadResult is Result<Core.PageSnapshot>.Failure loadFailure)
+        {
+            _logger.LogError("Failed to load latest page for slot {SlotName}: {Error}", slotName, loadFailure.Message);
+            throw new InvalidOperationException(loadFailure.Message);
+        }
+
+        var latestPage = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
+        var storyState = latestPage.State;
+
+        var intent = NarrativeIntent.Continue(intentDescription);
+        var userPrompt = _promptOptimizer.BuildOptimizedNarratorPrompt(
+            storyState, intent, previousNarrative: latestPage.NarrativeText);
+
+        var request = new LlmRequest(
+            "You are a master storyteller crafting engaging narrative.",
+            userPrompt,
+            LlmParameters.Default with { Temperature = 0.7 },
+            new Dictionary<string, object> { ["llm.agentType"] = AgentType.Narrator });
+
+        // Stream the narrative, accumulating the full text for persistence.
+        var startTime = DateTime.UtcNow;
+        var builder = new StringBuilder();
+        await foreach (var chunk in streamingClient.GenerateStreamingAsync(request, ct).WithCancellation(ct))
+        {
+            builder.Append(chunk);
+            yield return chunk;
+        }
+
+        var fullText = builder.ToString();
+        if (string.IsNullOrWhiteSpace(fullText))
+            throw new InvalidOperationException("La génération n'a produit aucun texte");
+
+        var newPageIndex = latestPage.PageIndex + 1;
+        var saveResult = await _storyRepository.SavePageAsync(
+            slotName,
+            newPageIndex,
+            fullText,
+            intentDescription,
+            _modelSelector.CurrentNarratorModel,
+            storyState,
+            ct);
+
+        if (saveResult is Result<Core.PageSnapshot>.Failure saveFailure)
+        {
+            _logger.LogError("Failed to save streamed page: {Error}", saveFailure.Message);
+            throw new InvalidOperationException(saveFailure.Message);
+        }
+
+        var generationTime = (DateTime.UtcNow - startTime).TotalSeconds;
+        _logger.LogInformation(
+            "Streamed page saved. SlotName: {SlotName}, PageIndex: {PageIndex}, GenerationTime: {GenerationTime:F2}s",
+            slotName, newPageIndex, generationTime);
     }
 
     /// <summary>

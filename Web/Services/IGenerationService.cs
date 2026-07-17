@@ -34,6 +34,20 @@ public interface IGenerationService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Generates the next page, streaming the narrative text fragment-by-fragment as the
+    /// model produces it. The concatenation of all yielded fragments is the full page text;
+    /// the page is persisted once streaming completes. Throws on validation, generation or
+    /// save errors (surfaced to the caller's try/catch).
+    /// </summary>
+    /// <param name="slotName">Story slot identifier</param>
+    /// <param name="intentDescription">User's narrative direction</param>
+    /// <param name="ct">Cancellation token</param>
+    IAsyncEnumerable<string> GenerateNextPageStreamingAsync(
+        string slotName,
+        string intentDescription,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Loads a specific page from the story.
     /// </summary>
     /// <param name="slotName">Story slot identifier</param>
