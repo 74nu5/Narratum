@@ -296,8 +296,14 @@ public sealed class FullOrchestrationService
                     retryCount,
                     metricsSummary));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // User-requested cancellation - propagate
+            throw;
+        }
         catch (OperationCanceledException)
         {
+            // Timeout (internal CTS)
             stopwatch.Stop();
             _pipelineLogger.LogPipelineError(pipelineId,
                 new TimeoutException("Pipeline execution timed out"));
@@ -306,16 +312,38 @@ public sealed class FullOrchestrationService
             return CreateFailureResult(pipelineId, storyState, intent, "Pipeline timed out",
                 stageResults, stopwatch.Elapsed, retryCount);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             stopwatch.Stop();
             _pipelineLogger.LogPipelineError(pipelineId, ex);
             _metricsCollector.EndPipeline(pipelineId, success: false);
             _auditTrail.Record(AuditEntry.CriticalError(pipelineId, "Pipeline", ex));
 
-            return CreateFailureResult(pipelineId, storyState, intent, ex.Message,
+            return CreateFailureResult(pipelineId, storyState, intent,
+                $"Invalid pipeline state: {ex.Message}",
                 stageResults, stopwatch.Elapsed, retryCount);
         }
+        catch (ArgumentException ex)
+        {
+            stopwatch.Stop();
+            _pipelineLogger.LogPipelineError(pipelineId, ex);
+            _metricsCollector.EndPipeline(pipelineId, success: false);
+
+            return CreateFailureResult(pipelineId, storyState, intent,
+                $"Invalid argument: {ex.Message}",
+                stageResults, stopwatch.Elapsed, retryCount);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            stopwatch.Stop();
+            _pipelineLogger.LogPipelineError(pipelineId, ex);
+            _metricsCollector.EndPipeline(pipelineId, success: false);
+
+            return CreateFailureResult(pipelineId, storyState, intent,
+                $"JSON serialization error: {ex.Message}",
+                stageResults, stopwatch.Elapsed, retryCount);
+        }
+        // Let critical exceptions (OutOfMemoryException, StackOverflowException) propagate
     }
 
     /// <summary>
@@ -367,9 +395,17 @@ public sealed class FullOrchestrationService
 
             return Result<NarrativeContext>.Ok(context);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            return Result<NarrativeContext>.Fail($"Context build failed: {ex.Message}");
+            return Result<NarrativeContext>.Fail($"Invalid state while building context: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            return Result<NarrativeContext>.Fail($"Invalid argument in context build: {ex.Message}");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Result<NarrativeContext>.Fail($"Missing required data: {ex.Message}");
         }
     }
 
@@ -412,9 +448,21 @@ public sealed class FullOrchestrationService
             return Task.FromResult(Result<PromptSet>.Ok(
                 new PromptSet(prompts, ExecutionOrder.Sequential)));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            return Task.FromResult(Result<PromptSet>.Fail($"Prompt build failed: {ex.Message}"));
+            return Task.FromResult(Result<PromptSet>.Fail($"Invalid state while building prompts: {ex.Message}"));
+        }
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<PromptSet>.Fail($"Invalid argument in prompt build: {ex.Message}"));
+        }
+        catch (System.IO.FileNotFoundException ex)
+        {
+            return Task.FromResult(Result<PromptSet>.Fail($"Prompt template file not found: {ex.Message}"));
+        }
+        catch (System.IO.IOException ex)
+        {
+            return Task.FromResult(Result<PromptSet>.Fail($"IO error reading prompt template: {ex.Message}"));
         }
     }
 
@@ -607,21 +655,42 @@ public sealed class FullOrchestrationService
             _metricsCollector.EndStage(pipelineId, stageName);
             return result;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // User-requested cancellation - propagate
+            throw;
+        }
         catch (OperationCanceledException)
         {
+            // Stage timeout
             stopwatch.Stop();
             var error = "Stage timed out";
             results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, error));
             _pipelineLogger.LogStageFailure(pipelineId, stageName, error);
             return Result<T>.Fail($"Stage {stageName} timed out");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             stopwatch.Stop();
             results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, ex.Message));
             _pipelineLogger.LogStageFailure(pipelineId, stageName, ex.Message);
-            return Result<T>.Fail($"Stage {stageName} failed: {ex.Message}");
+            return Result<T>.Fail($"Stage {stageName} invalid operation: {ex.Message}");
         }
+        catch (ArgumentException ex)
+        {
+            stopwatch.Stop();
+            results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, ex.Message));
+            _pipelineLogger.LogStageFailure(pipelineId, stageName, ex.Message);
+            return Result<T>.Fail($"Stage {stageName} invalid argument: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            stopwatch.Stop();
+            results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, ex.Message));
+            _pipelineLogger.LogStageFailure(pipelineId, stageName, ex.Message);
+            return Result<T>.Fail($"Stage {stageName} JSON error: {ex.Message}");
+        }
+        // Let critical exceptions propagate
     }
 
     private Result<FullPipelineResult> CreateFailureResult(

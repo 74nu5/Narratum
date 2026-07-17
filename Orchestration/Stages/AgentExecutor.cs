@@ -60,11 +60,27 @@ public class AgentExecutor : IAgentExecutor
 
             return Result<RawOutput>.Ok(output);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // User cancellation - propagate
+        }
+        catch (InvalidOperationException ex)
         {
             totalStopwatch.Stop();
-            _logger?.LogError(ex, "Agent execution failed");
-            return Result<RawOutput>.Fail($"Agent execution failed: {ex.Message}");
+            _logger?.LogError(ex, "Agent execution failed: invalid state");
+            return Result<RawOutput>.Fail($"Invalid operation: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            totalStopwatch.Stop();
+            _logger?.LogError(ex, "Agent execution failed: invalid argument");
+            return Result<RawOutput>.Fail($"Invalid argument: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            totalStopwatch.Stop();
+            _logger?.LogError(ex, "Agent execution failed: JSON error");
+            return Result<RawOutput>.Fail($"JSON error: {ex.Message}");
         }
     }
 
@@ -116,11 +132,27 @@ public class AgentExecutor : IAgentExecutor
 
             return Result<RawOutput>.Ok(output);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // User cancellation - propagate
+        }
+        catch (InvalidOperationException ex)
         {
             totalStopwatch.Stop();
-            _logger?.LogError(ex, "Agent rewrite failed");
-            return Result<RawOutput>.Fail($"Agent rewrite failed: {ex.Message}");
+            _logger?.LogError(ex, "Agent rewrite failed: invalid state");
+            return Result<RawOutput>.Fail($"Rewrite invalid operation: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            totalStopwatch.Stop();
+            _logger?.LogError(ex, "Agent rewrite failed: invalid argument");
+            return Result<RawOutput>.Fail($"Rewrite invalid argument: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            totalStopwatch.Stop();
+            _logger?.LogError(ex, "Agent rewrite failed: JSON error");
+            return Result<RawOutput>.Fail($"Rewrite JSON error: {ex.Message}");
         }
     }
 
@@ -258,15 +290,33 @@ public class AgentExecutor : IAgentExecutor
                 "Unknown error",
                 stopwatch.Elapsed);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // User cancellation - propagate
+        }
+        catch (InvalidOperationException ex)
         {
             stopwatch.Stop();
-            _logger?.LogError(ex, "Agent {Agent} execution failed", prompt.TargetAgent);
-
-            return NarrativeAgentResponse.CreateFailure(
-                prompt.TargetAgent,
-                ex.Message,
-                stopwatch.Elapsed);
+            _logger?.LogError(ex, "Agent {Agent} execution failed: invalid operation", prompt.TargetAgent);
+            return NarrativeAgentResponse.CreateFailure(prompt.TargetAgent, $"Invalid operation: {ex.Message}", stopwatch.Elapsed);
+        }
+        catch (ArgumentException ex)
+        {
+            stopwatch.Stop();
+            _logger?.LogError(ex, "Agent {Agent} execution failed: invalid argument", prompt.TargetAgent);
+            return NarrativeAgentResponse.CreateFailure(prompt.TargetAgent, $"Invalid argument: {ex.Message}", stopwatch.Elapsed);
+        }
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            stopwatch.Stop();
+            _logger?.LogError(ex, "Agent {Agent} execution failed: network error", prompt.TargetAgent);
+            return NarrativeAgentResponse.CreateFailure(prompt.TargetAgent, $"Network error: {ex.Message}", stopwatch.Elapsed);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            stopwatch.Stop();
+            _logger?.LogError(ex, "Agent {Agent} execution failed: JSON error", prompt.TargetAgent);
+            return NarrativeAgentResponse.CreateFailure(prompt.TargetAgent, $"JSON error: {ex.Message}", stopwatch.Elapsed);
         }
     }
 

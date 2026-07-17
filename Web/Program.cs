@@ -41,7 +41,7 @@ builder.Services.AddScoped<FullOrchestrationService>();
 builder.Services.AddScoped<StoryLibraryService>();
 builder.Services.AddScoped<ModelSelectionService>();
 builder.Services.AddScoped<IModelResolver>(sp => sp.GetRequiredService<ModelSelectionService>());
-builder.Services.AddScoped<GenerationService>();
+builder.Services.AddScoped<IGenerationService, GenerationService>();
 builder.Services.AddScoped<ExpertModeService>();
 
 var app = builder.Build();

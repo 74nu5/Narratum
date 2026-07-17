@@ -11,7 +11,7 @@ namespace Narratum.Web.Services;
 /// Service for Blazor UI to interact with narrative generation.
 /// Wraps FullOrchestrationService and IStoryRepository (hexagonal architecture).
 /// </summary>
-public class GenerationService
+public class GenerationService : IGenerationService
 {
     private readonly FullOrchestrationService _orchestrator;
     private readonly IStoryRepository _storyRepository;
