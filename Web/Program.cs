@@ -18,9 +18,14 @@ builder.Services.AddFluentUIComponents();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Add Narratum Persistence (SQLite EF Core)
-builder.Services.AddDbContext<NarrativumDbContext>(options =>
+// Add Narratum Persistence (SQLite EF Core).
+// A factory lets StoryRepository create a fresh, short-lived DbContext per operation,
+// avoiding the pitfalls of a long-lived circuit-scoped context in Blazor Server.
+// A scoped shim keeps other consumers (PersistenceService, startup EnsureCreated) working.
+builder.Services.AddDbContextFactory<NarrativumDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Narratum") ?? "Data Source=narratum.db"));
+builder.Services.AddScoped<NarrativumDbContext>(sp =>
+    sp.GetRequiredService<IDbContextFactory<NarrativumDbContext>>().CreateDbContext());
 
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<IStoryRepository, StoryRepository>();

@@ -8,15 +8,22 @@ namespace Narratum.Persistence;
 /// <summary>
 /// Entity Framework implementation of IStoryRepository.
 /// Provides data access for story persistence while maintaining hexagonal architecture.
+///
+/// Uses an <see cref="IDbContextFactory{TContext}"/> to create a fresh, short-lived
+/// DbContext per operation. In Blazor Server a scoped DbContext lives for the whole
+/// circuit, which accumulates tracked entities across operations and leaves behind
+/// uncommitted 'Added' entities when a save fails — causing tracking conflicts and
+/// duplicate-insert (UNIQUE constraint) errors on later calls. A per-operation context
+/// avoids that entire class of problems.
 /// </summary>
 public class StoryRepository : IStoryRepository
 {
-    private readonly NarrativumDbContext _dbContext;
+    private readonly IDbContextFactory<NarrativumDbContext> _contextFactory;
     private readonly ISnapshotService _snapshotService;
 
-    public StoryRepository(NarrativumDbContext dbContext, ISnapshotService snapshotService)
+    public StoryRepository(IDbContextFactory<NarrativumDbContext> contextFactory, ISnapshotService snapshotService)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _snapshotService = snapshotService ?? throw new ArgumentNullException(nameof(snapshotService));
     }
 
@@ -31,8 +38,10 @@ public class StoryRepository : IStoryRepository
     {
         try
         {
+            await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
             // Check if story already exists
-            var exists = await StoryExistsAsync(slotName, ct);
+            var exists = await db.PageSnapshots.AnyAsync(p => p.SlotName == slotName, ct);
             if (exists)
                 return Result<StoryMetadata>.Fail($"Une histoire existe déjà avec le nom '{slotName}'");
 
@@ -54,7 +63,7 @@ public class StoryRepository : IStoryRepository
                 GenreStyle = genreStyle
             };
 
-            _dbContext.PageSnapshots.Add(pageSnapshot);
+            db.PageSnapshots.Add(pageSnapshot);
 
             // Register slot metadata
             var metadata = new SaveSlotMetadata
@@ -67,8 +76,8 @@ public class StoryRepository : IStoryRepository
                 Description = displayDescription
             };
 
-            _dbContext.SaveSlots.Add(metadata);
-            await _dbContext.SaveChangesAsync(ct);
+            db.SaveSlots.Add(metadata);
+            await db.SaveChangesAsync(ct);
 
             return Result<StoryMetadata>.Ok(new StoryMetadata(
                 slotName,
@@ -98,8 +107,10 @@ public class StoryRepository : IStoryRepository
     {
         try
         {
+            await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
             // Verify story exists
-            var exists = await StoryExistsAsync(slotName, ct);
+            var exists = await db.PageSnapshots.AnyAsync(p => p.SlotName == slotName, ct);
             if (!exists)
                 return Result<PageSnapshot>.Fail($"Aucune histoire trouvée pour le slot '{slotName}'");
 
@@ -108,12 +119,12 @@ public class StoryRepository : IStoryRepository
             var serializedSnapshot = JsonSerializer.Serialize(snapshot);
 
             // Get genre from metadata
-            var metadata = await _dbContext.SaveSlots.FindAsync(new object[] { slotName }, ct);
+            var metadata = await db.SaveSlots.FindAsync(new object[] { slotName }, ct);
             var genreStyle = "Unknown";
             if (metadata != null)
             {
                 // Try to get genre from first page
-                var firstPage = await _dbContext.PageSnapshots
+                var firstPage = await db.PageSnapshots
                     .Where(p => p.SlotName == slotName && p.PageIndex == 0)
                     .FirstOrDefaultAsync(ct);
                 genreStyle = firstPage?.GenreStyle ?? "Unknown";
@@ -132,12 +143,12 @@ public class StoryRepository : IStoryRepository
                 GenreStyle = genreStyle
             };
 
-            _dbContext.PageSnapshots.Add(pageSnapshot);
+            db.PageSnapshots.Add(pageSnapshot);
 
-            // Update metadata. `metadata` was loaded via FindAsync and is therefore already
-            // tracked by the (circuit-scoped) DbContext, so we update its values in place.
-            // Attaching a second instance with the same key via Update() throws
-            // "another instance with the same key value is already being tracked".
+            // Update metadata in place. `metadata` was loaded via FindAsync and is therefore
+            // already tracked by this context, so updating its values avoids the
+            // "another instance with the same key value is already being tracked" error that
+            // attaching a second instance via Update() would cause.
             if (metadata != null)
             {
                 var updatedMetadata = metadata with
@@ -145,10 +156,10 @@ public class StoryRepository : IStoryRepository
                     LastSavedAt = DateTime.UtcNow,
                     TotalEvents = currentState.EventHistory.Count
                 };
-                _dbContext.Entry(metadata).CurrentValues.SetValues(updatedMetadata);
+                db.Entry(metadata).CurrentValues.SetValues(updatedMetadata);
             }
 
-            await _dbContext.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
 
             return Result<PageSnapshot>.Ok(new PageSnapshot(
                 slotName,
@@ -176,7 +187,10 @@ public class StoryRepository : IStoryRepository
     {
         try
         {
-            var pageEntity = await _dbContext.PageSnapshots
+            await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+            var pageEntity = await db.PageSnapshots
+                .AsNoTracking()
                 .Where(p => p.SlotName == slotName && p.PageIndex == pageIndex)
                 .FirstOrDefaultAsync(ct);
 
@@ -216,7 +230,10 @@ public class StoryRepository : IStoryRepository
     {
         try
         {
-            var pageEntity = await _dbContext.PageSnapshots
+            await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+            var pageEntity = await db.PageSnapshots
+                .AsNoTracking()
                 .Where(p => p.SlotName == slotName)
                 .OrderByDescending(p => p.PageIndex)
                 .FirstOrDefaultAsync(ct);
@@ -253,10 +270,12 @@ public class StoryRepository : IStoryRepository
 
     public async Task<List<StoryEntry>> ListStoriesAsync(CancellationToken ct = default)
     {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
         // Pull the minimal columns and group client-side: EF Core cannot translate a
         // GroupBy whose projection calls g.First() (returns an entity) into SQL.
         // A story library is small, so in-memory grouping is both correct and cheap.
-        var pages = await _dbContext.PageSnapshots
+        var pages = await db.PageSnapshots
             .AsNoTracking()
             .Select(p => new { p.SlotName, p.GenreStyle, p.GeneratedAt })
             .ToListAsync(ct);
@@ -278,11 +297,14 @@ public class StoryRepository : IStoryRepository
             .ToList();
 
         // Enrich with metadata if available
+        var metadataBySlot = await db.SaveSlots
+            .AsNoTracking()
+            .ToDictionaryAsync(m => m.SlotName, ct);
+
         var enrichedStories = new List<StoryEntry>();
         foreach (var story in storyGroups)
         {
-            var metadata = await _dbContext.SaveSlots.FindAsync(new object[] { story.SlotName }, ct);
-            if (metadata != null)
+            if (metadataBySlot.TryGetValue(story.SlotName, out var metadata))
             {
                 enrichedStories.Add(story with
                 {
@@ -301,28 +323,35 @@ public class StoryRepository : IStoryRepository
 
     public async Task DeleteStoryAsync(string slotName, CancellationToken ct = default)
     {
-        var pages = await _dbContext.PageSnapshots
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var pages = await db.PageSnapshots
             .Where(p => p.SlotName == slotName)
             .ToListAsync(ct);
 
-        _dbContext.PageSnapshots.RemoveRange(pages);
+        db.PageSnapshots.RemoveRange(pages);
 
-        var metadata = await _dbContext.SaveSlots.FindAsync(new object[] { slotName }, ct);
+        var metadata = await db.SaveSlots.FindAsync(new object[] { slotName }, ct);
         if (metadata != null)
-            _dbContext.SaveSlots.Remove(metadata);
+            db.SaveSlots.Remove(metadata);
 
-        await _dbContext.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<bool> StoryExistsAsync(string slotName, CancellationToken ct = default)
     {
-        return await _dbContext.PageSnapshots
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
             .AnyAsync(p => p.SlotName == slotName, ct);
     }
 
     public async Task<List<int>> GetPageHistoryAsync(string slotName, CancellationToken ct = default)
     {
-        return await _dbContext.PageSnapshots
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
+            .AsNoTracking()
             .Where(p => p.SlotName == slotName)
             .OrderBy(p => p.PageIndex)
             .Select(p => p.PageIndex)
@@ -331,7 +360,11 @@ public class StoryRepository : IStoryRepository
 
     public async Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default)
     {
-        var metadata = await _dbContext.SaveSlots.FindAsync(new object[] { slotName }, ct);
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var metadata = await db.SaveSlots
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.SlotName == slotName, ct);
         return metadata?.DisplayName ?? slotName;
     }
 }

@@ -19,10 +19,12 @@ public sealed class StoryRepositorySqliteTests : IDisposable
 {
     private readonly SqliteConnection _connection;
     private readonly NarrativumDbContext _dbContext;
+    private readonly IDbContextFactory<NarrativumDbContext> _factory;
 
     public StoryRepositorySqliteTests()
     {
         // A shared in-memory SQLite database lives as long as the connection stays open.
+        // Every context created from the factory targets this same connection/database.
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
 
@@ -30,7 +32,8 @@ public sealed class StoryRepositorySqliteTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        _dbContext = new NarrativumDbContext(options);
+        _factory = new PooledConnectionContextFactory(options);
+        _dbContext = _factory.CreateDbContext();
         _dbContext.Database.EnsureCreated();
     }
 
@@ -38,6 +41,16 @@ public sealed class StoryRepositorySqliteTests : IDisposable
     {
         _dbContext.Dispose();
         _connection.Dispose();
+    }
+
+    /// <summary>
+    /// Test factory that mirrors production: creates a fresh DbContext per operation,
+    /// all sharing the same in-memory SQLite connection.
+    /// </summary>
+    private sealed class PooledConnectionContextFactory(DbContextOptions<NarrativumDbContext> options)
+        : IDbContextFactory<NarrativumDbContext>
+    {
+        public NarrativumDbContext CreateDbContext() => new(options);
     }
 
     [Fact]
@@ -50,7 +63,7 @@ public sealed class StoryRepositorySqliteTests : IDisposable
             NewPage("slot-b", 0, "Sci-Fi", new DateTime(2026, 1, 2)));
         await _dbContext.SaveChangesAsync();
 
-        var repository = new StoryRepository(_dbContext, Mock.Of<ISnapshotService>());
+        var repository = new StoryRepository(_factory, Mock.Of<ISnapshotService>());
 
         // Act — previously threw InvalidOperationException (GroupBy could not be translated)
         var stories = await repository.ListStoriesAsync();
@@ -74,7 +87,7 @@ public sealed class StoryRepositorySqliteTests : IDisposable
     [Fact]
     public async Task ListStoriesAsync_WithNoStories_ReturnsEmptyList()
     {
-        var repository = new StoryRepository(_dbContext, Mock.Of<ISnapshotService>());
+        var repository = new StoryRepository(_factory, Mock.Of<ISnapshotService>());
 
         var stories = await repository.ListStoriesAsync();
 
@@ -97,7 +110,7 @@ public sealed class StoryRepositorySqliteTests : IDisposable
         await _dbContext.SaveChangesAsync();
         _dbContext.ChangeTracker.Clear(); // fresh state, as a new circuit would load it
 
-        var repository = new StoryRepository(_dbContext, Mock.Of<ISnapshotService>());
+        var repository = new StoryRepository(_factory, Mock.Of<ISnapshotService>());
         var state = StoryState.Create(Id.New(), "World X");
 
         // Act — SavePageAsync loads the metadata via FindAsync (tracking it) and then
@@ -111,6 +124,39 @@ public sealed class StoryRepositorySqliteTests : IDisposable
         _dbContext.ChangeTracker.Clear();
         var meta = await _dbContext.SaveSlots.FindAsync("slot-x");
         meta!.TotalEvents.Should().Be(state.EventHistory.Count);
+    }
+
+    [Fact]
+    public async Task SavePageAsync_AfterAFailedSave_DoesNotPoisonTheNextSave()
+    {
+        // Arrange — a slot with page 0 and metadata
+        _dbContext.PageSnapshots.Add(NewPage("slot-y", 0, "Fantasy", new DateTime(2026, 1, 1)));
+        _dbContext.SaveSlots.Add(new SaveSlotMetadata
+        {
+            SlotName = "slot-y",
+            LastSavedAt = new DateTime(2026, 1, 1),
+            TotalEvents = 0,
+            CurrentChapterId = Guid.Empty,
+            DisplayName = "Slot Y",
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var repository = new StoryRepository(_factory, Mock.Of<ISnapshotService>());
+        var state = StoryState.Create(Id.New(), "World Y");
+
+        // Act — a save that collides with the existing page 0 fails...
+        var failed = await repository.SavePageAsync("slot-y", 0, "dup", "i", "m", state);
+        // ...and a subsequent valid save at index 1 must still succeed. With a long-lived
+        // shared DbContext the failed page-0 entity stayed 'Added' and poisoned this save
+        // (UNIQUE constraint failed). A fresh context per operation isolates them.
+        var ok = await repository.SavePageAsync("slot-y", 1, "narrative", "i", "m", state);
+
+        // Assert
+        failed.Should().BeOfType<Result<PageSnapshot>.Failure>();
+        ok.Should().BeOfType<Result<PageSnapshot>.Success>();
+
+        var history = await repository.GetPageHistoryAsync("slot-y");
+        history.Should().Equal(0, 1); // no duplicate, no missing page
     }
 
     private static PageSnapshotEntity NewPage(string slot, int index, string genre, DateTime generatedAt)
