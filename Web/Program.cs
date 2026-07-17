@@ -68,3 +68,8 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+// Exposed so WebApplicationFactory-based integration tests can boot the real
+// DI container and verify the service graph (top-level statements otherwise
+// generate an internal Program class).
+public partial class Program { }
