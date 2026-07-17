@@ -382,6 +382,20 @@ public class StoryRepository : IStoryRepository
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var texts = await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName && p.NarrativeText != null)
+            .OrderBy(p => p.PageIndex)
+            .Select(p => p.NarrativeText!)
+            .ToListAsync(ct);
+
+        return string.Join("\n\n", texts);
+    }
+
     public async Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

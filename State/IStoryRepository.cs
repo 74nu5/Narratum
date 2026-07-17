@@ -78,6 +78,11 @@ public interface IStoryRepository
     Task<string?> GetPageExpertDataAsync(string slotName, int pageIndex, CancellationToken ct = default);
 
     /// <summary>
+    /// Returns the concatenated narrative text of every page (in order) — the story so far.
+    /// </summary>
+    Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets the display name for a story slot.
     /// </summary>
     Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default);

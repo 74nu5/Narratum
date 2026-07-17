@@ -274,9 +274,14 @@ public class GenerationService : IGenerationService
         var traces = new List<AgentTraceInfo>();
 
         // 1. Summary agent — condenses the story so far to ground the Narrator (runs before streaming).
+        // Grounded on the actual page text (source of truth), not the event history.
+        var storySoFar = await _storyRepository.GetStoryTextAsync(slotName, ct);
+        var summaryPrompt = string.IsNullOrWhiteSpace(storySoFar)
+            ? "Il n'y a pas encore d'histoire à résumer ; réponds simplement « (histoire à peine commencée) »."
+            : $"Résume en 2 à 3 phrases, de façon strictement factuelle et sans rien inventer, l'histoire suivante :\n\n{storySoFar}";
         var summary = await RunAgentAsync(
             AgentType.Summary, "Résumé", "Condense l'histoire jusqu'ici",
-            _promptOptimizer.BuildOptimizedSummaryPrompt(storyState), ct);
+            summaryPrompt, ct);
         traces.Add(summary);
 
         // 2. Narrator agent — the user-visible prose, streamed live.
