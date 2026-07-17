@@ -2,7 +2,9 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using Narratum.Core;
 using Narratum.Persistence;
+using Narratum.State;
 using Xunit;
 
 namespace Narratum.Web.Tests.Services;
@@ -77,6 +79,38 @@ public sealed class StoryRepositorySqliteTests : IDisposable
         var stories = await repository.ListStoriesAsync();
 
         stories.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SavePageAsync_WhenSlotMetadataIsAlreadyTracked_UpdatesInPlaceWithoutConflict()
+    {
+        // Arrange — an existing slot with page 0 and metadata
+        _dbContext.PageSnapshots.Add(NewPage("slot-x", 0, "Fantasy", new DateTime(2026, 1, 1)));
+        _dbContext.SaveSlots.Add(new SaveSlotMetadata
+        {
+            SlotName = "slot-x",
+            LastSavedAt = new DateTime(2026, 1, 1),
+            TotalEvents = 0,
+            CurrentChapterId = Guid.Empty, // column is configured .IsRequired()
+            DisplayName = "Slot X",
+        });
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear(); // fresh state, as a new circuit would load it
+
+        var repository = new StoryRepository(_dbContext, Mock.Of<ISnapshotService>());
+        var state = StoryState.Create(Id.New(), "World X");
+
+        // Act — SavePageAsync loads the metadata via FindAsync (tracking it) and then
+        // updates it. Attaching a second instance used to throw
+        // "another instance with the same key value is already being tracked".
+        var result = await repository.SavePageAsync("slot-x", 1, "narrative", "intent", "model", state);
+
+        // Assert
+        result.Should().BeOfType<Result<PageSnapshot>.Success>();
+
+        _dbContext.ChangeTracker.Clear();
+        var meta = await _dbContext.SaveSlots.FindAsync("slot-x");
+        meta!.TotalEvents.Should().Be(state.EventHistory.Count);
     }
 
     private static PageSnapshotEntity NewPage(string slot, int index, string genre, DateTime generatedAt)

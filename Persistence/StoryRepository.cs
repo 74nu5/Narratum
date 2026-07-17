@@ -134,7 +134,10 @@ public class StoryRepository : IStoryRepository
 
             _dbContext.PageSnapshots.Add(pageSnapshot);
 
-            // Update metadata
+            // Update metadata. `metadata` was loaded via FindAsync and is therefore already
+            // tracked by the (circuit-scoped) DbContext, so we update its values in place.
+            // Attaching a second instance with the same key via Update() throws
+            // "another instance with the same key value is already being tracked".
             if (metadata != null)
             {
                 var updatedMetadata = metadata with
@@ -142,7 +145,7 @@ public class StoryRepository : IStoryRepository
                     LastSavedAt = DateTime.UtcNow,
                     TotalEvents = currentState.EventHistory.Count
                 };
-                _dbContext.SaveSlots.Update(updatedMetadata);
+                _dbContext.Entry(metadata).CurrentValues.SetValues(updatedMetadata);
             }
 
             await _dbContext.SaveChangesAsync(ct);
