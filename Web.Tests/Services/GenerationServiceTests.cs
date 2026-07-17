@@ -323,11 +323,12 @@ public class GenerationServiceTests
             .Callback<string, int, string, CancellationToken>((_, _, json, _) => capturedExpertJson = json)
             .Returns(Task.CompletedTask);
 
+        var fakeClient = new FakeStreamingLlmClient("Il ", "était ", "une fois.");
         var service = new GenerationService(
             new FullOrchestrationService(new Mock<ILlmClient>().Object),
             _mockRepository.Object,
             new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini", NarratorModel = "phi-4-mini" }),
-            new FakeStreamingLlmClient("Il ", "était ", "une fois."),
+            fakeClient,
             NullLogger<GenerationService>.Instance);
 
         // Act
@@ -337,6 +338,11 @@ public class GenerationServiceTests
 
         // Assert — user sees only the streamed narrator prose
         string.Concat(received).Should().Be("Il était une fois.");
+
+        // Every prompt sent to the model carries the French-only directive.
+        fakeClient.Requests.Should().NotBeEmpty();
+        fakeClient.Requests.Should().OnlyContain(r =>
+            (r.SystemPrompt + r.UserPrompt).Contains("EXCLUSIVEMENT en français"));
 
         // Expert traces were persisted for all four agents
         capturedExpertJson.Should().NotBeNull();
@@ -381,20 +387,26 @@ public class GenerationServiceTests
         traces.Should().BeEmpty();
     }
 
-    /// <summary>Fake client that streams a fixed set of fragments.</summary>
+    /// <summary>Fake client that streams a fixed set of fragments and records the requests it receives.</summary>
     private sealed class FakeStreamingLlmClient(params string[] chunks) : ILlmClient, IStreamingLlmClient
     {
+        public List<LlmRequest> Requests { get; } = new();
+
         public string ClientName => "Fake";
 
         public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
 
         public Task<Result<LlmResponse>> GenerateAsync(LlmRequest request, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result<LlmResponse>.Ok(new LlmResponse(request.RequestId, string.Concat(chunks))));
+        {
+            Requests.Add(request);
+            return Task.FromResult(Result<LlmResponse>.Ok(new LlmResponse(request.RequestId, string.Concat(chunks))));
+        }
 
         public async IAsyncEnumerable<string> GenerateStreamingAsync(
             LlmRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            Requests.Add(request);
             foreach (var chunk in chunks)
             {
                 await Task.Yield();

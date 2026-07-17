@@ -29,6 +29,13 @@ public class GenerationService : IGenerationService
     private readonly PromptOptimizationService _promptOptimizer = new();
     private readonly AgentTemperatureConfig _temperatures = AgentTemperatureConfig.Default;
 
+    /// <summary>
+    /// Forces French output regardless of the (partly English) prompt scaffolding.
+    /// Appended to every prompt sent to the model so stories are exclusively in French.
+    /// </summary>
+    private const string FrenchOnly =
+        "IMPORTANT : rédige ta réponse EXCLUSIVEMENT en français, quelle que soit la langue des instructions ou du contexte ci-dessus.";
+
     public GenerationService(
         FullOrchestrationService orchestrator,
         IStoryRepository storyRepository,
@@ -287,10 +294,11 @@ public class GenerationService : IGenerationService
         // 2. Narrator agent — the user-visible prose, streamed live.
         var narratorPrompt = _promptOptimizer.BuildOptimizedNarratorPrompt(
                 storyState, intent, previousNarrative: latestPage.NarrativeText)
-            + $"\n\nRÉSUMÉ DU CONTEXTE (référence, ne pas recopier) :\n{summary.Output}";
+            + $"\n\nRÉSUMÉ DU CONTEXTE (référence, ne pas recopier) :\n{summary.Output}"
+            + "\n\n" + FrenchOnly;
 
         var narratorRequest = new LlmRequest(
-            "You are a master storyteller crafting engaging narrative.",
+            "Tu es un maître conteur qui écrit une narration immersive et vivante. " + FrenchOnly,
             narratorPrompt,
             LlmParameters.Default with { Temperature = _temperatures.GetTemperature(AgentType.Narrator) },
             new Dictionary<string, object> { ["llm.agentType"] = AgentType.Narrator });
@@ -360,7 +368,7 @@ public class GenerationService : IGenerationService
         var timer = Stopwatch.StartNew();
         var request = new LlmRequest(
             AgentSystemPrompt(agent),
-            userPrompt,
+            userPrompt + "\n\n" + FrenchOnly,
             LlmParameters.Default with { Temperature = _temperatures.GetTemperature(agent) },
             new Dictionary<string, object> { ["llm.agentType"] = agent });
 
@@ -379,10 +387,10 @@ public class GenerationService : IGenerationService
 
     private static string AgentSystemPrompt(AgentType agent) => agent switch
     {
-        AgentType.Summary => "Tu résumes les événements d'une histoire de façon concise et factuelle.",
-        AgentType.Consistency => "Tu vérifies la cohérence d'un texte narratif au regard des faits établis. Réponds brièvement.",
-        AgentType.Character => "Tu incarnes un seul personnage de façon authentique, à la première personne.",
-        _ => "Tu es un agent narratif."
+        AgentType.Summary => "Tu résumes les événements d'une histoire de façon concise et factuelle. " + FrenchOnly,
+        AgentType.Consistency => "Tu vérifies la cohérence d'un texte narratif au regard des faits établis. Réponds brièvement. " + FrenchOnly,
+        AgentType.Character => "Tu incarnes un seul personnage de façon authentique, à la première personne. " + FrenchOnly,
+        _ => "Tu es un agent narratif. " + FrenchOnly
     };
 
     /// <summary>
