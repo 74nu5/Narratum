@@ -117,11 +117,27 @@ public sealed class ChatClientLlmAdapter : ILlmClient
             return Result<LlmResponse>.Fail(
                 $"LLM request timed out after {_config.TimeoutSeconds}s");
         }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "LLM error: {Message}", ex.Message);
-            return Result<LlmResponse>.Fail($"LLM error: {ex.Message}");
+            _logger.LogWarning(ex, "LLM network error: {Message}", ex.Message);
+            return Result<LlmResponse>.Fail($"Network error: {ex.Message}");
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "LLM invalid operation: {Message}", ex.Message);
+            return Result<LlmResponse>.Fail($"Invalid operation: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger.LogWarning(ex, "LLM JSON error: {Message}", ex.Message);
+            return Result<LlmResponse>.Fail($"JSON parsing error: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "LLM invalid argument: {Message}", ex.Message);
+            return Result<LlmResponse>.Fail($"Invalid argument: {ex.Message}");
+        }
+        // Let critical exceptions (OutOfMemoryException) propagate
     }
 
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
@@ -136,10 +152,27 @@ public sealed class ChatClientLlmAdapter : ILlmClient
             var response = await _chatClient.GetResponseAsync(messages, options, cancellationToken);
             return !string.IsNullOrEmpty(response.Text);
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // User cancellation - still unhealthy
             return false;
         }
+        catch (HttpRequestException)
+        {
+            // Network error - unhealthy
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Client not properly initialized - unhealthy
+            return false;
+        }
+        catch (TimeoutException)
+        {
+            // Timeout - unhealthy
+            return false;
+        }
+        // Let critical exceptions propagate - they indicate serious issues
     }
 
     /// <summary>
