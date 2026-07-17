@@ -328,15 +328,15 @@ public class GenerationService : IGenerationService
             _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), ct);
         traces.Add(consistency);
 
-        // 4. Character agent — voices a key character's reaction (Expert-only insight).
-        var character = storyState.Characters.Values.FirstOrDefault();
-        if (character != null)
-        {
-            var characterTrace = await RunAgentAsync(
-                AgentType.Character, $"Personnage · {character.Name}", "Réaction du personnage à la scène",
-                _promptOptimizer.BuildOptimizedCharacterPrompt(character, storyState, intent), ct);
-            traces.Add(characterTrace);
-        }
+        // 4. Character agent — maintains an evolving roster: for each character, their
+        // personality, arc and key facts. Re-derived from the full story (incl. this page)
+        // so it naturally reflects how characters change over time.
+        var knownNames = storyState.Characters.Values.Select(c => c.Name).ToList();
+        var fullStory = string.IsNullOrWhiteSpace(storySoFar) ? fullText : storySoFar + "\n\n" + fullText;
+        var roster = await RunAgentAsync(
+            AgentType.Character, "Personnages", "Fiches : personnalité, évolution, faits marquants",
+            BuildCharacterRosterPrompt(fullStory, knownNames), ct);
+        traces.Add(roster);
 
         // Persist the page (user-visible text) and the agent traces (Expert data).
         var newPageIndex = latestPage.PageIndex + 1;
@@ -389,9 +389,31 @@ public class GenerationService : IGenerationService
     {
         AgentType.Summary => "Tu résumes les événements d'une histoire de façon concise et factuelle. " + FrenchOnly,
         AgentType.Consistency => "Tu vérifies la cohérence d'un texte narratif au regard des faits établis. Réponds brièvement. " + FrenchOnly,
-        AgentType.Character => "Tu incarnes un seul personnage de façon authentique, à la première personne. " + FrenchOnly,
+        AgentType.Character => "Tu es l'archiviste des personnages. Tu tiens à jour, de façon factuelle, la fiche de chaque personnage d'une histoire. " + FrenchOnly,
         _ => "Tu es un agent narratif. " + FrenchOnly
     };
+
+    /// <summary>
+    /// Builds the prompt asking the Character agent to maintain a roster: one fiche per
+    /// character with personality, evolution over the story, and key facts.
+    /// </summary>
+    private static string BuildCharacterRosterPrompt(string storyText, IReadOnlyList<string> knownNames)
+    {
+        var known = knownNames.Count > 0 ? string.Join(", ", knownNames) : "(aucun personnage prédéfini)";
+        var story = string.IsNullOrWhiteSpace(storyText) ? "(histoire à peine commencée)" : storyText;
+
+        return
+            $"Voici l'histoire jusqu'ici :\n\n{story}\n\n" +
+            $"Personnages connus au départ : {known}.\n\n" +
+            "Dresse la liste de TOUS les personnages présents dans l'histoire. " +
+            "Pour CHAQUE personnage, indique, dans cet ordre :\n" +
+            "- Nom\n" +
+            "- Personnalité\n" +
+            "- Évolution au fil de l'histoire\n" +
+            "- Faits marquants le concernant\n\n" +
+            "Reste strictement factuel : n'invente rien qui ne découle pas de l'histoire ci-dessus. " +
+            "Présente une section claire et distincte par personnage.";
+    }
 
     /// <summary>
     /// Reads the per-agent traces stored for a page (Expert mode).
