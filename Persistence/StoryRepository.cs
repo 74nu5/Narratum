@@ -250,18 +250,29 @@ public class StoryRepository : IStoryRepository
 
     public async Task<List<StoryEntry>> ListStoriesAsync(CancellationToken ct = default)
     {
-        var storyGroups = await _dbContext.PageSnapshots
+        // Pull the minimal columns and group client-side: EF Core cannot translate a
+        // GroupBy whose projection calls g.First() (returns an entity) into SQL.
+        // A story library is small, so in-memory grouping is both correct and cheap.
+        var pages = await _dbContext.PageSnapshots
             .AsNoTracking()
-            .GroupBy(p => p.SlotName)
-            .Select(g => new StoryEntry(
-                g.Key,
-                g.First().GenreStyle ?? "Unknown", // DisplayName approximated from genre
-                g.First().GenreStyle ?? "Unknown",
-                g.Count(),
-                g.Max(p => p.GeneratedAt),
-                g.First().GenreStyle ?? "Unknown"))
-            .OrderByDescending(s => s.LastUpdated)
+            .Select(p => new { p.SlotName, p.GenreStyle, p.GeneratedAt })
             .ToListAsync(ct);
+
+        var storyGroups = pages
+            .GroupBy(p => p.SlotName)
+            .Select(g =>
+            {
+                var genre = g.OrderByDescending(p => p.GeneratedAt).First().GenreStyle ?? "Unknown";
+                return new StoryEntry(
+                    g.Key,
+                    genre, // DisplayName approximated from genre
+                    genre,
+                    g.Count(),
+                    g.Max(p => p.GeneratedAt),
+                    genre);
+            })
+            .OrderByDescending(s => s.LastUpdated)
+            .ToList();
 
         // Enrich with metadata if available
         var enrichedStories = new List<StoryEntry>();
