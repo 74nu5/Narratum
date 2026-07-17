@@ -91,7 +91,7 @@ public class MetricsCollectorTests
         result.Should().Be(42);
         var points = collector.GetDataPoints("test.operation");
         points.Should().ContainSingle();
-        points[0].Value.Should().BeGreaterOrEqualTo(40); // Allow some tolerance
+        points[0].Value.Should().BeGreaterThanOrEqualTo(40); // Allow some tolerance
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class MetricsCollectorTests
         result.Should().Be("result");
         var points = collector.GetDataPoints("test.async.operation");
         points.Should().ContainSingle();
-        points[0].Value.Should().BeGreaterOrEqualTo(40);
+        points[0].Value.Should().BeGreaterThanOrEqualTo(40);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class MetricsCollectorTests
         // Assert
         summary.PipelineId.Should().Be(pipelineId);
         summary.Success.Should().BeTrue();
-        summary.TotalDuration.TotalMilliseconds.Should().BeGreaterOrEqualTo(40);
+        summary.TotalDuration.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(40);
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public class MetricsCollectorTests
 
         // Assert
         summary.StageDurations.Should().ContainKey("ContextBuilder");
-        summary.StageDurations["ContextBuilder"].TotalMilliseconds.Should().BeGreaterOrEqualTo(20);
+        summary.StageDurations["ContextBuilder"].TotalMilliseconds.Should().BeGreaterThanOrEqualTo(20);
     }
 
     [Fact]

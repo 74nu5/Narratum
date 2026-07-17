@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Narratum.State;
-using Narratum.Domain.Events;
+using Narratum.Domain;
 
 namespace Narratum.Orchestration.Prompts;
 
@@ -20,8 +20,8 @@ public class NarrativeContextCache : IDisposable
     /// </summary>
     public CachedSummary GetOrCreateSummary(
         string storyId,
-        IEnumerable<StoryEvent> events,
-        Func<IEnumerable<StoryEvent>, string> summarizer)
+        IEnumerable<Event> events,
+        Func<IEnumerable<Event>, string> summarizer)
     {
         ThrowIfDisposed();
 
@@ -125,7 +125,7 @@ public class NarrativeContextCache : IDisposable
             _summaryCache.Values.Sum(s => s.EventCount));
     }
 
-    private string BuildSummaryCacheKey(string storyId, IList<StoryEvent> events)
+    private string BuildSummaryCacheKey(string storyId, IList<Event> events)
     {
         if (!events.Any())
             return $"{storyId}:summary:empty";

@@ -1,3 +1,5 @@
+using Narratum.Orchestration.Stages;
+
 namespace Narratum.Orchestration.Configuration;
 
 /// <summary>

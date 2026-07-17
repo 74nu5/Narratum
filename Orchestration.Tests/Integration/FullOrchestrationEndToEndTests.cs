@@ -428,7 +428,7 @@ public class FullOrchestrationEndToEndTests
         var result = await service.ExecuteCycleAsync(_richState, intent);
 
         var pipeline = ((Result<FullPipelineResult>.Success)result).Value;
-        pipeline.RetryCount.Should().BeLessOrEqualTo(1);
+        pipeline.RetryCount.Should().BeLessThanOrEqualTo(1);
     }
 
     [Fact]
@@ -534,7 +534,7 @@ public class FullOrchestrationEndToEndTests
         var pipeline = ((Result<FullPipelineResult>.Success)result).Value;
 
         // Le pipeline doit avoir au minimum ContextBuilder, PromptBuilder, AgentExecutor, Validation
-        pipeline.StageResults.Should().HaveCountGreaterOrEqualTo(3);
+        pipeline.StageResults.Should().HaveCountGreaterThanOrEqualTo(3);
         pipeline.StageResults.Should().Contain(s => s.StageName == "ContextBuilder");
         pipeline.StageResults.Should().Contain(s => s.StageName == "PromptBuilder");
         pipeline.StageResults.Should().Contain(s =>
@@ -875,7 +875,7 @@ public class FullOrchestrationEndToEndTests
         pipeline.StageResults.Should().AllSatisfy(stage =>
         {
             stage.StageName.Should().NotBeNullOrEmpty();
-            stage.Duration.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+            stage.Duration.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
         });
     }
 

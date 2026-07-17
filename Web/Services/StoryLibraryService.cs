@@ -25,7 +25,7 @@ public class StoryLibraryService
     /// <summary>
     /// Liste toutes les histoires disponibles.
     /// </summary>
-    public async Task<List<StoryEntry>> ListStoriesAsync()
+    public async Task<List<Narratum.Web.Models.StoryEntry>> ListStoriesAsync()
     {
         _logger.LogDebug("Loading story library");
 
@@ -34,7 +34,7 @@ public class StoryLibraryService
         _logger.LogInformation("Story library loaded: {StoryCount} stories found", stories.Count);
 
         // Map Core.StoryEntry to Web.Models.StoryEntry
-        return stories.Select(s => new StoryEntry
+        return stories.Select(s => new Narratum.Web.Models.StoryEntry
         {
             SlotName = s.SlotName,
             DisplayName = s.DisplayName,

@@ -57,6 +57,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Web", "Web", "{256F4E96-6A7
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Narratum.Web", "Web\Narratum.Web.csproj", "{A597DC3E-25FF-4801-AA6C-FB624F47189C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web.Tests", "Web.Tests\Web.Tests.csproj", "{5993081D-9437-4641-BE21-AD7B931DB2E3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -235,6 +237,18 @@ Global
 		{A597DC3E-25FF-4801-AA6C-FB624F47189C}.Release|x64.Build.0 = Release|Any CPU
 		{A597DC3E-25FF-4801-AA6C-FB624F47189C}.Release|x86.ActiveCfg = Release|Any CPU
 		{A597DC3E-25FF-4801-AA6C-FB624F47189C}.Release|x86.Build.0 = Release|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Debug|x64.Build.0 = Debug|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Debug|x86.Build.0 = Debug|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Release|x64.ActiveCfg = Release|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Release|x64.Build.0 = Release|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Release|x86.ActiveCfg = Release|Any CPU
+		{5993081D-9437-4641-BE21-AD7B931DB2E3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

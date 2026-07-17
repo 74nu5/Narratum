@@ -1,3 +1,4 @@
+@using Narratum.Core
 @using Narratum.Web.Models
 @using Narratum.Web.Services
 @inject IJSRuntime JSRuntime
@@ -102,7 +103,7 @@
             <div class="editor-content"
                  contenteditable="true"
                  @ref="editorRef"
-                 @oninput="OnContentChanged"
+                 @oninput="HandleContentInput"
                  @onselectionchange="OnSelectionChanged"
                  spellcheck="true">
                 @((MarkupString)EditableContent)
@@ -200,7 +201,7 @@
         UndoStack.Push(EditableContent);
     }
 
-    private async Task OnContentChanged(ChangeEventArgs e)
+    private async Task HandleContentInput(ChangeEventArgs e)
     {
         var newContent = await JSRuntime.InvokeAsync<string>("getEditorContent", editorRef);
 
@@ -277,9 +278,8 @@
             var context = $"Régénère ce passage: {SelectedText}";
             var result = await GenerationService.GenerateNextPageAsync(StoryId, context);
 
-            if (result.IsSuccess)
+            if (result is Result<PageInfo>.Success success)
             {
-                var success = (Result<PageInfo>.Success)result;
                 var newText = success.Value.NarrativeText;
                 await JSRuntime.InvokeVoidAsync("replaceSelection", editorRef, newText);
             }

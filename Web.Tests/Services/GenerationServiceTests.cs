@@ -2,7 +2,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Narratum.Core;
-using Narratum.Orchestration.Models;
+using Narratum.Llm.Configuration;
+using Narratum.Orchestration.Llm;
 using Narratum.Orchestration.Services;
 using Narratum.State;
 using Narratum.Web.Models;
@@ -13,24 +14,49 @@ namespace Narratum.Web.Tests.Services;
 
 public class GenerationServiceTests
 {
-    private readonly Mock<FullOrchestrationService> _mockOrchestrator;
     private readonly Mock<IStoryRepository> _mockRepository;
-    private readonly Mock<ModelSelectionService> _mockModelSelector;
     private readonly GenerationService _service;
 
     public GenerationServiceTests()
     {
-        _mockOrchestrator = new Mock<FullOrchestrationService>();
         _mockRepository = new Mock<IStoryRepository>();
-        _mockModelSelector = new Mock<ModelSelectionService>();
 
-        _mockModelSelector.Setup(m => m.CurrentNarratorModel).Returns("phi-4-mini");
+        // FullOrchestrationService is sealed, so it cannot be mocked.
+        // Build a real instance backed by a mocked ILlmClient interface;
+        // the validation-focused tests below never reach the LLM anyway.
+        var llmClient = new Mock<ILlmClient>().Object;
+        var orchestrator = new FullOrchestrationService(llmClient);
+
+        var modelSelector = new ModelSelectionService(new LlmClientConfig
+        {
+            Provider = LlmProviderType.FoundryLocal,
+            DefaultModel = "phi-4-mini",
+            NarratorModel = "phi-4-mini"
+        });
 
         _service = new GenerationService(
-            _mockOrchestrator.Object,
+            orchestrator,
             _mockRepository.Object,
-            _mockModelSelector.Object,
+            modelSelector,
             NullLogger<GenerationService>.Instance);
+    }
+
+    private static StoryCreationRequest CreateRequest(
+        string worldName = "Test World",
+        string genreStyle = "Fantasy",
+        string? narrativeStyle = "Epic",
+        params (string Name, string? Description)[] characters)
+    {
+        var chars = characters.Length > 0
+            ? characters.ToList()
+            : new List<(string Name, string? Description)> { ("Hero", "A brave warrior") };
+
+        return new StoryCreationRequest(
+            WorldName: worldName,
+            GenreStyle: genreStyle,
+            Characters: chars,
+            WorldDescription: "A magical realm",
+            NarrativeStyle: narrativeStyle);
     }
 
     [Fact]
@@ -38,17 +64,7 @@ public class GenerationServiceTests
     {
         // Arrange
         var slotName = "test-slot";
-        var request = new StoryCreationRequest
-        {
-            WorldName = "Test World",
-            GenreStyle = "Fantasy",
-            WorldDescription = "A magical realm",
-            NarrativeStyle = "Epic",
-            Characters = new[]
-            {
-                new CharacterDefinition("Hero", "A brave warrior")
-            }
-        };
+        var request = CreateRequest();
 
         _mockRepository
             .Setup(r => r.CreateStoryAsync(
@@ -70,11 +86,8 @@ public class GenerationServiceTests
         var result = await _service.CreateStoryAsync(slotName, request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeTrue();
-        result.Match(
-            onSuccess: value => value.Should().Be(slotName),
-            onFailure: _ => throw new Exception("Expected success"));
+        var success = result.Should().BeOfType<Result<string>.Success>().Subject;
+        success.Value.Should().Be(slotName);
 
         _mockRepository.Verify(r => r.CreateStoryAsync(
             slotName,
@@ -90,22 +103,14 @@ public class GenerationServiceTests
     public async Task CreateStoryAsync_WhenEmptySlotName_ReturnsFailure()
     {
         // Arrange
-        var request = new StoryCreationRequest
-        {
-            WorldName = "Test",
-            GenreStyle = "Fantasy",
-            Characters = new[] { new CharacterDefinition("Hero", "desc") }
-        };
+        var request = CreateRequest();
 
         // Act
         var result = await _service.CreateStoryAsync("", request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeFalse();
-        result.Match(
-            onSuccess: _ => throw new Exception("Expected failure"),
-            onFailure: error => error.Should().Contain("slot"));
+        var failure = result.Should().BeOfType<Result<string>.Failure>().Subject;
+        failure.Message.Should().Contain("slot");
 
         _mockRepository.Verify(r => r.CreateStoryAsync(
             It.IsAny<string>(),
@@ -121,22 +126,17 @@ public class GenerationServiceTests
     public async Task CreateStoryAsync_WhenNoCharacters_ReturnsFailure()
     {
         // Arrange
-        var request = new StoryCreationRequest
-        {
-            WorldName = "Test",
-            GenreStyle = "Fantasy",
-            Characters = Array.Empty<CharacterDefinition>()
-        };
+        var request = new StoryCreationRequest(
+            WorldName: "Test",
+            GenreStyle: "Fantasy",
+            Characters: new List<(string Name, string? Description)>());
 
         // Act
         var result = await _service.CreateStoryAsync("test-slot", request);
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeFalse();
-        result.Match(
-            onSuccess: _ => throw new Exception("Expected failure"),
-            onFailure: error => error.Should().Contain("personnage"));
+        var failure = result.Should().BeOfType<Result<string>.Failure>().Subject;
+        failure.Message.Should().Contain("personnage");
     }
 
     [Fact]
@@ -149,11 +149,8 @@ public class GenerationServiceTests
         var result = await _service.GenerateNextPageAsync(slotName, "");
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeFalse();
-        result.Match(
-            onSuccess: _ => throw new Exception("Expected failure"),
-            onFailure: error => error.Should().Contain("intention"));
+        var failure = result.Should().BeOfType<Result<PageInfo>.Failure>().Subject;
+        failure.Message.Should().Contain("intention");
 
         _mockRepository.Verify(r => r.LoadLatestPageAsync(
             It.IsAny<string>(),
@@ -171,11 +168,8 @@ public class GenerationServiceTests
         var result = await _service.GenerateNextPageAsync(slotName, longIntent);
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeFalse();
-        result.Match(
-            onSuccess: _ => throw new Exception("Expected failure"),
-            onFailure: error => error.Should().Contain("trop longue"));
+        var failure = result.Should().BeOfType<Result<PageInfo>.Failure>().Subject;
+        failure.Message.Should().Contain("trop longue");
     }
 
     [Fact]
@@ -192,8 +186,7 @@ public class GenerationServiceTests
         var result = await _service.GenerateNextPageAsync(slotName, "Valid intent");
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeFalse();
+        result.Should().BeOfType<Result<PageInfo>.Failure>();
     }
 
     [Fact]
@@ -219,15 +212,9 @@ public class GenerationServiceTests
         var result = await _service.LoadPageAsync(slotName, pageIndex);
 
         // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeTrue();
-        result.Match(
-            onSuccess: page =>
-            {
-                page.PageIndex.Should().Be(pageIndex);
-                page.NarrativeText.Should().Be("Test narrative text");
-            },
-            onFailure: _ => throw new Exception("Expected success"));
+        var success = result.Should().BeOfType<Result<PageInfo>.Success>().Subject;
+        success.Value.PageIndex.Should().Be(pageIndex);
+        success.Value.NarrativeText.Should().Be("Test narrative text");
     }
 
     [Fact]

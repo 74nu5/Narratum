@@ -8,11 +8,10 @@ using Xunit;
 
 namespace Narratum.Llm.Tests.Clients;
 
-public class LazyLlmClientTests : IDisposable
+public sealed class LazyLlmClientTests
 {
     private readonly Mock<ILlmClientFactory> _mockFactory;
     private readonly Mock<ILlmClient> _mockClient;
-    private LazyLlmClient? _lazyClient;
 
     public LazyLlmClientTests()
     {
@@ -25,22 +24,28 @@ public class LazyLlmClientTests : IDisposable
             .ReturnsAsync(_mockClient.Object);
     }
 
+    private static LlmRequest CreateRequest(string userPrompt = "Test prompt")
+        => new("System prompt", userPrompt);
+
+    private static Result<LlmResponse> OkResponse(string content = "Response")
+        => Result<LlmResponse>.Ok(new LlmResponse(Id.New(), content, promptTokens: 10, completionTokens: 5));
+
     [Fact]
     public async Task GenerateAsync_FirstCall_InitializesClient()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        var request = new LlmRequest("Test prompt");
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var request = CreateRequest();
 
         _mockClient
             .Setup(c => c.GenerateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<LlmResponse>.Ok(new LlmResponse("Response", 10, 5)));
+            .ReturnsAsync(OkResponse());
 
         // Act
-        var result = await _lazyClient.GenerateAsync(request);
+        var result = await lazyClient.GenerateAsync(request);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
+        result.Should().BeOfType<Result<LlmResponse>.Success>();
         _mockFactory.Verify(f => f.CreateClientAsync(It.IsAny<CancellationToken>()), Times.Once);
         _mockClient.Verify(c => c.GenerateAsync(request, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -49,17 +54,17 @@ public class LazyLlmClientTests : IDisposable
     public async Task GenerateAsync_MultipleCalls_InitializesOnlyOnce()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        var request1 = new LlmRequest("Prompt 1");
-        var request2 = new LlmRequest("Prompt 2");
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var request1 = CreateRequest("Prompt 1");
+        var request2 = CreateRequest("Prompt 2");
 
         _mockClient
             .Setup(c => c.GenerateAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<LlmResponse>.Ok(new LlmResponse("Response", 10, 5)));
+            .ReturnsAsync(OkResponse());
 
         // Act
-        await _lazyClient.GenerateAsync(request1);
-        await _lazyClient.GenerateAsync(request2);
+        await lazyClient.GenerateAsync(request1);
+        await lazyClient.GenerateAsync(request2);
 
         // Assert
         _mockFactory.Verify(f => f.CreateClientAsync(It.IsAny<CancellationToken>()), Times.Once,
@@ -72,8 +77,8 @@ public class LazyLlmClientTests : IDisposable
     public async Task GenerateAsync_ConcurrentCalls_InitializesOnlyOnce()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        var request = new LlmRequest("Concurrent prompt");
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var request = CreateRequest("Concurrent prompt");
 
         var initializationDelay = TimeSpan.FromMilliseconds(100);
         _mockFactory
@@ -86,17 +91,17 @@ public class LazyLlmClientTests : IDisposable
 
         _mockClient
             .Setup(c => c.GenerateAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<LlmResponse>.Ok(new LlmResponse("Response", 10, 5)));
+            .ReturnsAsync(OkResponse());
 
         // Act - Fire 10 concurrent requests
         var tasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(() => _lazyClient.GenerateAsync(request)))
+            .Select(_ => Task.Run(() => lazyClient.GenerateAsync(request)))
             .ToArray();
 
         var results = await Task.WhenAll(tasks);
 
         // Assert
-        results.Should().AllSatisfy(r => r.IsSuccess.Should().BeTrue());
+        results.Should().AllSatisfy(r => r.Should().BeOfType<Result<LlmResponse>.Success>());
         _mockFactory.Verify(f => f.CreateClientAsync(It.IsAny<CancellationToken>()), Times.Once,
             "Even with concurrent calls, initialization should happen only once (race condition test)");
     }
@@ -105,14 +110,14 @@ public class LazyLlmClientTests : IDisposable
     public async Task IsHealthyAsync_WhenNotInitialized_InitializesFirst()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
 
         _mockClient
             .Setup(c => c.IsHealthyAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
-        var isHealthy = await _lazyClient.IsHealthyAsync();
+        var isHealthy = await lazyClient.IsHealthyAsync();
 
         // Assert
         isHealthy.Should().BeTrue();
@@ -123,10 +128,10 @@ public class LazyLlmClientTests : IDisposable
     public void ClientName_BeforeInitialization_ReturnsLazyName()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
 
         // Act
-        var name = _lazyClient.ClientName;
+        var name = lazyClient.ClientName;
 
         // Assert
         name.Should().Be("Lazy(Not Initialized)");
@@ -138,33 +143,30 @@ public class LazyLlmClientTests : IDisposable
     public async Task ClientName_AfterInitialization_ReturnsRealName()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        var request = new LlmRequest("Init prompt");
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var request = CreateRequest("Init prompt");
 
         _mockClient
             .Setup(c => c.GenerateAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<LlmResponse>.Ok(new LlmResponse("Response", 10, 5)));
+            .ReturnsAsync(OkResponse());
 
         // Act
-        await _lazyClient.GenerateAsync(request);
-        var name = _lazyClient.ClientName;
+        await lazyClient.GenerateAsync(request);
+        var name = lazyClient.ClientName;
 
         // Assert
         name.Should().Be("MockClient");
     }
 
     [Fact]
-    public void Dispose_DisposesClient()
+    public void Dispose_WhenNotInitialized_IsSafe()
     {
         // Arrange
-        var disposableMock = _mockClient.As<IDisposable>();
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var lazyClient = new LazyLlmClient(_mockFactory.Object);
 
-        // Act
-        _lazyClient.Dispose();
-
-        // Assert - Dispose should be safe even if not initialized
-        _lazyClient.Dispose(); // Second dispose should be safe
+        // Act & Assert - Dispose should be safe even if not initialized
+        lazyClient.Dispose();
+        lazyClient.Dispose(); // Second dispose should be safe
     }
 
     [Fact]
@@ -175,21 +177,22 @@ public class LazyLlmClientTests : IDisposable
         disposableClient.Setup(c => c.ClientName).Returns("DisposableClient");
         disposableClient
             .Setup(c => c.GenerateAsync(It.IsAny<LlmRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<LlmResponse>.Ok(new LlmResponse("Response", 10, 5)));
+            .ReturnsAsync(OkResponse());
 
         var disposableMock = disposableClient.As<IDisposable>();
 
-        _mockFactory
+        var factory = new Mock<ILlmClientFactory>();
+        factory
             .Setup(f => f.CreateClientAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(disposableClient.Object);
 
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var lazyClient = new LazyLlmClient(factory.Object);
 
-        var request = new LlmRequest("Init prompt");
-        await _lazyClient.GenerateAsync(request);
+        var request = CreateRequest("Init prompt");
+        await lazyClient.GenerateAsync(request);
 
         // Act
-        _lazyClient.Dispose();
+        lazyClient.Dispose();
 
         // Assert
         disposableMock.Verify(d => d.Dispose(), Times.Once);
@@ -199,43 +202,38 @@ public class LazyLlmClientTests : IDisposable
     public async Task GenerateAsync_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        _lazyClient.Dispose();
+        var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        lazyClient.Dispose();
 
-        var request = new LlmRequest("Test");
+        var request = CreateRequest();
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _lazyClient.GenerateAsync(request));
+            await lazyClient.GenerateAsync(request));
     }
 
     [Fact]
     public async Task IsHealthyAsync_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        _lazyClient.Dispose();
+        var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        lazyClient.Dispose();
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _lazyClient.IsHealthyAsync());
+            await lazyClient.IsHealthyAsync());
     }
 
     [Fact]
     public async Task GenerateAsync_WithCancellation_PropagatesCancellation()
     {
         // Arrange
-        _lazyClient = new LazyLlmClient(_mockFactory.Object);
-        var request = new LlmRequest("Test");
+        using var lazyClient = new LazyLlmClient(_mockFactory.Object);
+        var request = CreateRequest();
         var cts = new CancellationToken(canceled: true);
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await _lazyClient.GenerateAsync(request, cts));
-    }
-
-    public void Dispose()
-    {
-        _lazyClient?.Dispose();
+            await lazyClient.GenerateAsync(request, cts));
     }
 }

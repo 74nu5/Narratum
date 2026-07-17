@@ -491,10 +491,7 @@ public sealed class FullOrchestrationService
             // Appeler le LLM avec le type d'agent pour le routing de modèle
             // et la température appropriée
             var temperature = _temperatureConfig.GetTemperature(prompt.TargetAgent);
-            var parameters = new LlmParameters(
-                Temperature: temperature,
-                MaxTokens: LlmParameters.Default.MaxTokens,
-                TopP: LlmParameters.Default.TopP);
+            var parameters = LlmParameters.Default with { Temperature = temperature };
 
             var metadata = new Dictionary<string, object>
             {

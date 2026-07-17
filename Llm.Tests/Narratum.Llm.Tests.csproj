@@ -10,6 +10,12 @@
     <AssemblyName>Narratum.Llm.Tests</AssemblyName>
     <RootNamespace>Narratum.Llm.Tests</RootNamespace>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!--
+      Disposal-behavior tests (double dispose, use-after-dispose throwing ObjectDisposedException,
+      concurrent access on a disposable) inherently violate IDisposableAnalyzers rules by design.
+      These are suppressed for the TEST project only; product code keeps full analysis.
+    -->
+    <NoWarn>$(NoWarn);IDISP003;IDISP013;IDISP016;IDISP017;IDISP025</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +27,7 @@
     </PackageReference>
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
     <PackageReference Include="NSubstitute" Version="6.0.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

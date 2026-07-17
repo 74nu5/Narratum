@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Narratum.Core;
-using Narratum.Domain.Events;
+using Narratum.Domain;
 using Narratum.Orchestration.Models;
 using Narratum.Orchestration.Prompts;
 using Narratum.State;
@@ -237,8 +237,10 @@ public class PromptOptimizationServiceTests
 
         var state = StoryState.Create(worldId, "Test World")
             .WithCharacters(alice, bob, charlie);
-        var intent = NarrativeIntent.Continue("Scene with Alice and Bob")
-            .WithTargetCharacters(aliceId, bobId);
+        var intent = new NarrativeIntent(
+            IntentType.ContinueNarrative,
+            "Scene with Alice and Bob",
+            targetCharacterIds: new[] { aliceId, bobId });
 
         // Act
         var prompt = _service.BuildOptimizedNarratorPrompt(state, intent);

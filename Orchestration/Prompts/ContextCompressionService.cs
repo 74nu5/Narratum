@@ -1,5 +1,5 @@
 using Narratum.State;
-using Narratum.Domain.Events;
+using Narratum.Domain;
 
 namespace Narratum.Orchestration.Prompts;
 
@@ -47,7 +47,7 @@ public class ContextCompressionService
     /// <summary>
     /// Builds a summary of recent events for context window.
     /// </summary>
-    public string BuildRecentEventsSummary(string storyId, IEnumerable<StoryEvent> events)
+    public string BuildRecentEventsSummary(string storyId, IEnumerable<Event> events)
     {
         var eventsList = events.ToList();
 
@@ -93,7 +93,7 @@ public class ContextCompressionService
             DateTime.UtcNow);
     }
 
-    private string BuildDetailedEventList(IEnumerable<StoryEvent> events)
+    private string BuildDetailedEventList(IEnumerable<Event> events)
     {
         var eventsList = events.ToList();
         if (!eventsList.Any())
@@ -103,7 +103,7 @@ public class ContextCompressionService
             $"- {e.GetType().Name.Replace("Event", "")}: {e.Timestamp:HH:mm}"));
     }
 
-    private string SummarizeEvents(IEnumerable<StoryEvent> events)
+    private string SummarizeEvents(IEnumerable<Event> events)
     {
         var eventsList = events.ToList();
         if (!eventsList.Any())
@@ -118,7 +118,7 @@ public class ContextCompressionService
         return string.Join(", ", grouped);
     }
 
-    private string SummarizeHighLevelArcs(IEnumerable<StoryEvent> events)
+    private string SummarizeHighLevelArcs(IEnumerable<Event> events)
     {
         var eventsList = events.ToList();
         if (!eventsList.Any())

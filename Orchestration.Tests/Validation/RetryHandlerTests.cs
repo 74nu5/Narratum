@@ -188,7 +188,7 @@ public class RetryHandlerTests
 
         // Assert
         result.Success.Should().BeTrue();
-        stopwatch.ElapsedMilliseconds.Should().BeGreaterOrEqualTo(40); // Allow some tolerance
+        stopwatch.ElapsedMilliseconds.Should().BeGreaterThanOrEqualTo(40); // Allow some tolerance
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public class RetryHandlerTests
 
         // The retry handler should fail gracefully or throw cancellation
         // At minimum, we should have had initial operation called
-        attemptCount.Should().BeGreaterOrEqualTo(1);
+        attemptCount.Should().BeGreaterThanOrEqualTo(1);
     }
 
     [Fact]

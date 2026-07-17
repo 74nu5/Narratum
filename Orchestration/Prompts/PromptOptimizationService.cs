@@ -1,4 +1,4 @@
-using Narratum.Domain.Events;
+using Narratum.Domain;
 using Narratum.Orchestration.Models;
 using Narratum.State;
 

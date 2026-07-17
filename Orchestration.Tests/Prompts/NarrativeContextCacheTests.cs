@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Narratum.Core;
-using Narratum.Domain.Events;
+using Narratum.Domain;
 using Narratum.Orchestration.Prompts;
 using Narratum.State;
 using Xunit;
@@ -26,12 +26,12 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         var summarizerCalled = false;
-        string Summarizer(IEnumerable<StoryEvent> e)
+        string Summarizer(IEnumerable<Event> e)
         {
             summarizerCalled = true;
             return "Summary";
@@ -51,12 +51,12 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         var callCount = 0;
-        string Summarizer(IEnumerable<StoryEvent> e)
+        string Summarizer(IEnumerable<Event> e)
         {
             callCount++;
             return $"Summary {callCount}";
@@ -77,8 +77,8 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>();
-        string Summarizer(IEnumerable<StoryEvent> e) => "Empty";
+        var events = new List<Event>();
+        string Summarizer(IEnumerable<Event> e) => "Empty";
 
         // Act
         var result = _cache.GetOrCreateSummary(storyId, events, Summarizer);
@@ -139,9 +139,9 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         var worldId = Id.New();
         var state = StoryState.Create(worldId, "Test");
@@ -164,9 +164,9 @@ public class NarrativeContextCacheTests : IDisposable
         // Arrange
         var story1 = "story1";
         var story2 = "story2";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         _cache.GetOrCreateSummary(story1, events, _ => "Summary1");
         _cache.GetOrCreateSummary(story2, events, _ => "Summary2");
@@ -184,9 +184,9 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         _cache.GetOrCreateSummary(storyId, events, _ => "Summary");
 
@@ -203,9 +203,9 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         _cache.GetOrCreateSummary(storyId, events, _ => "Summary");
 
@@ -221,9 +221,9 @@ public class NarrativeContextCacheTests : IDisposable
     public void GetStatistics_ReturnsCorrectCounts()
     {
         // Arrange
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         _cache.GetOrCreateSummary("story1", events, _ => "Summary1");
         _cache.GetOrCreateSummary("story2", events, _ => "Summary2");
@@ -256,7 +256,7 @@ public class NarrativeContextCacheTests : IDisposable
 
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() =>
-            cache.GetOrCreateSummary("test", new List<StoryEvent>(), _ => "test"));
+            cache.GetOrCreateSummary("test", new List<Event>(), _ => "test"));
     }
 
     [Fact]
@@ -264,9 +264,9 @@ public class NarrativeContextCacheTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
         _cache.GetOrCreateSummary(storyId, events, _ => "Summary");
 

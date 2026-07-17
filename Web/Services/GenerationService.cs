@@ -153,10 +153,10 @@ public class GenerationService : IGenerationService
         // Load latest page using repository
         var loadResult = await _storyRepository.LoadLatestPageAsync(slotName, ct);
 
-        if (!loadResult.IsSuccess)
+        if (loadResult is Result<Core.PageSnapshot>.Failure loadFailure)
         {
-            _logger.LogError("Failed to load latest page for slot {SlotName}: {Error}", slotName, loadResult.Error);
-            return Result<PageInfo>.Fail(loadResult.Error);
+            _logger.LogError("Failed to load latest page for slot {SlotName}: {Error}", slotName, loadFailure.Message);
+            return Result<PageInfo>.Fail(loadFailure.Message);
         }
 
         var latestPage = ((Result<Core.PageSnapshot>.Success)loadResult).Value;

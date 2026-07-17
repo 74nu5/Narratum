@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Narratum.Orchestration.Configuration;
-using Narratum.Orchestration.Models;
+using Narratum.Orchestration.Stages;
 using Xunit;
 
 namespace Narratum.Orchestration.Tests.Configuration;

@@ -1,5 +1,5 @@
 @using Narratum.Web.Models
-@using Narratum.Domain.Events
+@using Narratum.Domain
 @inject IJSRuntime JSRuntime
 
 <div class="timeline-container" @ref="timelineContainerRef">
@@ -28,10 +28,10 @@
 
             <select class="form-select form-select-sm" @onchange="OnFilterTypeChanged">
                 <option value="">Tous les événements</option>
-                <option value="SceneBegin">Scènes</option>
-                <option value="Discovery">Découvertes</option>
-                <option value="Dialogue">Dialogues</option>
-                <option value="Action">Actions</option>
+                <option value="CharacterEncounter">Rencontres</option>
+                <option value="Revelation">Révélations</option>
+                <option value="CharacterMoved">Déplacements</option>
+                <option value="CharacterDeath">Morts</option>
             </select>
         </div>
     </div>
@@ -151,10 +151,10 @@
 </div>
 
 @code {
-    [Parameter] public List<StoryEvent> Events { get; set; } = new();
+    [Parameter] public List<Event> Events { get; set; } = new();
     [Parameter] public List<CharacterInfo> Characters { get; set; } = new();
-    [Parameter] public EventCallback<StoryEvent> OnEventSelected { get; set; }
-    [Parameter] public EventCallback<StoryEvent> OnEventEdit { get; set; }
+    [Parameter] public EventCallback<Event> OnEventSelected { get; set; }
+    [Parameter] public EventCallback<Event> OnEventEdit { get; set; }
 
     private ElementReference timelineContainerRef;
     private ElementReference timelineWrapperRef;
@@ -164,12 +164,12 @@
     private const double MAX_ZOOM = 3.0;
     private const double ZOOM_STEP = 0.2;
 
-    private List<StoryEvent> FilteredEvents => ApplyFilters();
+    private List<Event> FilteredEvents => ApplyFilters();
     private string? FilterCharacterId { get; set; }
     private string? FilterEventType { get; set; }
 
-    private StoryEvent? SelectedEvent { get; set; }
-    private StoryEvent? HoveredEvent { get; set; }
+    private Event? SelectedEvent { get; set; }
+    private Event? HoveredEvent { get; set; }
     private string TooltipX { get; set; } = "0px";
     private string TooltipY { get; set; } = "0px";
 
@@ -197,7 +197,7 @@
         StateHasChanged();
     }
 
-    private double GetEventPosition(StoryEvent evt)
+    private double GetEventPosition(Event evt)
     {
         if (!Events.Any()) return 0;
 
@@ -241,7 +241,7 @@
         return timeAtPosition.ToString("HH:mm");
     }
 
-    private string GetEventClass(StoryEvent evt)
+    private string GetEventClass(Event evt)
     {
         var classes = new List<string>();
 
@@ -254,41 +254,44 @@
         return string.Join(" ", classes);
     }
 
-    private string GetEventColor(StoryEvent evt)
+    private string GetEventColor(Event evt)
     {
-        return evt.GetType().Name switch
+        return evt.Type switch
         {
-            "SceneBeginEvent" => "#6366f1",  // Indigo
-            "DiscoveryEvent" => "#10b981",   // Green
-            "DialogueEvent" => "#f59e0b",    // Orange
-            "ActionEvent" => "#ef4444",      // Red
-            "SceneEndEvent" => "#8b5cf6",    // Violet
-            _ => "#6b7280"                   // Gray
+            "CharacterEncounter" => "#6366f1",  // Indigo
+            "Revelation" => "#10b981",          // Green
+            "CharacterMoved" => "#f59e0b",      // Orange
+            "CharacterDeath" => "#ef4444",      // Red
+            _ => "#6b7280"                      // Gray
         };
     }
 
-    private string GetEventTitle(StoryEvent evt)
+    private string GetEventTitle(Event evt)
     {
-        return evt.GetType().Name.Replace("Event", "");
+        return evt.Type;
     }
 
-    private string GetEventDescription(StoryEvent evt)
+    private string GetEventDescription(Event evt)
     {
         return evt switch
         {
-            SceneBeginEvent scene => $"Début de scène: {scene.SceneName}",
-            _ => $"Événement: {GetEventTitle(evt)}"
+            RevelationEvent revelation => $"Révélation: {revelation.GetContent()}",
+            CharacterDeathEvent death => $"Mort du personnage{(death.GetCause() is { } c ? $" ({c})" : "")}",
+            _ => $"Événement: {evt.Type}"
         };
     }
 
-    private List<string> GetEventCharacters(StoryEvent evt)
+    private List<string> GetEventCharacters(Event evt)
     {
-        // Extract character IDs from event and map to names
-        // This is a simplified version - real implementation would use proper character mapping
-        return new List<string>();
+        // ActorIds maps to characters involved; name resolution done by parent via Characters list
+        return evt.ActorIds
+            .Select(id => Characters.FirstOrDefault(c => c.Id == id.ToString())?.Name)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToList();
     }
 
-    private void SelectEvent(StoryEvent evt)
+    private void SelectEvent(Event evt)
     {
         SelectedEvent = evt;
         OnEventSelected.InvokeAsync(evt);
@@ -301,7 +304,7 @@
         StateHasChanged();
     }
 
-    private async Task ShowTooltip(StoryEvent evt)
+    private async Task ShowTooltip(Event evt)
     {
         HoveredEvent = evt;
         // Calculate tooltip position - simplified version
@@ -344,13 +347,13 @@
         StateHasChanged();
     }
 
-    private List<StoryEvent> ApplyFilters()
+    private List<Event> ApplyFilters()
     {
         var filtered = Events.AsEnumerable();
 
         if (!string.IsNullOrEmpty(FilterEventType))
         {
-            filtered = filtered.Where(e => e.GetType().Name.Contains(FilterEventType));
+            filtered = filtered.Where(e => e.Type.Contains(FilterEventType));
         }
 
         if (!string.IsNullOrEmpty(FilterCharacterId))

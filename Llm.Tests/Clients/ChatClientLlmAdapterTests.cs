@@ -176,7 +176,7 @@ public sealed class ChatClientLlmAdapterTests
         var result = await adapter.GenerateAsync(request);
 
         var response = AssertSuccess(result);
-        response.GenerationDuration.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+        response.GenerationDuration.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class ChatClientLlmAdapterTests
 
         await chatClient.Received(1).GetResponseAsync(
             Arg.Is<IEnumerable<ChatMessage>>(msgs =>
-                msgs.Count() == 2 &&
+                msgs != null && msgs.Count() == 2 &&
                 msgs.First().Role == ChatRole.System &&
                 msgs.First().Text == "My system prompt" &&
                 msgs.Last().Role == ChatRole.User &&
@@ -661,7 +661,7 @@ public sealed class ChatClientLlmAdapterTests
 
         await chatClient.Received(1).GetResponseAsync(
             Arg.Is<IEnumerable<ChatMessage>>(msgs =>
-                msgs.Count() == 1 &&
+                msgs != null && msgs.Count() == 1 &&
                 msgs.First().Text == "ping"),
             Arg.Is<ChatOptions?>(opts => opts != null && opts.MaxOutputTokens == 1),
             Arg.Any<CancellationToken>());

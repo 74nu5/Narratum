@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Narratum.Core;
-using Narratum.Domain.Events;
+using Narratum.Domain;
 using Narratum.Orchestration.Prompts;
 using Narratum.State;
 using Xunit;
@@ -41,7 +41,7 @@ public class ContextCompressionServiceTests : IDisposable
         // Add a few events (< 100)
         for (int i = 0; i < 10; i++)
         {
-            state = state.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state = state.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Act
@@ -65,7 +65,7 @@ public class ContextCompressionServiceTests : IDisposable
         // Add many events (> 100)
         for (int i = 0; i < 150; i++)
         {
-            state = state.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state = state.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Act
@@ -104,7 +104,7 @@ public class ContextCompressionServiceTests : IDisposable
 
         for (int i = 0; i < 150; i++)
         {
-            state = state.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state = state.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Act - Call twice with same state
@@ -120,7 +120,7 @@ public class ContextCompressionServiceTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>();
+        var events = new List<Event>();
 
         // Act
         var result = _service.BuildRecentEventsSummary(storyId, events);
@@ -134,10 +134,10 @@ public class ContextCompressionServiceTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1"),
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(1), "Scene 2")
+            new RevelationEvent(Id.New(), "Scene 1"),
+            new RevelationEvent(Id.New(), "Scene 2")
         };
 
         // Act
@@ -145,7 +145,7 @@ public class ContextCompressionServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeEmpty();
-        result.Should().Contain("SceneBegin");
+        result.Should().Contain("Revelation");
     }
 
     [Fact]
@@ -153,9 +153,9 @@ public class ContextCompressionServiceTests : IDisposable
     {
         // Arrange
         var storyId = "story1";
-        var events = new List<StoryEvent>
+        var events = new List<Event>
         {
-            new SceneBeginEvent(Id.New(), DateTime.UtcNow, "Scene 1")
+            new RevelationEvent(Id.New(), "Scene 1")
         };
 
         // Act
@@ -177,7 +177,7 @@ public class ContextCompressionServiceTests : IDisposable
         // Add 110 events (enough for compression, but not for long-term)
         for (int i = 0; i < 110; i++)
         {
-            state = state.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state = state.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Act
@@ -200,7 +200,7 @@ public class ContextCompressionServiceTests : IDisposable
 
         for (int i = 0; i < 150; i++)
         {
-            state = state.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state = state.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Act
@@ -222,13 +222,13 @@ public class ContextCompressionServiceTests : IDisposable
         // Add 105 events to state1
         for (int i = 0; i < 105; i++)
         {
-            state1 = state1.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state1 = state1.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Add 109 events to state2 (should use same cache key: 100)
         for (int i = 0; i < 109; i++)
         {
-            state2 = state2.RecordEvent(new SceneBeginEvent(Id.New(), DateTime.UtcNow.AddMinutes(i), $"Scene {i}"));
+            state2 = state2.WithEvent(new RevelationEvent(Id.New(), $"Scene {i}"));
         }
 
         // Act

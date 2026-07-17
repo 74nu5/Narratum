@@ -31,7 +31,10 @@ public static class LlmServiceCollectionExtensions
             var factory = sp.GetRequiredService<ILlmClientFactory>();
             // LAZY: CreateClientAsync will be called on first use
             // DO NOT call .GetAwaiter().GetResult() here - it blocks app startup!
+            // The DI container owns the scoped instance and disposes it at scope end.
+#pragma warning disable IDISP005 // Disposal is handled by the DI container for scoped registrations
             return new LazyLlmClient(factory);
+#pragma warning restore IDISP005
         });
 
         return services;

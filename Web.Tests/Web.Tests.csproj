@@ -7,6 +7,8 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Narratum.Web.Tests</RootNamespace>
+    <!-- Web references Llm (Foundry Local / ONNX native deps), which requires a RID. -->
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,10 +26,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Web\Web.csproj" />
-    <ProjectReference Include="..\Core\Core.csproj" />
-    <ProjectReference Include="..\Persistence\Persistence.csproj" />
-    <ProjectReference Include="..\Orchestration\Orchestration.csproj" />
+    <ProjectReference Include="..\Web\Narratum.Web.csproj" />
+    <ProjectReference Include="..\Core\Narratum.Core.csproj" />
+    <ProjectReference Include="..\State\Narratum.State.csproj" />
+    <ProjectReference Include="..\Persistence\Narratum.Persistence.csproj" />
+    <ProjectReference Include="..\Orchestration\Narratum.Orchestration.csproj" />
   </ItemGroup>
 
 </Project>
