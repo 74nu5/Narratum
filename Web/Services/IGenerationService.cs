@@ -78,4 +78,13 @@ public interface IGenerationService
     Task<string> GetDisplayNameAsync(
         string slotName,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the per-agent traces recorded for a page (Expert mode). Empty when the page
+    /// was generated without multi-agent data (e.g. older pages).
+    /// </summary>
+    Task<IReadOnlyList<AgentTraceInfo>> GetAgentTraceAsync(
+        string slotName,
+        int pageIndex,
+        CancellationToken ct = default);
 }

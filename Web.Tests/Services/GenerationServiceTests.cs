@@ -298,6 +298,89 @@ public class GenerationServiceTests
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
+    [Fact]
+    public async Task GenerateNextPageStreamingAsync_RunsAllAgents_AndPersistsTheirTraces()
+    {
+        // Arrange — a story with a character so the Character agent also runs (4 agents total)
+        var slotName = "test-slot";
+        var state = StoryState.Create(Id.New(), "Test World")
+            .WithCharacters(new CharacterState(Id.New(), "Alice"));
+
+        _mockRepository
+            .Setup(r => r.LoadLatestPageAsync(slotName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Narratum.Core.PageSnapshot>.Ok(new Narratum.Core.PageSnapshot(
+                slotName, 0, "Previous page", "intent", "phi-4-mini", DateTime.UtcNow, state)));
+
+        _mockRepository
+            .Setup(r => r.SavePageAsync(slotName, 1, It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<StoryState>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Narratum.Core.PageSnapshot>.Ok(new Narratum.Core.PageSnapshot(
+                slotName, 1, "saved", "intent", "phi-4-mini", DateTime.UtcNow, state)));
+
+        string? capturedExpertJson = null;
+        _mockRepository
+            .Setup(r => r.SavePageExpertDataAsync(slotName, 1, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, int, string, CancellationToken>((_, _, json, _) => capturedExpertJson = json)
+            .Returns(Task.CompletedTask);
+
+        var service = new GenerationService(
+            new FullOrchestrationService(new Mock<ILlmClient>().Object),
+            _mockRepository.Object,
+            new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini", NarratorModel = "phi-4-mini" }),
+            new FakeStreamingLlmClient("Il ", "était ", "une fois."),
+            NullLogger<GenerationService>.Instance);
+
+        // Act
+        var received = new List<string>();
+        await foreach (var chunk in service.GenerateNextPageStreamingAsync(slotName, "Continue"))
+            received.Add(chunk);
+
+        // Assert — user sees only the streamed narrator prose
+        string.Concat(received).Should().Be("Il était une fois.");
+
+        // Expert traces were persisted for all four agents
+        capturedExpertJson.Should().NotBeNull();
+        var traces = System.Text.Json.JsonSerializer.Deserialize<List<AgentTraceInfo>>(capturedExpertJson!);
+        traces.Should().NotBeNull();
+        traces!.Select(t => t.Agent).Should().Contain(new[] { "Résumé", "Narrateur", "Cohérence" });
+        traces!.Should().Contain(t => t.Agent.StartsWith("Personnage"));
+        traces!.Single(t => t.Agent == "Narrateur").Output.Should().Be("Il était une fois.");
+        _mockRepository.Verify(r => r.SavePageExpertDataAsync(slotName, 1, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAgentTraceAsync_DeserializesStoredTraces()
+    {
+        var slotName = "test-slot";
+        var stored = System.Text.Json.JsonSerializer.Serialize(new List<AgentTraceInfo>
+        {
+            new("Résumé", "Condense", "un résumé", 12.0),
+            new("Narrateur", "Prose", "le texte", 340.0),
+        });
+
+        _mockRepository
+            .Setup(r => r.GetPageExpertDataAsync(slotName, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stored);
+
+        var traces = await _service.GetAgentTraceAsync(slotName, 1);
+
+        traces.Should().HaveCount(2);
+        traces[0].Agent.Should().Be("Résumé");
+        traces[1].Output.Should().Be("le texte");
+    }
+
+    [Fact]
+    public async Task GetAgentTraceAsync_WhenNoData_ReturnsEmpty()
+    {
+        _mockRepository
+            .Setup(r => r.GetPageExpertDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        var traces = await _service.GetAgentTraceAsync("slot", 0);
+
+        traces.Should().BeEmpty();
+    }
+
     /// <summary>Fake client that streams a fixed set of fragments.</summary>
     private sealed class FakeStreamingLlmClient(params string[] chunks) : ILlmClient, IStreamingLlmClient
     {

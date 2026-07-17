@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Narratum.Core;
 using Narratum.State;
@@ -8,6 +10,7 @@ using Narratum.Orchestration.Models;
 using Narratum.Orchestration.Llm;
 using Narratum.Orchestration.Prompts;
 using Narratum.Orchestration.Stages;
+using Narratum.Orchestration.Configuration;
 using Narratum.Web.Models;
 
 namespace Narratum.Web.Services;
@@ -24,6 +27,7 @@ public class GenerationService : IGenerationService
     private readonly ILlmClient _llmClient;
     private readonly ILogger<GenerationService> _logger;
     private readonly PromptOptimizationService _promptOptimizer = new();
+    private readonly AgentTemperatureConfig _temperatures = AgentTemperatureConfig.Default;
 
     public GenerationService(
         FullOrchestrationService orchestrator,
@@ -252,7 +256,7 @@ public class GenerationService : IGenerationService
         if (_llmClient is not IStreamingLlmClient streamingClient)
             throw new InvalidOperationException("Le client LLM ne supporte pas le streaming");
 
-        _logger.LogInformation("Starting streaming page generation for slot {SlotName}", slotName);
+        _logger.LogInformation("Starting multi-agent streaming generation for slot {SlotName}", slotName);
 
         // Load the latest page to continue from
         var loadResult = await _storyRepository.LoadLatestPageAsync(slotName, ct);
@@ -264,39 +268,67 @@ public class GenerationService : IGenerationService
 
         var latestPage = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
         var storyState = latestPage.State;
-
         var intent = NarrativeIntent.Continue(intentDescription);
-        var userPrompt = _promptOptimizer.BuildOptimizedNarratorPrompt(
-            storyState, intent, previousNarrative: latestPage.NarrativeText);
 
-        var request = new LlmRequest(
+        // Agent traces are captured for Expert mode; the user only ever sees the Narrator's prose.
+        var traces = new List<AgentTraceInfo>();
+
+        // 1. Summary agent — condenses the story so far to ground the Narrator (runs before streaming).
+        var summary = await RunAgentAsync(
+            AgentType.Summary, "Résumé", "Condense l'histoire jusqu'ici",
+            _promptOptimizer.BuildOptimizedSummaryPrompt(storyState), ct);
+        traces.Add(summary);
+
+        // 2. Narrator agent — the user-visible prose, streamed live.
+        var narratorPrompt = _promptOptimizer.BuildOptimizedNarratorPrompt(
+                storyState, intent, previousNarrative: latestPage.NarrativeText)
+            + $"\n\nRÉSUMÉ DU CONTEXTE (référence, ne pas recopier) :\n{summary.Output}";
+
+        var narratorRequest = new LlmRequest(
             "You are a master storyteller crafting engaging narrative.",
-            userPrompt,
-            LlmParameters.Default with { Temperature = 0.7 },
+            narratorPrompt,
+            LlmParameters.Default with { Temperature = _temperatures.GetTemperature(AgentType.Narrator) },
             new Dictionary<string, object> { ["llm.agentType"] = AgentType.Narrator });
 
-        // Stream the narrative, accumulating the full text for persistence.
-        var startTime = DateTime.UtcNow;
+        var narratorTimer = Stopwatch.StartNew();
         var builder = new StringBuilder();
-        await foreach (var chunk in streamingClient.GenerateStreamingAsync(request, ct).WithCancellation(ct))
+        await foreach (var chunk in streamingClient.GenerateStreamingAsync(narratorRequest, ct).WithCancellation(ct))
         {
             builder.Append(chunk);
             yield return chunk;
         }
+        narratorTimer.Stop();
 
         var fullText = builder.ToString();
         if (string.IsNullOrWhiteSpace(fullText))
             throw new InvalidOperationException("La génération n'a produit aucun texte");
 
+        traces.Add(new AgentTraceInfo("Narrateur", "Écrit la prose (texte affiché)", fullText, narratorTimer.Elapsed.TotalMilliseconds));
+
+        // 3. Consistency agent — checks the freshly generated text against established facts.
+        var establishedFacts = storyState.Characters.Values
+            .SelectMany(c => c.KnownFacts)
+            .Distinct()
+            .ToList();
+        var consistency = await RunAgentAsync(
+            AgentType.Consistency, "Cohérence", "Vérifie le texte contre les faits établis",
+            _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), ct);
+        traces.Add(consistency);
+
+        // 4. Character agent — voices a key character's reaction (Expert-only insight).
+        var character = storyState.Characters.Values.FirstOrDefault();
+        if (character != null)
+        {
+            var characterTrace = await RunAgentAsync(
+                AgentType.Character, $"Personnage · {character.Name}", "Réaction du personnage à la scène",
+                _promptOptimizer.BuildOptimizedCharacterPrompt(character, storyState, intent), ct);
+            traces.Add(characterTrace);
+        }
+
+        // Persist the page (user-visible text) and the agent traces (Expert data).
         var newPageIndex = latestPage.PageIndex + 1;
         var saveResult = await _storyRepository.SavePageAsync(
-            slotName,
-            newPageIndex,
-            fullText,
-            intentDescription,
-            _modelSelector.CurrentNarratorModel,
-            storyState,
-            ct);
+            slotName, newPageIndex, fullText, intentDescription, _modelSelector.CurrentNarratorModel, storyState, ct);
 
         if (saveResult is Result<Core.PageSnapshot>.Failure saveFailure)
         {
@@ -304,10 +336,68 @@ public class GenerationService : IGenerationService
             throw new InvalidOperationException(saveFailure.Message);
         }
 
-        var generationTime = (DateTime.UtcNow - startTime).TotalSeconds;
+        var expertJson = JsonSerializer.Serialize(traces);
+        await _storyRepository.SavePageExpertDataAsync(slotName, newPageIndex, expertJson, ct);
+
         _logger.LogInformation(
-            "Streamed page saved. SlotName: {SlotName}, PageIndex: {PageIndex}, GenerationTime: {GenerationTime:F2}s",
-            slotName, newPageIndex, generationTime);
+            "Multi-agent page saved. SlotName: {SlotName}, PageIndex: {PageIndex}, Agents: {AgentCount}",
+            slotName, newPageIndex, traces.Count);
+    }
+
+    /// <summary>
+    /// Runs a single non-streaming agent and captures its output as a trace.
+    /// Agent failures are recorded in the trace rather than thrown, so one weak agent
+    /// never aborts the page.
+    /// </summary>
+    private async Task<AgentTraceInfo> RunAgentAsync(
+        AgentType agent, string displayName, string role, string userPrompt, CancellationToken ct)
+    {
+        var timer = Stopwatch.StartNew();
+        var request = new LlmRequest(
+            AgentSystemPrompt(agent),
+            userPrompt,
+            LlmParameters.Default with { Temperature = _temperatures.GetTemperature(agent) },
+            new Dictionary<string, object> { ["llm.agentType"] = agent });
+
+        var result = await _llmClient.GenerateAsync(request, ct);
+        timer.Stop();
+
+        var output = result switch
+        {
+            Result<LlmResponse>.Success s => s.Value.Content,
+            Result<LlmResponse>.Failure f => $"(agent indisponible : {f.Message})",
+            _ => "(aucune sortie)"
+        };
+
+        return new AgentTraceInfo(displayName, role, output, timer.Elapsed.TotalMilliseconds);
+    }
+
+    private static string AgentSystemPrompt(AgentType agent) => agent switch
+    {
+        AgentType.Summary => "Tu résumes les événements d'une histoire de façon concise et factuelle.",
+        AgentType.Consistency => "Tu vérifies la cohérence d'un texte narratif au regard des faits établis. Réponds brièvement.",
+        AgentType.Character => "Tu incarnes un seul personnage de façon authentique, à la première personne.",
+        _ => "Tu es un agent narratif."
+    };
+
+    /// <summary>
+    /// Reads the per-agent traces stored for a page (Expert mode).
+    /// </summary>
+    public async Task<IReadOnlyList<AgentTraceInfo>> GetAgentTraceAsync(
+        string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        var json = await _storyRepository.GetPageExpertDataAsync(slotName, pageIndex, ct);
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<AgentTraceInfo>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<AgentTraceInfo>>(json) ?? (IReadOnlyList<AgentTraceInfo>)Array.Empty<AgentTraceInfo>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<AgentTraceInfo>();
+        }
     }
 
     /// <summary>

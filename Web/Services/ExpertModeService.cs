@@ -11,14 +11,16 @@ public class ExpertModeService
     public bool IsExpertModeEnabled
     {
         get => _isExpertModeEnabled;
-        set => _isExpertModeEnabled = value;
+        set
+        {
+            if (_isExpertModeEnabled == value)
+                return;
+            _isExpertModeEnabled = value;
+            OnExpertModeToggled?.Invoke();
+        }
     }
 
     public event Action? OnExpertModeToggled;
 
-    public void ToggleExpertMode()
-    {
-        _isExpertModeEnabled = !_isExpertModeEnabled;
-        OnExpertModeToggled?.Invoke();
-    }
+    public void ToggleExpertMode() => IsExpertModeEnabled = !_isExpertModeEnabled;
 }

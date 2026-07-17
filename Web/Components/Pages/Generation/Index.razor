@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject IGenerationService GenService
 @inject NavigationManager Navigation
+@inject ExpertModeService ExpertMode
+@implements IDisposable
 
 <PageTitle>Génération - Narratum</PageTitle>
 
@@ -43,6 +45,30 @@
         }
     </FluentCard>
 
+    @* Expert mode: behind-the-scenes agent traces (hidden from normal readers) *@
+    @if (ExpertMode.IsExpertModeEnabled && _agentTraces.Count > 0)
+    {
+        <FluentCard>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                <FluentLabel Typo="Typography.H4">🔧 Coulisses des agents</FluentLabel>
+                <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
+                    Ce que chaque agent spécialisé a produit pour cette page. Le lecteur ne voit que la prose du Narrateur.
+                </FluentLabel>
+                @foreach (var trace in _agentTraces)
+                {
+                    <details class="agent-trace">
+                        <summary>
+                            <span class="agent-name">@trace.Agent</span>
+                            <span class="agent-role">@trace.Role</span>
+                            <span class="agent-ms">@trace.DurationMs.ToString("F0") ms</span>
+                        </summary>
+                        <div class="agent-output">@trace.Output</div>
+                    </details>
+                }
+            </FluentStack>
+        </FluentCard>
+    }
+
     @* Intent input *@
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
@@ -78,18 +104,31 @@
     private bool _isGenerating = false;
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
+    private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
 
     protected override async Task OnInitializedAsync()
     {
+        // Re-render when the Expert toggle (in the layout) changes.
+        ExpertMode.OnExpertModeToggled += HandleExpertToggled;
+
         _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
         await LoadPageHistory();
-        
+
         // Load latest page if exists
         if (_pageHistory.Any())
         {
             _currentPageIndex = _pageHistory.Max();
             await LoadPage(_currentPageIndex);
         }
+    }
+
+    private void HandleExpertToggled() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ExpertMode.OnExpertModeToggled -= HandleExpertToggled;
+
+    private async Task LoadTraces(int pageIndex)
+    {
+        _agentTraces = await GenService.GetAgentTraceAsync(SlotName, pageIndex);
     }
 
     private async Task LoadPageHistory()
@@ -105,6 +144,8 @@
         pageResult.Match(
             onSuccess: page => _currentNarrative = page.NarrativeText,
             onFailure: error => _errorMessage = error);
+
+        await LoadTraces(pageIndex);
     }
 
     private async Task GenerateNextPage()
@@ -135,6 +176,7 @@
             await LoadPageHistory();    // Refresh timeline
             if (_pageHistory.Any())
                 _currentPageIndex = _pageHistory.Max();
+            await LoadTraces(_currentPageIndex); // Expert data for the new page
         }
         catch (Exception ex)
         {

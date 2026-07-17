@@ -1,0 +1,66 @@
+.agent-trace {
+    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
+    border-radius: 6px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.agent-trace + .agent-trace {
+    margin-top: -2px;
+}
+
+.agent-trace > summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.agent-trace > summary::-webkit-details-marker {
+    display: none;
+}
+
+.agent-trace > summary::before {
+    content: "▸";
+    color: var(--accent-fill-rest, #6366f1);
+    transition: transform 0.15s ease;
+    display: inline-block;
+}
+
+.agent-trace[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.agent-name {
+    font-weight: 600;
+}
+
+.agent-role {
+    flex: 1;
+    opacity: 0.65;
+    font-size: 0.85rem;
+}
+
+.agent-ms {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.5;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.agent-output {
+    padding: 0.25rem 0.95rem 0.85rem 1.7rem;
+    white-space: pre-wrap;
+    line-height: 1.55;
+    font-size: 0.92rem;
+    border-top: 1px solid var(--neutral-stroke-rest, #ececf1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-trace > summary::before {
+        transition: none;
+    }
+}

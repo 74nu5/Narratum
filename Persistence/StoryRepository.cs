@@ -358,6 +358,30 @@ public class StoryRepository : IStoryRepository
             .ToListAsync(ct);
     }
 
+    public async Task SavePageExpertDataAsync(string slotName, int pageIndex, string expertData, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var page = await db.PageSnapshots
+            .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
+        if (page == null)
+            return;
+
+        db.Entry(page).CurrentValues.SetValues(page with { SerializedPipelineResult = expertData });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<string?> GetPageExpertDataAsync(string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName && p.PageIndex == pageIndex)
+            .Select(p => p.SerializedPipelineResult)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

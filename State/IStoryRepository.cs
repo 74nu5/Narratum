@@ -68,6 +68,16 @@ public interface IStoryRepository
     Task<List<int>> GetPageHistoryAsync(string slotName, CancellationToken ct = default);
 
     /// <summary>
+    /// Stores Expert-mode data (e.g. serialized per-agent traces) for a saved page.
+    /// </summary>
+    Task SavePageExpertDataAsync(string slotName, int pageIndex, string expertData, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the Expert-mode data for a page, or null if none was stored.
+    /// </summary>
+    Task<string?> GetPageExpertDataAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets the display name for a story slot.
     /// </summary>
     Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default);
