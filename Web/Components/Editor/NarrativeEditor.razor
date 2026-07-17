@@ -1,0 +1,418 @@
+@using Narratum.Web.Models
+@using Narratum.Web.Services
+@inject IJSRuntime JSRuntime
+@inject IGenerationService GenerationService
+
+<div class="narrative-editor-container">
+    <div class="editor-header">
+        <h3>Éditeur Narratif</h3>
+        <div class="editor-status">
+            @if (IsSaving)
+            {
+                <span class="status-indicator saving">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    Enregistrement...
+                </span>
+            }
+            else if (HasUnsavedChanges)
+            {
+                <span class="status-indicator unsaved">● Modifications non enregistrées</span>
+            }
+            else
+            {
+                <span class="status-indicator saved">✓ Enregistré</span>
+            }
+        </div>
+    </div>
+
+    <div class="editor-toolbar">
+        <div class="toolbar-group">
+            <button class="toolbar-btn" @onclick="FormatBold" title="Gras (Ctrl+B)">
+                <strong>B</strong>
+            </button>
+            <button class="toolbar-btn" @onclick="FormatItalic" title="Italique (Ctrl+I)">
+                <em>I</em>
+            </button>
+            <button class="toolbar-btn" @onclick="FormatUnderline" title="Souligné (Ctrl+U)">
+                <u>U</u>
+            </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+            <button class="toolbar-btn" @onclick="InsertDialogue" title="Insérer dialogue">
+                💬
+            </button>
+            <button class="toolbar-btn" @onclick="InsertAction" title="Insérer action">
+                ⚡
+            </button>
+            <button class="toolbar-btn" @onclick="InsertDescription" title="Insérer description">
+                📝
+            </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+            <button class="toolbar-btn toolbar-btn-primary"
+                    @onclick="RegenerateSelection"
+                    disabled="@(!HasSelection || IsRegenerating)"
+                    title="Régénérer la sélection">
+                @if (IsRegenerating)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                else
+                {
+                    <span>🔄</span>
+                }
+                Régénérer
+            </button>
+            <button class="toolbar-btn"
+                    @onclick="GetSuggestions"
+                    disabled="@IsLoadingSuggestions"
+                    title="Obtenir des suggestions IA">
+                @if (IsLoadingSuggestions)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                else
+                {
+                    <span>✨</span>
+                }
+                Suggestions
+            </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+            <button class="toolbar-btn" @onclick="Undo" disabled="@(!CanUndo)" title="Annuler (Ctrl+Z)">
+                ↶
+            </button>
+            <button class="toolbar-btn" @onclick="Redo" disabled="@(!CanRedo)" title="Refaire (Ctrl+Y)">
+                ↷
+            </button>
+        </div>
+    </div>
+
+    <div class="editor-main">
+        <div class="editor-content-wrapper">
+            <div class="editor-content"
+                 contenteditable="true"
+                 @ref="editorRef"
+                 @oninput="OnContentChanged"
+                 @onselectionchange="OnSelectionChanged"
+                 spellcheck="true">
+                @((MarkupString)EditableContent)
+            </div>
+
+            @if (ShowCharacterCount)
+            {
+                <div class="editor-stats">
+                    <span>@WordCount mots</span>
+                    <span>•</span>
+                    <span>@CharacterCount caractères</span>
+                </div>
+            }
+        </div>
+
+        <!-- AI Suggestions Panel -->
+        @if (AiSuggestions.Any())
+        {
+            <div class="suggestions-panel">
+                <div class="suggestions-header">
+                    <h4>Suggestions IA</h4>
+                    <button class="btn-close" @onclick="CloseSuggestions">×</button>
+                </div>
+
+                <div class="suggestions-list">
+                    @foreach (var suggestion in AiSuggestions)
+                    {
+                        <div class="suggestion-card" @onclick="() => ApplySuggestion(suggestion)">
+                            <div class="suggestion-type">@suggestion.Type</div>
+                            <div class="suggestion-text">@suggestion.Text</div>
+                            <div class="suggestion-actions">
+                                <button class="btn btn-sm btn-primary" @onclick:stopPropagation @onclick="() => ApplySuggestion(suggestion)">
+                                    Appliquer
+                                </button>
+                                <button class="btn btn-sm btn-secondary" @onclick:stopPropagation @onclick="() => PreviewSuggestion(suggestion)">
+                                    Aperçu
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Preview Panel (Real-time) -->
+    @if (ShowPreview)
+    {
+        <div class="preview-panel">
+            <div class="preview-header">
+                <h4>Aperçu</h4>
+                <button class="btn-close" @onclick="ClosePreview">×</button>
+            </div>
+            <div class="preview-content narrative-text">
+                @((MarkupString)PreviewContent)
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string InitialContent { get; set; } = "";
+    [Parameter] public string StoryId { get; set; } = "";
+    [Parameter] public bool ShowCharacterCount { get; set; } = true;
+    [Parameter] public bool ShowPreview { get; set; } = false;
+    [Parameter] public EventCallback<string> OnContentSaved { get; set; }
+    [Parameter] public EventCallback<string> OnContentChanged { get; set; }
+
+    private ElementReference editorRef;
+
+    private string EditableContent { get; set; } = "";
+    private string PreviewContent => EditableContent;
+
+    private bool HasUnsavedChanges { get; set; }
+    private bool IsSaving { get; set; }
+    private bool IsRegenerating { get; set; }
+    private bool IsLoadingSuggestions { get; set; }
+
+    private bool HasSelection { get; set; }
+    private string SelectedText { get; set; } = "";
+
+    private List<AiSuggestion> AiSuggestions { get; set; } = new();
+
+    private Stack<string> UndoStack { get; set; } = new();
+    private Stack<string> RedoStack { get; set; } = new();
+    private bool CanUndo => UndoStack.Any();
+    private bool CanRedo => RedoStack.Any();
+
+    private int WordCount => CountWords(EditableContent);
+    private int CharacterCount => StripHtml(EditableContent).Length;
+
+    protected override void OnInitialized()
+    {
+        EditableContent = InitialContent;
+        UndoStack.Push(EditableContent);
+    }
+
+    private async Task OnContentChanged(ChangeEventArgs e)
+    {
+        var newContent = await JSRuntime.InvokeAsync<string>("getEditorContent", editorRef);
+
+        if (newContent != EditableContent)
+        {
+            UndoStack.Push(EditableContent);
+            EditableContent = newContent;
+            HasUnsavedChanges = true;
+            RedoStack.Clear();
+
+            await OnContentChanged.InvokeAsync(newContent);
+            StateHasChanged();
+
+            // Auto-save after 2 seconds of inactivity
+            await Task.Delay(2000);
+            if (HasUnsavedChanges)
+            {
+                await SaveContent();
+            }
+        }
+    }
+
+    private async Task OnSelectionChanged()
+    {
+        var selection = await JSRuntime.InvokeAsync<SelectionInfo>("getSelection", editorRef);
+        HasSelection = !string.IsNullOrEmpty(selection?.Text);
+        SelectedText = selection?.Text ?? "";
+        StateHasChanged();
+    }
+
+    private async Task FormatBold()
+    {
+        await JSRuntime.InvokeVoidAsync("execCommand", "bold");
+    }
+
+    private async Task FormatItalic()
+    {
+        await JSRuntime.InvokeVoidAsync("execCommand", "italic");
+    }
+
+    private async Task FormatUnderline()
+    {
+        await JSRuntime.InvokeVoidAsync("execCommand", "underline");
+    }
+
+    private async Task InsertDialogue()
+    {
+        var dialogue = "— Dialogue ici";
+        await JSRuntime.InvokeVoidAsync("insertText", editorRef, dialogue);
+    }
+
+    private async Task InsertAction()
+    {
+        var action = "[Action décrite ici]";
+        await JSRuntime.InvokeVoidAsync("insertText", editorRef, action);
+    }
+
+    private async Task InsertDescription()
+    {
+        var description = "Description détaillée...";
+        await JSRuntime.InvokeVoidAsync("insertText", editorRef, description);
+    }
+
+    private async Task RegenerateSelection()
+    {
+        if (!HasSelection) return;
+
+        IsRegenerating = true;
+        StateHasChanged();
+
+        try
+        {
+            // Call generation service to regenerate selected text
+            var context = $"Régénère ce passage: {SelectedText}";
+            var result = await GenerationService.GenerateNextPageAsync(StoryId, context);
+
+            if (result.IsSuccess)
+            {
+                var success = (Result<PageInfo>.Success)result;
+                var newText = success.Value.NarrativeText;
+                await JSRuntime.InvokeVoidAsync("replaceSelection", editorRef, newText);
+            }
+        }
+        finally
+        {
+            IsRegenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetSuggestions()
+    {
+        IsLoadingSuggestions = true;
+        StateHasChanged();
+
+        try
+        {
+            // Simulate AI suggestions - real implementation would call LLM
+            AiSuggestions = new List<AiSuggestion>
+            {
+                new AiSuggestion
+                {
+                    Type = "Amélioration de style",
+                    Text = "Ajouter plus de détails sensoriels pour enrichir la scène"
+                },
+                new AiSuggestion
+                {
+                    Type = "Dialogue",
+                    Text = "— Je ne peux pas croire ce que je vois, murmura-t-elle."
+                },
+                new AiSuggestion
+                {
+                    Type = "Transition",
+                    Text = "Pendant ce temps, dans une autre partie du royaume..."
+                }
+            };
+        }
+        finally
+        {
+            IsLoadingSuggestions = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApplySuggestion(AiSuggestion suggestion)
+    {
+        await JSRuntime.InvokeVoidAsync("insertText", editorRef, suggestion.Text);
+        AiSuggestions.Clear();
+        StateHasChanged();
+    }
+
+    private void PreviewSuggestion(AiSuggestion suggestion)
+    {
+        // Show preview of suggestion
+        ShowPreview = true;
+        StateHasChanged();
+    }
+
+    private void CloseSuggestions()
+    {
+        AiSuggestions.Clear();
+        StateHasChanged();
+    }
+
+    private void ClosePreview()
+    {
+        ShowPreview = false;
+        StateHasChanged();
+    }
+
+    private async Task Undo()
+    {
+        if (CanUndo && UndoStack.Count > 1)
+        {
+            var current = UndoStack.Pop();
+            RedoStack.Push(current);
+            EditableContent = UndoStack.Peek();
+            await JSRuntime.InvokeVoidAsync("setEditorContent", editorRef, EditableContent);
+            StateHasChanged();
+        }
+    }
+
+    private async Task Redo()
+    {
+        if (CanRedo)
+        {
+            var content = RedoStack.Pop();
+            UndoStack.Push(content);
+            EditableContent = content;
+            await JSRuntime.InvokeVoidAsync("setEditorContent", editorRef, EditableContent);
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveContent()
+    {
+        IsSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnContentSaved.InvokeAsync(EditableContent);
+            HasUnsavedChanges = false;
+        }
+        finally
+        {
+            IsSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private int CountWords(string text)
+    {
+        var clean = StripHtml(text);
+        return clean.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private string StripHtml(string html)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(html, "<.*?>", string.Empty);
+    }
+
+    public class AiSuggestion
+    {
+        public string Type { get; set; } = "";
+        public string Text { get; set; } = "";
+    }
+
+    public class SelectionInfo
+    {
+        public string Text { get; set; } = "";
+        public int Start { get; set; }
+        public int End { get; set; }
+    }
+}

@@ -1,0 +1,673 @@
+@using Narratum.Web.Models
+@using Narratum.State
+@inject IJSRuntime JSRuntime
+
+<div class="visualization-container">
+    <div class="visualization-header">
+        <h3>Visualisations</h3>
+        <div class="visualization-tabs">
+            <button class="tab-btn @(ActiveTab == "relations" ? "active" : "")"
+                    @onclick='() => SetActiveTab("relations")'>
+                Graphe de Relations
+            </button>
+            <button class="tab-btn @(ActiveTab == "progression" ? "active" : "")"
+                    @onclick='() => SetActiveTab("progression")'>
+                Progression Narrative
+            </button>
+            <button class="tab-btn @(ActiveTab == "map" ? "active" : "")"
+                    @onclick='() => SetActiveTab("map")'>
+                Carte Interactive
+            </button>
+            <button class="tab-btn @(ActiveTab == "stats" ? "active" : "")"
+                    @onclick='() => SetActiveTab("stats")'>
+                Statistiques
+            </button>
+        </div>
+    </div>
+
+    <div class="visualization-content">
+        @if (ActiveTab == "relations")
+        {
+            <div class="relations-graph">
+                <div class="graph-controls">
+                    <button class="btn btn-sm btn-secondary" @onclick="RecenterGraph">Recentrer</button>
+                    <button class="btn btn-sm btn-secondary" @onclick="ToggleLabels">
+                        @(ShowLabels ? "Masquer" : "Afficher") les labels
+                    </button>
+                    <select class="form-select form-select-sm" @onchange="OnRelationTypeChanged">
+                        <option value="all">Toutes les relations</option>
+                        <option value="friendship">Amitié</option>
+                        <option value="conflict">Conflit</option>
+                        <option value="family">Famille</option>
+                        <option value="alliance">Alliance</option>
+                    </select>
+                </div>
+
+                <div class="graph-canvas" @ref="relationGraphRef">
+                    @foreach (var character in Characters)
+                    {
+                        var position = GetCharacterPosition(character);
+                        <div class="graph-node character-node"
+                             style="left: @(position.X)px; top: @(position.Y)px"
+                             @onclick="() => SelectCharacter(character)"
+                             title="@character.Name">
+                            <div class="node-avatar">@GetInitials(character.Name)</div>
+                            @if (ShowLabels)
+                            {
+                                <div class="node-label">@character.Name</div>
+                            }
+                        </div>
+                    }
+
+                    @foreach (var relation in FilteredRelations)
+                    {
+                        var (start, end) = GetRelationLinePoints(relation);
+                        <svg class="relation-line" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;">
+                            <line x1="@start.X" y1="@start.Y"
+                                  x2="@end.X" y2="@end.Y"
+                                  stroke="@GetRelationColor(relation)"
+                                  stroke-width="2"
+                                  opacity="0.6" />
+                        </svg>
+                    }
+                </div>
+
+                @if (SelectedCharacter != null)
+                {
+                    <div class="character-details">
+                        <h4>@SelectedCharacter.Name</h4>
+                        <div class="detail-section">
+                            <strong>Relations:</strong>
+                            <ul>
+                                @foreach (var rel in GetCharacterRelations(SelectedCharacter))
+                                {
+                                    <li>
+                                        <span class="relation-badge" style="background: @GetRelationColor(rel)">
+                                            @rel.Type
+                                        </span>
+                                        avec @rel.TargetName
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (ActiveTab == "progression")
+        {
+            <div class="progression-chart">
+                <div class="chart-controls">
+                    <label>
+                        <input type="checkbox" @bind="ShowTension" />
+                        Tension
+                    </label>
+                    <label>
+                        <input type="checkbox" @bind="ShowPace" />
+                        Rythme
+                    </label>
+                    <label>
+                        <input type="checkbox" @bind="ShowEmotion" />
+                        Émotion
+                    </label>
+                </div>
+
+                <div class="chart-canvas" @ref="progressionChartRef">
+                    <svg width="100%" height="400" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMid meet">
+                        <!-- Grid lines -->
+                        @for (int i = 0; i <= 10; i++)
+                        {
+                            var y = 40 * i;
+                            <line x1="0" y1="@y" x2="1000" y2="@y"
+                                  stroke="#e5e7eb" stroke-width="1" opacity="0.5" />
+                        }
+
+                        <!-- Tension line -->
+                        @if (ShowTension && TensionPoints.Any())
+                        {
+                            var pathData = BuildPathData(TensionPoints);
+                            <path d="@pathData" stroke="#ef4444" stroke-width="3"
+                                  fill="none" opacity="0.8" />
+                        }
+
+                        <!-- Pace line -->
+                        @if (ShowPace && PacePoints.Any())
+                        {
+                            var pathData = BuildPathData(PacePoints);
+                            <path d="@pathData" stroke="#10b981" stroke-width="3"
+                                  fill="none" opacity="0.8" />
+                        }
+
+                        <!-- Emotion line -->
+                        @if (ShowEmotion && EmotionPoints.Any())
+                        {
+                            var pathData = BuildPathData(EmotionPoints);
+                            <path d="@pathData" stroke="#6366f1" stroke-width="3"
+                                  fill="none" opacity="0.8" />
+                        }
+
+                        <!-- Event markers -->
+                        @foreach (var evt in MajorEvents)
+                        {
+                            var pos = GetEventChartPosition(evt);
+                            <circle cx="@pos.X" cy="@pos.Y" r="6"
+                                    fill="#8b5cf6" opacity="0.8" />
+                        }
+                    </svg>
+                </div>
+
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #ef4444"></span>
+                        <span>Tension</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #10b981"></span>
+                        <span>Rythme</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #6366f1"></span>
+                        <span>Émotion</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker"></span>
+                        <span>Événements majeurs</span>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (ActiveTab == "map")
+        {
+            <div class="interactive-map">
+                <div class="map-controls">
+                    <button class="btn btn-sm btn-secondary" @onclick="ZoomInMap">+</button>
+                    <button class="btn btn-sm btn-secondary" @onclick="ZoomOutMap">-</button>
+                    <button class="btn btn-sm btn-secondary" @onclick="ResetMapZoom">⟲</button>
+                </div>
+
+                <div class="map-canvas" @ref="mapCanvasRef"
+                     style="transform: scale(@MapZoom)">
+                    @foreach (var location in Locations)
+                    {
+                        var position = GetLocationPosition(location);
+                        <div class="map-location"
+                             style="left: @(position.X)px; top: @(position.Y)px"
+                             @onclick="() => SelectLocation(location)">
+                            <div class="location-marker" title="@location.Name">
+                                📍
+                            </div>
+                            <div class="location-label">@location.Name</div>
+                        </div>
+                    }
+
+                    <!-- Paths between locations -->
+                    @foreach (var path in LocationPaths)
+                    {
+                        var (start, end) = GetPathPoints(path);
+                        <svg class="path-line" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;">
+                            <line x1="@start.X" y1="@start.Y"
+                                  x2="@end.X" y2="@end.Y"
+                                  stroke="#9ca3af" stroke-width="2"
+                                  stroke-dasharray="5,5" opacity="0.5" />
+                        </svg>
+                    }
+                </div>
+
+                @if (SelectedLocation != null)
+                {
+                    <div class="location-details">
+                        <h4>@SelectedLocation.Name</h4>
+                        <p>@SelectedLocation.Description</p>
+                        <div class="detail-section">
+                            <strong>Événements ici:</strong>
+                            <p>@GetLocationEventCount(SelectedLocation) événements</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (ActiveTab == "stats")
+        {
+            <div class="statistics-grid">
+                <div class="stat-card large">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <h4>Vue d'Ensemble</h4>
+                        <div class="stat-row">
+                            <span>Événements totaux:</span>
+                            <strong>@TotalEvents</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>Personnages:</span>
+                            <strong>@Characters.Count</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>Lieux:</span>
+                            <strong>@Locations.Count</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>Mots générés:</span>
+                            <strong>@TotalWords</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h4>Personnages les plus actifs</h4>
+                        @foreach (var character in GetTopCharacters(5))
+                        {
+                            <div class="stat-item">
+                                <span>@character.Name</span>
+                                <div class="stat-bar">
+                                    <div class="stat-bar-fill"
+                                         style="width: @(character.ActivityPercent)%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-content">
+                        <h4>Progression Temporelle</h4>
+                        <div class="timeline-stats">
+                            <div class="timeline-bar">
+                                @foreach (var period in GetTimePeriods())
+                                {
+                                    <div class="period-segment"
+                                         style="width: @(period.Percentage)%"
+                                         title="@period.Label: @period.EventCount événements">
+                                    </div>
+                                }
+                            </div>
+                            <div class="timeline-labels">
+                                @foreach (var period in GetTimePeriods())
+                                {
+                                    <span>@period.Label</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">💬</div>
+                    <div class="stat-content">
+                        <h4>Types d'Événements</h4>
+                        <div class="event-type-chart">
+                            @foreach (var eventType in GetEventTypesDistribution())
+                            {
+                                <div class="event-type-row">
+                                    <span class="event-type-label">@eventType.Type</span>
+                                    <div class="event-type-bar">
+                                        <div class="event-type-fill"
+                                             style="width: @(eventType.Percentage)%; background: @eventType.Color"></div>
+                                    </div>
+                                    <span class="event-type-count">@eventType.Count</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-content">
+                        <h4>Métriques de Qualité</h4>
+                        <div class="quality-metrics">
+                            <div class="metric">
+                                <span>Cohérence:</span>
+                                <div class="metric-score">
+                                    <div class="score-bar" style="width: @CoherenceScore%"></div>
+                                    <span>@CoherenceScore%</span>
+                                </div>
+                            </div>
+                            <div class="metric">
+                                <span>Diversité:</span>
+                                <div class="metric-score">
+                                    <div class="score-bar" style="width: @DiversityScore%"></div>
+                                    <span>@DiversityScore%</span>
+                                </div>
+                            </div>
+                            <div class="metric">
+                                <span>Rythme:</span>
+                                <div class="metric-score">
+                                    <div class="score-bar" style="width: @PaceScore%"></div>
+                                    <span>@PaceScore%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card large">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h4>Activité Récente</h4>
+                        <div class="activity-timeline">
+                            @foreach (var activity in GetRecentActivity(10))
+                            {
+                                <div class="activity-item">
+                                    <span class="activity-time">@activity.Timestamp.ToString("HH:mm")</span>
+                                    <span class="activity-description">@activity.Description</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public StoryState? State { get; set; }
+    [Parameter] public List<CharacterInfo> Characters { get; set; } = new();
+    [Parameter] public List<LocationInfo> Locations { get; set; } = new();
+
+    private ElementReference relationGraphRef;
+    private ElementReference progressionChartRef;
+    private ElementReference mapCanvasRef;
+
+    private string ActiveTab { get; set; } = "relations";
+    private bool ShowLabels { get; set; } = true;
+    private string FilterRelationType { get; set; } = "all";
+
+    private CharacterInfo? SelectedCharacter { get; set; }
+    private LocationInfo? SelectedLocation { get; set; }
+
+    private bool ShowTension { get; set; } = true;
+    private bool ShowPace { get; set; } = true;
+    private bool ShowEmotion { get; set; } = false;
+
+    private double MapZoom { get; set; } = 1.0;
+    private const double MIN_MAP_ZOOM = 0.5;
+    private const double MAX_MAP_ZOOM = 2.0;
+
+    // Mock data - real implementation would calculate from State
+    private List<RelationInfo> AllRelations = new();
+    private List<RelationInfo> FilteredRelations => FilterRelations();
+    private List<(double X, double Y)> TensionPoints = new();
+    private List<(double X, double Y)> PacePoints = new();
+    private List<(double X, double Y)> EmotionPoints = new();
+    private List<EventInfo> MajorEvents = new();
+    private List<PathInfo> LocationPaths = new();
+
+    private int TotalEvents => State?.EventHistory.Count ?? 0;
+    private int TotalWords = 15000; // Mock
+    private int CoherenceScore = 92; // Mock
+    private int DiversityScore = 85; // Mock
+    private int PaceScore = 78; // Mock
+
+    protected override void OnParametersSet()
+    {
+        GenerateMockData();
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        ActiveTab = tab;
+        StateHasChanged();
+    }
+
+    private (double X, double Y) GetCharacterPosition(CharacterInfo character)
+    {
+        // Simple circular layout
+        var index = Characters.IndexOf(character);
+        var angle = (2 * Math.PI * index) / Math.Max(Characters.Count, 1);
+        var radius = 150;
+        var centerX = 250;
+        var centerY = 250;
+
+        return (
+            centerX + radius * Math.Cos(angle),
+            centerY + radius * Math.Sin(angle)
+        );
+    }
+
+    private string GetInitials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
+
+    private void SelectCharacter(CharacterInfo character)
+    {
+        SelectedCharacter = character;
+        StateHasChanged();
+    }
+
+    private void RecenterGraph()
+    {
+        // Reset view
+        StateHasChanged();
+    }
+
+    private void ToggleLabels()
+    {
+        ShowLabels = !ShowLabels;
+        StateHasChanged();
+    }
+
+    private void OnRelationTypeChanged(ChangeEventArgs e)
+    {
+        FilterRelationType = e.Value?.ToString() ?? "all";
+        StateHasChanged();
+    }
+
+    private List<RelationInfo> FilterRelations()
+    {
+        if (FilterRelationType == "all")
+            return AllRelations;
+        return AllRelations.Where(r => r.Type.ToLower() == FilterRelationType).ToList();
+    }
+
+    private ((double X, double Y) start, (double X, double Y) end) GetRelationLinePoints(RelationInfo relation)
+    {
+        var source = Characters.FirstOrDefault(c => c.Id == relation.SourceId);
+        var target = Characters.FirstOrDefault(c => c.Id == relation.TargetId);
+
+        if (source == null || target == null)
+            return ((0, 0), (0, 0));
+
+        return (GetCharacterPosition(source), GetCharacterPosition(target));
+    }
+
+    private string GetRelationColor(RelationInfo relation)
+    {
+        return relation.Type.ToLower() switch
+        {
+            "friendship" => "#10b981",
+            "conflict" => "#ef4444",
+            "family" => "#6366f1",
+            "alliance" => "#f59e0b",
+            _ => "#6b7280"
+        };
+    }
+
+    private List<RelationInfo> GetCharacterRelations(CharacterInfo character)
+    {
+        return AllRelations
+            .Where(r => r.SourceId == character.Id || r.TargetId == character.Id)
+            .ToList();
+    }
+
+    private string BuildPathData(List<(double X, double Y)> points)
+    {
+        if (!points.Any()) return "";
+
+        var path = $"M {points[0].X} {points[0].Y}";
+        for (int i = 1; i < points.Count; i++)
+        {
+            path += $" L {points[i].X} {points[i].Y}";
+        }
+        return path;
+    }
+
+    private (double X, double Y) GetEventChartPosition(EventInfo evt)
+    {
+        return (evt.ChartX, evt.ChartY);
+    }
+
+    private void ZoomInMap()
+    {
+        MapZoom = Math.Min(MapZoom + 0.2, MAX_MAP_ZOOM);
+        StateHasChanged();
+    }
+
+    private void ZoomOutMap()
+    {
+        MapZoom = Math.Max(MapZoom - 0.2, MIN_MAP_ZOOM);
+        StateHasChanged();
+    }
+
+    private void ResetMapZoom()
+    {
+        MapZoom = 1.0;
+        StateHasChanged();
+    }
+
+    private (double X, double Y) GetLocationPosition(LocationInfo location)
+    {
+        // Mock positioning - real implementation would use actual coordinates
+        var index = Locations.IndexOf(location);
+        return (100 + (index % 4) * 150, 100 + (index / 4) * 150);
+    }
+
+    private void SelectLocation(LocationInfo location)
+    {
+        SelectedLocation = location;
+        StateHasChanged();
+    }
+
+    private ((double X, double Y) start, (double X, double Y) end) GetPathPoints(PathInfo path)
+    {
+        var source = Locations.FirstOrDefault(l => l.Id == path.FromId);
+        var target = Locations.FirstOrDefault(l => l.Id == path.ToId);
+
+        if (source == null || target == null)
+            return ((0, 0), (0, 0));
+
+        return (GetLocationPosition(source), GetLocationPosition(target));
+    }
+
+    private int GetLocationEventCount(LocationInfo location)
+    {
+        return 5; // Mock
+    }
+
+    private List<CharacterActivityInfo> GetTopCharacters(int count)
+    {
+        return Characters.Take(count)
+            .Select((c, i) => new CharacterActivityInfo
+            {
+                Name = c.Name,
+                ActivityPercent = 100 - (i * 20)
+            }).ToList();
+    }
+
+    private List<TimePeriodInfo> GetTimePeriods()
+    {
+        return new List<TimePeriodInfo>
+        {
+            new() { Label = "Début", EventCount = 20, Percentage = 25 },
+            new() { Label = "Milieu", EventCount = 35, Percentage = 45 },
+            new() { Label = "Fin", EventCount = 25, Percentage = 30 }
+        };
+    }
+
+    private List<EventTypeDistribution> GetEventTypesDistribution()
+    {
+        return new List<EventTypeDistribution>
+        {
+            new() { Type = "Dialogues", Count = 45, Percentage = 40, Color = "#f59e0b" },
+            new() { Type = "Actions", Count = 35, Percentage = 30, Color = "#ef4444" },
+            new() { Type = "Descriptions", Count = 20, Percentage = 20, Color = "#6366f1" },
+            new() { Type = "Autres", Count = 10, Percentage = 10, Color = "#6b7280" }
+        };
+    }
+
+    private List<ActivityInfo> GetRecentActivity(int count)
+    {
+        return new List<ActivityInfo>
+        {
+            new() { Timestamp = DateTime.UtcNow.AddMinutes(-5), Description = "Nouveau chapitre créé" },
+            new() { Timestamp = DateTime.UtcNow.AddMinutes(-15), Description = "Personnage ajouté: Alice" },
+            new() { Timestamp = DateTime.UtcNow.AddMinutes(-30), Description = "Lieu modifié: Château" }
+        }.Take(count).ToList();
+    }
+
+    private void GenerateMockData()
+    {
+        // Generate mock relation data
+        if (Characters.Count >= 2)
+        {
+            AllRelations = new List<RelationInfo>
+            {
+                new() { SourceId = Characters[0].Id, TargetId = Characters[1].Id, Type = "Friendship", TargetName = Characters[1].Name }
+            };
+        }
+
+        // Generate mock progression data
+        TensionPoints = Enumerable.Range(0, 20)
+            .Select(i => ((double)(i * 50), 200 + Math.Sin(i * 0.3) * 100))
+            .ToList();
+
+        PacePoints = Enumerable.Range(0, 20)
+            .Select(i => ((double)(i * 50), 150 + Math.Cos(i * 0.4) * 80))
+            .ToList();
+    }
+
+    // Helper classes
+    public class RelationInfo
+    {
+        public string SourceId { get; set; } = "";
+        public string TargetId { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string TargetName { get; set; } = "";
+    }
+
+    public class PathInfo
+    {
+        public string FromId { get; set; } = "";
+        public string ToId { get; set; } = "";
+    }
+
+    public class EventInfo
+    {
+        public double ChartX { get; set; }
+        public double ChartY { get; set; }
+    }
+
+    public class CharacterActivityInfo
+    {
+        public string Name { get; set; } = "";
+        public int ActivityPercent { get; set; }
+    }
+
+    public class TimePeriodInfo
+    {
+        public string Label { get; set; } = "";
+        public int EventCount { get; set; }
+        public int Percentage { get; set; }
+    }
+
+    public class EventTypeDistribution
+    {
+        public string Type { get; set; } = "";
+        public int Count { get; set; }
+        public int Percentage { get; set; }
+        public string Color { get; set; } = "";
+    }
+
+    public class ActivityInfo
+    {
+        public DateTime Timestamp { get; set; }
+        public string Description { get; set; } = "";
+    }
+}
