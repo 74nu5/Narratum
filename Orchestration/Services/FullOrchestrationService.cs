@@ -693,6 +693,17 @@ public sealed class FullOrchestrationService
         // Let critical exceptions propagate
     }
 
+    /// <summary>
+    /// Creates a failure result for the pipeline.
+    ///
+    /// Note on Result wrapping:
+    /// - Result.Ok = Pipeline EXECUTED successfully (ran to completion, even if narrative generation failed)
+    /// - Result.Fail = Pipeline EXECUTION error (couldn't run due to system error)
+    /// - FullPipelineResult.IsSuccess = Pipeline RESULT (narrative generated successfully or not)
+    ///
+    /// This design preserves pipeline metadata (stages, metrics, retry count) even on narrative failure,
+    /// which is valuable for debugging and analytics. A narrative failure is not a system error.
+    /// </summary>
     private Result<FullPipelineResult> CreateFailureResult(
         Guid pipelineId,
         StoryState storyState,
@@ -706,6 +717,8 @@ public sealed class FullOrchestrationService
 
         var metricsSummary = _metricsCollector.EndPipeline(pipelineId, success: false);
 
+        // Return Result.Ok wrapping a FullPipelineResult.Failure
+        // This preserves all pipeline metadata (stages, metrics) for analysis
         return Result<FullPipelineResult>.Ok(
             FullPipelineResult.Failure(
                 pipelineId,
