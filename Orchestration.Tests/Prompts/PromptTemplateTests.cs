@@ -227,7 +227,9 @@ public class NarratorPromptTemplateTests
 
         // Assert
         prompt.Should().Contain("auteur narratif");
-        prompt.Should().Contain("Troisième personne");
+        // The template is deliberately person-agnostic (first OR third person, chosen
+        // per context), so it instructs on grammatical person rather than hardcoding one.
+        prompt.Should().Contain("personne grammaticale");
         prompt.Should().Contain("NE JAMAIS contredire");
         prompt.Should().Contain("NE JAMAIS tuer");
     }
