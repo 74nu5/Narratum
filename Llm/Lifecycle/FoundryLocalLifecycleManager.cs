@@ -117,7 +117,7 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         // resolved to a "ministral-..." model), so we don't use it.
         // The dropdown sends a concrete variant id (…-generic-gpu:1) — match that first so the
         // requested device is honoured. A bare alias (legacy stories / agent config) falls back
-        // to the best available variant (GPU > NPU > CPU).
+        // to the best available variant (NPU > CPU > GPU).
         var models = await ExpandVariantsAsync(catalog);
         var model = models.FirstOrDefault(m => string.Equals(m.Id, modelName, StringComparison.OrdinalIgnoreCase))
                     ?? models.Where(m => string.Equals(m.Alias, modelName, StringComparison.OrdinalIgnoreCase))
@@ -258,12 +258,13 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
     }
 
     // A bare alias (legacy story / agent config) resolves to the most reliable variant:
-    // CPU first, then NPU, and WebGPU last since it can emit degenerate output on some machines.
+    // NPU first (fast, low-power, verified to produce clean output on the OpenVINO EP), then
+    // CPU, and WebGPU last since it can emit degenerate output on some machines.
     private static int DeviceRank(IModel m)
         => DeriveDevice(m) switch
         {
-            "CPU" => 0,
-            "NPU" => 1,
+            "NPU" => 0,
+            "CPU" => 1,
             "GPU" => 2,
             _ => 3,
         };
