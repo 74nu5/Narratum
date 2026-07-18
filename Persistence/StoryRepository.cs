@@ -34,6 +34,7 @@ public class StoryRepository : IStoryRepository
         string displayDescription,
         StoryState initialState,
         string initialNarrativeText,
+        string initialModel,
         CancellationToken ct = default)
     {
         try
@@ -59,7 +60,7 @@ public class StoryRepository : IStoryRepository
                 NarrativeText = initialNarrativeText,
                 SerializedState = serializedSnapshot,
                 IntentDescription = "Création initiale",
-                ModelUsed = "N/A",
+                ModelUsed = initialModel,
                 GenreStyle = genreStyle
             };
 

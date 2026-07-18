@@ -41,8 +41,14 @@
                             <FluentOption TOption="string" Value="Horror">Horreur</FluentOption>
                             <FluentOption TOption="string" Value="Historical">Historique</FluentOption>
                         </FluentSelect>
-                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3" 
+                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3"
                                       Placeholder="Ex: Épique, sombre, humoristique..." />
+                        <FluentSelect TOption="string" Label="Modèle de génération" @bind-Value="this.model">
+                            @foreach (var m in ModelSelectionService.AvailableModels)
+                            {
+                                <FluentOption TOption="string" Value="@m.Id">@m.Label</FluentOption>
+                            }
+                        </FluentSelect>
                     </FluentStack>
                 </FluentCard>
                 break;

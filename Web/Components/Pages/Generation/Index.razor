@@ -74,6 +74,13 @@
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
             <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="3"
                           Placeholder="Ex: Les personnages découvrent une porte secrète..." />
+            <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle (pour cette page)"
+                          Style="max-width: 360px;">
+                @foreach (var m in ModelSelectionService.AvailableModels)
+                {
+                    <FluentOption Value="@m.Id">@m.Label</FluentOption>
+                }
+            </FluentSelect>
             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
                 <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage" 
                             Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">
@@ -105,6 +112,7 @@
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
     private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
+    private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,7 +150,14 @@
         
         var pageResult = await GenService.LoadPageAsync(SlotName, pageIndex);
         pageResult.Match(
-            onSuccess: page => _currentNarrative = page.NarrativeText,
+            onSuccess: page =>
+            {
+                _currentNarrative = page.NarrativeText;
+                // Default the model selector to the model this page was generated with.
+                if (!string.IsNullOrWhiteSpace(page.ModelUsed) && page.ModelUsed != "N/A")
+                    _selectedModel = page.ModelUsed;
+                return string.Empty;
+            },
             onFailure: error => _errorMessage = error);
 
         await LoadTraces(pageIndex);
@@ -159,7 +174,7 @@
         {
             // Throttle re-renders so a fast token stream doesn't flood the circuit.
             var lastRender = DateTime.UtcNow;
-            await foreach (var chunk in GenService.GenerateNextPageStreamingAsync(SlotName, intent))
+            await foreach (var chunk in GenService.GenerateNextPageStreamingAsync(SlotName, intent, _selectedModel))
             {
                 _currentNarrative += chunk;
 

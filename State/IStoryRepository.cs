@@ -18,6 +18,7 @@ public interface IStoryRepository
         string displayDescription,
         StoryState initialState,
         string initialNarrativeText,
+        string initialModel,
         CancellationToken ct = default);
 
     /// <summary>

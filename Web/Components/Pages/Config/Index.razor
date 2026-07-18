@@ -15,9 +15,15 @@
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
             <FluentLabel Typo="Typography.H4">Modèle de narration</FluentLabel>
+            <FluentLabel Typo="Typography.Body" Style="opacity:0.7;">
+                Modèle par défaut de session. Chaque histoire choisit son modèle à la création,
+                et chaque page peut le changer depuis l'écran de génération.
+            </FluentLabel>
             <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle" Style="max-width: 400px;">
-                <FluentOption Value="phi-4-mini">Phi-4-mini (Rapide, recommandé)</FluentOption>
-                <FluentOption Value="phi-4">Phi-4 (Plus précis)</FluentOption>
+                @foreach (var m in ModelSelectionService.AvailableModels)
+                {
+                    <FluentOption Value="@m.Id">@m.Label</FluentOption>
+                }
                 <FluentOption Value="custom">Modèle personnalisé...</FluentOption>
             </FluentSelect>
             

@@ -110,7 +110,8 @@ public class GenerationService : IGenerationService
             ? request.GenreStyle
             : $"{request.GenreStyle} — {request.NarrativeStyle}";
 
-        // Use repository (hexagonal architecture)
+        // Use repository (hexagonal architecture). The chosen model is stored on page 0
+        // so the generation view can default to it.
         var result = await _storyRepository.CreateStoryAsync(
             slotName,
             request.WorldName,
@@ -118,6 +119,7 @@ public class GenerationService : IGenerationService
             displayDescription,
             storyState,
             initText,
+            _modelSelector.NormalizeOrDefault(request.Model),
             ct);
 
         return result.Match<Result<string>>(
@@ -244,6 +246,7 @@ public class GenerationService : IGenerationService
     public async IAsyncEnumerable<string> GenerateNextPageStreamingAsync(
         string slotName,
         string intentDescription,
+        string? model = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         using var scope = _logger.BeginScope(new Dictionary<string, object>
@@ -263,7 +266,8 @@ public class GenerationService : IGenerationService
         if (_llmClient is not IStreamingLlmClient streamingClient)
             throw new InvalidOperationException("Le client LLM ne supporte pas le streaming");
 
-        _logger.LogInformation("Starting multi-agent streaming generation for slot {SlotName}", slotName);
+        var chosenModel = _modelSelector.NormalizeOrDefault(model);
+        _logger.LogInformation("Starting multi-agent streaming generation for slot {SlotName} with model {Model}", slotName, chosenModel);
 
         // Load the latest page to continue from
         var loadResult = await _storyRepository.LoadLatestPageAsync(slotName, ct);
@@ -288,7 +292,7 @@ public class GenerationService : IGenerationService
             : $"Résume en 2 à 3 phrases, de façon strictement factuelle et sans rien inventer, l'histoire suivante :\n\n{storySoFar}";
         var summary = await RunAgentAsync(
             AgentType.Summary, "Résumé", "Condense l'histoire jusqu'ici",
-            summaryPrompt, ct);
+            summaryPrompt, chosenModel, ct);
         traces.Add(summary);
 
         // 2. Narrator agent — the user-visible prose, streamed live.
@@ -301,7 +305,11 @@ public class GenerationService : IGenerationService
             "Tu es un maître conteur qui écrit une narration immersive et vivante. " + FrenchOnly,
             narratorPrompt,
             LlmParameters.Default with { Temperature = _temperatures.GetTemperature(AgentType.Narrator) },
-            new Dictionary<string, object> { ["llm.agentType"] = AgentType.Narrator });
+            new Dictionary<string, object>
+            {
+                ["llm.agentType"] = AgentType.Narrator,
+                ["llm.model"] = chosenModel
+            });
 
         var narratorTimer = Stopwatch.StartNew();
         var builder = new StringBuilder();
@@ -325,7 +333,7 @@ public class GenerationService : IGenerationService
             .ToList();
         var consistency = await RunAgentAsync(
             AgentType.Consistency, "Cohérence", "Vérifie le texte contre les faits établis",
-            _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), ct);
+            _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), chosenModel, ct);
         traces.Add(consistency);
 
         // 4. Character agent — maintains an evolving roster: for each character, their
@@ -335,13 +343,13 @@ public class GenerationService : IGenerationService
         var fullStory = string.IsNullOrWhiteSpace(storySoFar) ? fullText : storySoFar + "\n\n" + fullText;
         var roster = await RunAgentAsync(
             AgentType.Character, "Personnages", "Fiches : personnalité, évolution, faits marquants",
-            BuildCharacterRosterPrompt(fullStory, knownNames), ct);
+            BuildCharacterRosterPrompt(fullStory, knownNames), chosenModel, ct);
         traces.Add(roster);
 
         // Persist the page (user-visible text) and the agent traces (Expert data).
         var newPageIndex = latestPage.PageIndex + 1;
         var saveResult = await _storyRepository.SavePageAsync(
-            slotName, newPageIndex, fullText, intentDescription, _modelSelector.CurrentNarratorModel, storyState, ct);
+            slotName, newPageIndex, fullText, intentDescription, chosenModel, storyState, ct);
 
         if (saveResult is Result<Core.PageSnapshot>.Failure saveFailure)
         {
@@ -363,14 +371,18 @@ public class GenerationService : IGenerationService
     /// never aborts the page.
     /// </summary>
     private async Task<AgentTraceInfo> RunAgentAsync(
-        AgentType agent, string displayName, string role, string userPrompt, CancellationToken ct)
+        AgentType agent, string displayName, string role, string userPrompt, string model, CancellationToken ct)
     {
         var timer = Stopwatch.StartNew();
         var request = new LlmRequest(
             AgentSystemPrompt(agent),
             userPrompt + "\n\n" + FrenchOnly,
             LlmParameters.Default with { Temperature = _temperatures.GetTemperature(agent) },
-            new Dictionary<string, object> { ["llm.agentType"] = agent });
+            new Dictionary<string, object>
+            {
+                ["llm.agentType"] = agent,
+                ["llm.model"] = model
+            });
 
         var result = await _llmClient.GenerateAsync(request, ct);
         timer.Stop();
@@ -449,7 +461,8 @@ public class GenerationService : IGenerationService
             onSuccess: page => Result<PageInfo>.Ok(new PageInfo(
                 page.PageIndex,
                 page.NarrativeText,
-                page.GeneratedAt)),
+                page.GeneratedAt,
+                page.ModelUsed)),
             onFailure: error => Result<PageInfo>.Fail(error));
     }
 
@@ -480,4 +493,5 @@ public class GenerationService : IGenerationService
 public record PageInfo(
     int PageIndex,
     string NarrativeText,
-    DateTime GeneratedAt);
+    DateTime GeneratedAt,
+    string ModelUsed = "");

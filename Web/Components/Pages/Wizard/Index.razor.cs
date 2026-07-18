@@ -14,6 +14,7 @@ public partial class Index
     private string worldDescription = string.Empty;
     private string genre = "Fantasy";
     private string narrativeStyle = string.Empty;
+    private string model = Services.ModelSelectionService.AvailableModels[0].Id;
     private List<CharacterInput> characters = [];
     private List<LocationInput> locations = [];
 
@@ -48,7 +49,8 @@ public partial class Index
             this.characters.Select(c => (c.Name, (string?)c.Description)).ToList(),
             string.IsNullOrWhiteSpace(this.worldDescription) ? null : this.worldDescription,
             string.IsNullOrWhiteSpace(this.narrativeStyle) ? null : this.narrativeStyle,
-            this.locations.Select(l => (l.Name, (string?)l.Description)).ToList());
+            this.locations.Select(l => (l.Name, (string?)l.Description)).ToList(),
+            this.model);
 
         await this.GenService.CreateStoryAsync(slotName, request);
 

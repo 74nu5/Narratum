@@ -41,10 +41,12 @@ public interface IGenerationService
     /// </summary>
     /// <param name="slotName">Story slot identifier</param>
     /// <param name="intentDescription">User's narrative direction</param>
+    /// <param name="model">LLM model to use for this page; null falls back to the default.</param>
     /// <param name="ct">Cancellation token</param>
     IAsyncEnumerable<string> GenerateNextPageStreamingAsync(
         string slotName,
         string intentDescription,
+        string? model = null,
         CancellationToken ct = default);
 
     /// <summary>

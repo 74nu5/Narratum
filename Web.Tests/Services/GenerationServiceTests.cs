@@ -76,6 +76,7 @@ public class GenerationServiceTests
                 It.IsAny<string>(),
                 It.IsAny<StoryState>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<StoryMetadata>.Ok(new StoryMetadata(
                 slotName,
@@ -97,6 +98,7 @@ public class GenerationServiceTests
             "Fantasy",
             "Fantasy — Epic",
             It.IsAny<StoryState>(),
+            It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -120,6 +122,7 @@ public class GenerationServiceTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<StoryState>(),
+            It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -331,18 +334,26 @@ public class GenerationServiceTests
             fakeClient,
             NullLogger<GenerationService>.Instance);
 
-        // Act
+        // Act — request an explicit model for this page
         var received = new List<string>();
-        await foreach (var chunk in service.GenerateNextPageStreamingAsync(slotName, "Continue"))
+        await foreach (var chunk in service.GenerateNextPageStreamingAsync(slotName, "Continue", "phi-4"))
             received.Add(chunk);
 
         // Assert — user sees only the streamed narrator prose
         string.Concat(received).Should().Be("Il était une fois.");
 
-        // Every prompt sent to the model carries the French-only directive.
+        // Every prompt sent to the model carries the French-only directive...
         fakeClient.Requests.Should().NotBeEmpty();
         fakeClient.Requests.Should().OnlyContain(r =>
             (r.SystemPrompt + r.UserPrompt).Contains("EXCLUSIVEMENT en français"));
+
+        // ...and the chosen model actually reaches every request (llm.model metadata).
+        fakeClient.Requests.Should().OnlyContain(r =>
+            r.Metadata.ContainsKey("llm.model") && (string)r.Metadata["llm.model"] == "phi-4");
+
+        // The page is saved as generated with that model.
+        _mockRepository.Verify(r => r.SavePageAsync(slotName, 1, It.IsAny<string>(), It.IsAny<string>(),
+            "phi-4", It.IsAny<StoryState>(), It.IsAny<CancellationToken>()), Times.Once);
 
         // Expert traces were persisted for all four agents
         capturedExpertJson.Should().NotBeNull();
