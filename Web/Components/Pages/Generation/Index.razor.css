@@ -1,34 +1,26 @@
-/* Two-column layout: composer on the left, the page text on the right. */
+/* Two-column layout: fixed composer sidebar on the left, fluid page text on
+   the right. minmax(0, 1fr) lets the text column shrink instead of overflowing. */
 .gen-layout {
-    display: flex;
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
     gap: 24px;
-    align-items: flex-start;
+    align-items: start;
 }
 
+/* Sticky so the composer stays in view while reading the page. */
 .gen-sidebar {
-    flex: 0 0 340px;
-    max-width: 340px;
     position: sticky;
     top: 16px;
 }
 
-/* min-width:0 lets the text column shrink instead of overflowing the flex row. */
-.gen-main {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-/* Stack vertically on narrow viewports. */
+/* Collapse to a single column on narrow viewports. */
 @media (max-width: 900px) {
     .gen-layout {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 
     .gen-sidebar {
         position: static;
-        flex-basis: auto;
-        max-width: none;
-        width: 100%;
     }
 }
 
