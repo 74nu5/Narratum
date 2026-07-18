@@ -29,10 +29,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="OllamaSharp" Version="5.4.27" />
     <PackageReference Include="OpenAI" Version="2.12.0" />
-    <!-- Azure AI Foundry (cloud) provider: Entra ID auth, chat client, and ARM discovery
-         of subscriptions + model deployments. -->
+    <!-- Azure AI Foundry (cloud) provider: Entra ID auth (Azure.Identity), chat via the plain
+         OpenAI SDK against the /openai/v1 endpoint, and ARM discovery of subscriptions +
+         model deployments (Azure.ResourceManager.CognitiveServices). -->
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
     <PackageReference Include="Azure.ResourceManager.CognitiveServices" Version="1.5.2" />
   </ItemGroup>
 

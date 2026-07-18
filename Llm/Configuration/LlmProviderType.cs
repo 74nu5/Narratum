@@ -13,5 +13,10 @@ public enum LlmProviderType
     /// <summary>
     /// Ollama (service externe, API OpenAI-compatible).
     /// </summary>
-    Ollama
+    Ollama,
+
+    /// <summary>
+    /// Azure AI Foundry (cloud) — modèles déployés sur Azure, auth Entra ID, endpoint /openai/v1.
+    /// </summary>
+    AzureFoundry
 }

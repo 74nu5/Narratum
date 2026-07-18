@@ -1,5 +1,7 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,16 +23,19 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private ILlmLifecycleManager? _lifecycleManager;
     private IChatClient? _chatClient;
+    private TokenCredential? _azureCredential;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
     public LlmClientConfig Config { get; }
 
     public LlmClientFactory(
         LlmClientConfig config,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        TokenCredential? azureCredential = null)
     {
         Config = config ?? throw new ArgumentNullException(nameof(config));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        _azureCredential = azureCredential;
     }
 
     public async Task<ILlmClient> CreateClientAsync(CancellationToken cancellationToken = default)
@@ -63,6 +68,7 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
             {
                 LlmProviderType.FoundryLocal => await CreateFoundryLocalClientAsync(cancellationToken),
                 LlmProviderType.Ollama => CreateOllamaClient(),
+                LlmProviderType.AzureFoundry => CreateAzureFoundryClient(),
                 _ => throw new InvalidOperationException($"Unknown provider: {Config.Provider}")
             };
 
@@ -108,6 +114,40 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
     {
         var baseUrl = Config.BaseUrl ?? "http://localhost:11434";
         return new OllamaApiClient(new Uri(baseUrl), Config.DefaultModel);
+    }
+
+    /// <summary>
+    /// Azure AI Foundry (cloud) via the OpenAI-compatible <c>/openai/v1</c> endpoint, authenticated
+    /// with Entra ID (bearer token, no key). Integrates like any other OpenAI chat client.
+    /// </summary>
+    private IChatClient CreateAzureFoundryClient()
+    {
+        var endpoint = Config.AzureFoundry.Endpoint;
+        if (string.IsNullOrWhiteSpace(endpoint))
+            throw new InvalidOperationException(
+                "AzureFoundry.Endpoint is required for the AzureFoundry provider.");
+
+        var v1Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/");
+
+        // On machines with the Azure Arc agent, ManagedIdentity fails hard, so exclude it —
+        // DefaultAzureCredential then falls through to the developer's az login session.
+        _azureCredential ??= new DefaultAzureCredential(
+            new DefaultAzureCredentialOptions { ExcludeManagedIdentityCredential = true });
+
+#pragma warning disable OPENAI001 // BearerTokenPolicy auth on OpenAIClient is an evaluation API.
+        var tokenPolicy = new BearerTokenPolicy(_azureCredential, Config.AzureFoundry.Scope);
+        var openAiClient = new OpenAIClient(
+            authenticationPolicy: tokenPolicy,
+            options: new OpenAIClientOptions
+            {
+                Endpoint = v1Endpoint,
+                NetworkTimeout = TimeSpan.FromSeconds(Config.TimeoutSeconds)
+            });
+#pragma warning restore OPENAI001
+
+        return openAiClient
+            .GetChatClient(Config.DefaultModel)
+            .AsIChatClient();
     }
 
     public async ValueTask DisposeAsync()
