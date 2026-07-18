@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Schema;
+using System.Text.Json.Serialization.Metadata;
 
 using Narratum.Core;
 
@@ -20,7 +21,13 @@ namespace Narratum.Orchestration.Llm;
 /// </summary>
 public static class StructuredLlm
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    // An explicit reflection resolver is required: schema export and (de)serialization throw
+    // "must specify a TypeInfoResolver" when reflection-based serialization is disabled by default,
+    // which is the case in the Blazor Server host (it is enabled in the test host, hence the gap).
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+    };
 
     /// <summary>Nombre total de tentatives du chemin par défaut (1 essai + 1 renfort).</summary>
     private const int MaxAttempts = 2;
