@@ -146,7 +146,7 @@ public class MockLlmClientTests
         stopwatch.Stop();
 
         // Assert
-        stopwatch.ElapsedMilliseconds.Should().BeGreaterOrEqualTo(40); // Allow some tolerance
+        stopwatch.ElapsedMilliseconds.Should().BeGreaterThanOrEqualTo(40); // Allow some tolerance
     }
 
     [Fact]

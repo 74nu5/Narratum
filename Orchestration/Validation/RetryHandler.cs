@@ -60,7 +60,7 @@ public sealed record RetryAttempt(
         => new(attemptNumber, true, duration, Array.Empty<string>(), Array.Empty<string>());
 
     public static RetryAttempt Failure(int attemptNumber, TimeSpan duration, ValidationResult result)
-        => new(attemptNumber, false, duration, result.ErrorMessages.ToList(), result.Warnings.Select(w => w.Message).ToList());
+        => new(attemptNumber, false, duration, [.. result.ErrorMessages], [.. result.Warnings.Select(w => w.Message)]);
 }
 
 /// <summary>
@@ -170,21 +170,54 @@ public sealed class RetryHandler : IRetryHandler
 
                 attempts.Add(RetryAttempt.Failure(attemptNumber, attemptStopwatch.Elapsed, validation));
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // User-requested cancellation - propagate
+                throw;
+            }
+            catch (InvalidOperationException ex)
             {
                 attemptStopwatch.Stop();
-                _logger?.LogWarning(ex, "Retry attempt {Attempt} failed with exception", attemptNumber);
+                _logger?.LogWarning(ex, "Retry attempt {Attempt} failed: invalid operation", attemptNumber);
 
                 attempts.Add(new RetryAttempt(
                     attemptNumber,
                     false,
                     attemptStopwatch.Elapsed,
-                    new[] { ex.Message },
+                    new[] { $"Invalid operation: {ex.Message}" },
                     Array.Empty<string>()));
 
-                // Créer un résultat de validation synthétique
-                validation = ValidationResult.Invalid($"Exception during retry: {ex.Message}");
+                validation = ValidationResult.Invalid($"Invalid operation during retry: {ex.Message}");
             }
+            catch (ArgumentException ex)
+            {
+                attemptStopwatch.Stop();
+                _logger?.LogWarning(ex, "Retry attempt {Attempt} failed: invalid argument", attemptNumber);
+
+                attempts.Add(new RetryAttempt(
+                    attemptNumber,
+                    false,
+                    attemptStopwatch.Elapsed,
+                    new[] { $"Invalid argument: {ex.Message}" },
+                    Array.Empty<string>()));
+
+                validation = ValidationResult.Invalid($"Invalid argument during retry: {ex.Message}");
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                attemptStopwatch.Stop();
+                _logger?.LogWarning(ex, "Retry attempt {Attempt} failed: JSON error", attemptNumber);
+
+                attempts.Add(new RetryAttempt(
+                    attemptNumber,
+                    false,
+                    attemptStopwatch.Elapsed,
+                    new[] { $"JSON error: {ex.Message}" },
+                    Array.Empty<string>()));
+
+                validation = ValidationResult.Invalid($"JSON error during retry: {ex.Message}");
+            }
+            // Let critical exceptions (OutOfMemoryException) propagate
         }
 
         totalStopwatch.Stop();

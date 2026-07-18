@@ -10,6 +10,7 @@ using Narratum.Orchestration.Logging;
 using Narratum.Orchestration.Stages;
 using Narratum.Orchestration.Validation;
 using Narratum.Orchestration.Prompts;
+using Narratum.Orchestration.Configuration;
 
 namespace Narratum.Orchestration.Services;
 
@@ -106,6 +107,10 @@ public sealed class FullOrchestrationService
     private readonly IStructureValidator _structureValidator;
     private readonly ICoherenceValidatorAdapter? _coherenceValidator;
     private readonly PromptRegistry _promptRegistry;
+    private readonly PromptOptimizationService _promptOptimizationService;
+    private readonly NarrativeContextCache _contextCache;
+    private readonly ContextCompressionService _contextCompressionService;
+    private readonly AgentTemperatureConfig _temperatureConfig;
     private readonly FullOrchestrationConfig _config;
     private readonly ILogger<FullOrchestrationService>? _logger;
 
@@ -121,6 +126,10 @@ public sealed class FullOrchestrationService
         ICoherenceValidatorAdapter? coherenceValidator = null,
         PromptRegistry? promptRegistry = null,
         IMemoryService? memoryService = null,
+        PromptOptimizationService? promptOptimizationService = null,
+        NarrativeContextCache? contextCache = null,
+        ContextCompressionService? contextCompressionService = null,
+        AgentTemperatureConfig? temperatureConfig = null,
         ILogger<FullOrchestrationService>? logger = null)
     {
         _llmClient = llmClient ?? throw new ArgumentNullException(nameof(llmClient));
@@ -132,6 +141,10 @@ public sealed class FullOrchestrationService
         _coherenceValidator = coherenceValidator;
         _promptRegistry = promptRegistry ?? PromptRegistry.CreateWithDefaults();
         _memoryService = memoryService;
+        _contextCache = contextCache ?? new NarrativeContextCache();
+        _contextCompressionService = contextCompressionService ?? new ContextCompressionService(_contextCache);
+        _promptOptimizationService = promptOptimizationService ?? new PromptOptimizationService();
+        _temperatureConfig = temperatureConfig ?? AgentTemperatureConfig.Default;
         _logger = logger;
     }
 
@@ -296,8 +309,14 @@ public sealed class FullOrchestrationService
                     retryCount,
                     metricsSummary));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // User-requested cancellation - propagate
+            throw;
+        }
         catch (OperationCanceledException)
         {
+            // Timeout (internal CTS)
             stopwatch.Stop();
             _pipelineLogger.LogPipelineError(pipelineId,
                 new TimeoutException("Pipeline execution timed out"));
@@ -306,16 +325,38 @@ public sealed class FullOrchestrationService
             return CreateFailureResult(pipelineId, storyState, intent, "Pipeline timed out",
                 stageResults, stopwatch.Elapsed, retryCount);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             stopwatch.Stop();
             _pipelineLogger.LogPipelineError(pipelineId, ex);
             _metricsCollector.EndPipeline(pipelineId, success: false);
             _auditTrail.Record(AuditEntry.CriticalError(pipelineId, "Pipeline", ex));
 
-            return CreateFailureResult(pipelineId, storyState, intent, ex.Message,
+            return CreateFailureResult(pipelineId, storyState, intent,
+                $"Invalid pipeline state: {ex.Message}",
                 stageResults, stopwatch.Elapsed, retryCount);
         }
+        catch (ArgumentException ex)
+        {
+            stopwatch.Stop();
+            _pipelineLogger.LogPipelineError(pipelineId, ex);
+            _metricsCollector.EndPipeline(pipelineId, success: false);
+
+            return CreateFailureResult(pipelineId, storyState, intent,
+                $"Invalid argument: {ex.Message}",
+                stageResults, stopwatch.Elapsed, retryCount);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            stopwatch.Stop();
+            _pipelineLogger.LogPipelineError(pipelineId, ex);
+            _metricsCollector.EndPipeline(pipelineId, success: false);
+
+            return CreateFailureResult(pipelineId, storyState, intent,
+                $"JSON serialization error: {ex.Message}",
+                stageResults, stopwatch.Elapsed, retryCount);
+        }
+        // Let critical exceptions (OutOfMemoryException, StackOverflowException) propagate
     }
 
     /// <summary>
@@ -347,7 +388,7 @@ public sealed class FullOrchestrationService
             var activeCharacters = new List<CharacterContext>();
             var characterIds = intent.TargetCharacterIds.Count > 0
                 ? intent.TargetCharacterIds
-                : storyState.Characters.Keys.ToList();
+                : [.. storyState.Characters.Keys];
 
             foreach (var characterId in characterIds)
             {
@@ -367,14 +408,23 @@ public sealed class FullOrchestrationService
 
             return Result<NarrativeContext>.Ok(context);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            return Result<NarrativeContext>.Fail($"Context build failed: {ex.Message}");
+            return Result<NarrativeContext>.Fail($"Invalid state while building context: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            return Result<NarrativeContext>.Fail($"Invalid argument in context build: {ex.Message}");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Result<NarrativeContext>.Fail($"Missing required data: {ex.Message}");
         }
     }
 
     /// <summary>
     /// Construit les prompts pour les agents.
+    /// Uses PromptOptimizationService for rich, contextual prompts.
     /// </summary>
     private Task<Result<PromptSet>> BuildPromptsAsync(
         NarrativeContext context,
@@ -385,36 +435,37 @@ public sealed class FullOrchestrationService
         {
             var prompts = new List<AgentPrompt>();
 
-            // Sélectionner le template approprié
-            var template = _promptRegistry.GetTemplate(AgentType.Narrator, intent.Type);
+            // Use optimized prompt building for Narrator agent
+            var optimizedPrompt = _promptOptimizationService.BuildOptimizedNarratorPrompt(
+                context.State,
+                intent,
+                previousNarrative: null, // Could retrieve from last page
+                genre: null,
+                tone: null);
 
-            if (template != null)
-            {
-                var systemPrompt = template.BuildSystemPrompt(context);
-                var userPrompt = template.BuildUserPrompt(context, intent);
-                var variables = template.GetVariables(context);
-
-                prompts.Add(new AgentPrompt(
-                    template.TargetAgent,
-                    systemPrompt,
-                    userPrompt,
-                    variables));
-            }
-            else
-            {
-                // Prompt par défaut si pas de template
-                prompts.Add(AgentPrompt.Create(
-                    AgentType.Narrator,
-                    $"You are a narrative engine for the world \"{context.State.WorldState.WorldName}\".",
-                    $"Intent: {intent.Type}. {intent.Description ?? ""}"));
-            }
+            prompts.Add(AgentPrompt.Create(
+                AgentType.Narrator,
+                "You are a master storyteller crafting engaging narrative.",
+                optimizedPrompt));
 
             return Task.FromResult(Result<PromptSet>.Ok(
                 new PromptSet(prompts, ExecutionOrder.Sequential)));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            return Task.FromResult(Result<PromptSet>.Fail($"Prompt build failed: {ex.Message}"));
+            return Task.FromResult(Result<PromptSet>.Fail($"Invalid state while building prompts: {ex.Message}"));
+        }
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<PromptSet>.Fail($"Invalid argument in prompt build: {ex.Message}"));
+        }
+        catch (System.IO.FileNotFoundException ex)
+        {
+            return Task.FromResult(Result<PromptSet>.Fail($"Prompt template file not found: {ex.Message}"));
+        }
+        catch (System.IO.IOException ex)
+        {
+            return Task.FromResult(Result<PromptSet>.Fail($"IO error reading prompt template: {ex.Message}"));
         }
     }
 
@@ -438,14 +489,19 @@ public sealed class FullOrchestrationService
             var agentStopwatch = Stopwatch.StartNew();
 
             // Appeler le LLM avec le type d'agent pour le routing de modèle
+            // et la température appropriée
+            var temperature = _temperatureConfig.GetTemperature(prompt.TargetAgent);
+            var parameters = LlmParameters.Default with { Temperature = temperature };
+
             var metadata = new Dictionary<string, object>
             {
-                ["llm.agentType"] = prompt.TargetAgent
+                ["llm.agentType"] = prompt.TargetAgent,
+                ["llm.temperature"] = temperature
             };
             var request = new LlmRequest(
                 prompt.SystemPrompt,
                 prompt.UserPrompt,
-                LlmParameters.Default,
+                parameters,
                 metadata);
 
             var llmResult = await _llmClient.GenerateAsync(request, cancellationToken);
@@ -607,23 +663,55 @@ public sealed class FullOrchestrationService
             _metricsCollector.EndStage(pipelineId, stageName);
             return result;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // User-requested cancellation - propagate
+            throw;
+        }
         catch (OperationCanceledException)
         {
+            // Stage timeout
             stopwatch.Stop();
             var error = "Stage timed out";
             results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, error));
             _pipelineLogger.LogStageFailure(pipelineId, stageName, error);
             return Result<T>.Fail($"Stage {stageName} timed out");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             stopwatch.Stop();
             results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, ex.Message));
             _pipelineLogger.LogStageFailure(pipelineId, stageName, ex.Message);
-            return Result<T>.Fail($"Stage {stageName} failed: {ex.Message}");
+            return Result<T>.Fail($"Stage {stageName} invalid operation: {ex.Message}");
         }
+        catch (ArgumentException ex)
+        {
+            stopwatch.Stop();
+            results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, ex.Message));
+            _pipelineLogger.LogStageFailure(pipelineId, stageName, ex.Message);
+            return Result<T>.Fail($"Stage {stageName} invalid argument: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            stopwatch.Stop();
+            results.Add(PipelineStageResult.Failure(stageName, stopwatch.Elapsed, ex.Message));
+            _pipelineLogger.LogStageFailure(pipelineId, stageName, ex.Message);
+            return Result<T>.Fail($"Stage {stageName} JSON error: {ex.Message}");
+        }
+        // Let critical exceptions propagate
     }
 
+    /// <summary>
+    /// Creates a failure result for the pipeline.
+    ///
+    /// Note on Result wrapping:
+    /// - Result.Ok = Pipeline EXECUTED successfully (ran to completion, even if narrative generation failed)
+    /// - Result.Fail = Pipeline EXECUTION error (couldn't run due to system error)
+    /// - FullPipelineResult.IsSuccess = Pipeline RESULT (narrative generated successfully or not)
+    ///
+    /// This design preserves pipeline metadata (stages, metrics, retry count) even on narrative failure,
+    /// which is valuable for debugging and analytics. A narrative failure is not a system error.
+    /// </summary>
     private Result<FullPipelineResult> CreateFailureResult(
         Guid pipelineId,
         StoryState storyState,
@@ -637,6 +725,8 @@ public sealed class FullOrchestrationService
 
         var metricsSummary = _metricsCollector.EndPipeline(pipelineId, success: false);
 
+        // Return Result.Ok wrapping a FullPipelineResult.Failure
+        // This preserves all pipeline metadata (stages, metrics) for analysis
         return Result<FullPipelineResult>.Ok(
             FullPipelineResult.Failure(
                 pipelineId,
@@ -705,7 +795,7 @@ public sealed record FullPipelineResult
         Output = output;
         IsSuccess = isSuccess;
         ErrorMessage = errorMessage;
-        StageResults = stageResults.ToList();
+        StageResults = [.. stageResults];
         TotalDuration = totalDuration;
         RetryCount = retryCount;
         Metrics = metrics;

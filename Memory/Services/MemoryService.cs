@@ -375,7 +375,7 @@ public class MemoryService : IMemoryService
             }
 
             // Valider avec le coherence validator
-            var violations = _coherenceValidator.ValidateFacts(allFacts.ToList());
+            var violations = _coherenceValidator.ValidateFacts([.. allFacts]);
 
             _logger.LogInformation(
                 "Coherence validation complete. Found {ViolationCount} violations",

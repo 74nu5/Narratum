@@ -27,7 +27,22 @@ public enum AgentType
     /// <summary>
     /// Agent de cohérence - vérifie la cohérence logique.
     /// </summary>
-    Consistency
+    Consistency,
+
+    /// <summary>
+    /// Agent de choix - propose les suites possibles de l'histoire (sortie structurée).
+    /// </summary>
+    Choice,
+
+    /// <summary>
+    /// Agent de secrets - suit les informations révélées et cachées (sortie structurée).
+    /// </summary>
+    Secret,
+
+    /// <summary>
+    /// Agent de prompt d'image - transforme le texte d'une page en prompt visuel.
+    /// </summary>
+    ImagePrompt
 }
 
 /// <summary>

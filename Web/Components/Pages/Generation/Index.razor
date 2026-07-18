@@ -1,69 +1,236 @@
 @page "/generation/{SlotName}"
 @rendermode InteractiveServer
-@inject GenerationService GenService
+@inject IGenerationService GenService
 @inject NavigationManager Navigation
+@inject ExpertModeService ExpertMode
+@inject ModelCatalogService ModelCatalog
+@inject AzureFoundryState AzureState
+@inject Narratum.Orchestration.Llm.ILlmClient LlmClient
+@using Narratum.Orchestration.Models
+@using Narratum.Llm.Azure
+@implements IDisposable
 
 <PageTitle>Génération - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
     <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
 
-    @* Timeline *@
-    <FluentCard>
-        <FluentLabel Typo="Typography.H4">Timeline</FluentLabel>
-        <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
-            @foreach (var pageIdx in _pageHistory)
-            {
-                <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
-                              @onclick="() => LoadPage(pageIdx)">
-                    Page @pageIdx
-                </FluentButton>
-            }
-        </FluentStack>
-    </FluentCard>
+    <div class="gen-layout">
+        @* LEFT: composer / controls, laid out vertically *@
+        <aside class="gen-sidebar">
+            <FluentCard Class="composer-card">
+                @* Own flex column so the intent field grows to fill the card's height. *@
+                <div class="composer-body">
+                    <FluentLabel Typo="Typography.H4">✍️ Composer la suite</FluentLabel>
 
-    @* Current page content *@
-    <FluentCard Style="min-height: 300px;">
-        @if (_isGenerating)
-        {
-            <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
-                <FluentProgressRing />
-                <FluentLabel>Génération en cours...</FluentLabel>
+                    @if (_subscriptions.Count > 0)
+                    {
+                        <FluentSelect TOption="AzureSubscriptionInfo"
+                                      Items="_subscriptions"
+                                      OptionValue="@(s => s.SubscriptionId)"
+                                      OptionText="@(s => $"☁️ {s.DisplayName}")"
+                                      Value="_currentSubscription"
+                                      ValueChanged="OnSubscriptionChanged"
+                                      Disabled="@(_subscriptions.Count < 2)"
+                                      Label="Souscription Azure"
+                                      Style="width: 100%;" />
+                    }
+
+                    <FluentSelect TOption="ModelOption"
+                                  Items="_models"
+                                  OptionValue="@(m => m.Id)"
+                                  OptionText="@(m => m.Label)"
+                                  @bind-Value="_selectedModel"
+                                  Label="Modèle (local ou cloud)"
+                                  Style="width: 100%;" />
+
+                    <div class="model-inuse">▶ Prochaine page : <strong>@ModelBadge(_selectedModel)</strong></div>
+
+                    @if (_imageModels.Count > 0)
+                    {
+                        <FluentSelect TOption="ModelOption"
+                                      Items="_imageModelOptions"
+                                      OptionValue="@(m => m.Id)"
+                                      OptionText="@(m => m.Label)"
+                                      @bind-Value="_selectedImageModel"
+                                      Label="Image (cloud)"
+                                      Style="width: 100%;" />
+                    }
+
+                    <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?"
+                                  Class="composer-intent"
+                                  Style="width: 100%;"
+                                  Placeholder="Ex: Les personnages découvrent une porte secrète..." />
+
+                    <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage"
+                                Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))"
+                                Style="width: 100%;">
+                        ✨ Générer la suite
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'
+                                Style="width: 100%;">
+                        ← Retour au dashboard
+                    </FluentButton>
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
+                    }
+                </div>
+            </FluentCard>
+        </aside>
+
+        @* RIGHT: timeline, page text and expert traces *@
+        <div class="gen-main">
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+                @* Timeline *@
+                <FluentCard>
+                    <FluentLabel Typo="Typography.H4">Timeline</FluentLabel>
+                    <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
+                        @foreach (var pageIdx in _pageHistory)
+                        {
+                            <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
+                                          @onclick="() => LoadPage(pageIdx)"
+                                          Title="@(string.IsNullOrWhiteSpace(PageModel(pageIdx)) ? "état initial" : ModelBadge(PageModel(pageIdx)))">
+                                @ModelDisplay.Icon(PageModel(pageIdx)) Page @pageIdx
+                            </FluentButton>
+                        }
+                    </FluentStack>
+                </FluentCard>
+
+                @* Current page content *@
+                <FluentCard Style="min-height: 300px;">
+                    @if (_isGenerating)
+                    {
+                        <div class="model-badge model-badge--live">⏳ Génération avec <strong>@ModelBadge(_selectedModel)</strong></div>
+                    }
+                    else if (!string.IsNullOrEmpty(_currentNarrative) && !string.IsNullOrEmpty(_currentPageModel))
+                    {
+                        <div class="model-badge">Généré avec <strong>@ModelBadge(_currentPageModel)</strong></div>
+                    }
+
+                    @if (_isGenerating && string.IsNullOrEmpty(_currentNarrative))
+                    {
+                        @* Waiting for the first token *@
+                        <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
+                            <FluentProgressRing />
+                            <FluentLabel>Génération en cours...</FluentLabel>
+                        </FluentStack>
+                    }
+                    else if (!string.IsNullOrEmpty(_currentNarrative))
+                    {
+                        @if (!string.IsNullOrEmpty(_currentPageImage))
+                        {
+                            <img src="@_currentPageImage" alt="Illustration de la scène" class="page-image" />
+                        }
+                        @* Streams in live; a caret shows while more text is arriving *@
+                        <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
+                    }
+                    else
+                    {
+                        <FluentLabel>Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentLabel>
+                    }
+                </FluentCard>
+
+                @* Revealed secrets: only what the reader is meant to see (hidden ones stay hidden) *@
+                @if (!_isGenerating && _secrets.Any(s => s.IsRevealed))
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">🔑 Secrets révélés</FluentLabel>
+                            <div class="secret-list">
+                                @foreach (var secret in _secrets.Where(s => s.IsRevealed))
+                                {
+                                    <div class="secret-item">
+                                        <span class="secret-cat">[@secret.Category]</span>
+                                        <span class="secret-content">@secret.Content</span>
+                                    </div>
+                                }
+                            </div>
+                        </FluentStack>
+                    </FluentCard>
+                }
+
+                @* Cast: the characters present at this point of the story *@
+                @if (!_isGenerating && _characters.Count > 0)
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">👥 Personnages</FluentLabel>
+                            <div class="character-list">
+                                @foreach (var character in _characters)
+                                {
+                                    <div class="character-item">
+                                        <div class="character-head">
+                                            <span class="character-name">@character.Name</span>
+                                            @if (!string.IsNullOrWhiteSpace(character.Role))
+                                            {
+                                                <span class="character-role">@character.Role</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(character.Description))
+                                        {
+                                            <div class="character-desc">@character.Description</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(character.Evolution))
+                                        {
+                                            <div class="character-evo">↝ @character.Evolution</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </FluentStack>
+                    </FluentCard>
+                }
+
+                @* Next-step choices: pick one to drive the following page *@
+                @if (!_isGenerating && _choices.Count > 0)
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">Que faites-vous ?</FluentLabel>
+                            <div class="choice-list">
+                                @foreach (var choice in _choices)
+                                {
+                                    <button type="button" class="choice-button"
+                                            @onclick="() => ChooseAndContinue(choice)"
+                                            disabled="@_isGenerating">
+                                        <span class="choice-text">@choice.Text</span>
+                                        <span class="choice-desc">@choice.Description</span>
+                                    </button>
+                                }
+                            </div>
+                        </FluentStack>
+                    </FluentCard>
+                }
+
+                @* Expert mode: behind-the-scenes agent traces (hidden from normal readers) *@
+                @if (ExpertMode.IsExpertModeEnabled && _agentTraces.Count > 0)
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">🔧 Coulisses des agents</FluentLabel>
+                            <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
+                                Ce que chaque agent spécialisé a produit pour cette page. Le lecteur ne voit que la prose du Narrateur.
+                            </FluentLabel>
+                            @foreach (var trace in _agentTraces)
+                            {
+                                <details class="agent-trace">
+                                    <summary>
+                                        <span class="agent-name">@trace.Agent</span>
+                                        <span class="agent-role">@trace.Role</span>
+                                        <span class="agent-ms">@trace.DurationMs.ToString("F0") ms</span>
+                                    </summary>
+                                    <div class="agent-output">@trace.Output</div>
+                                </details>
+                            }
+                        </FluentStack>
+                    </FluentCard>
+                }
             </FluentStack>
-        }
-        else if (!string.IsNullOrEmpty(_currentNarrative))
-        {
-            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative</div>
-        }
-        else
-        {
-            <FluentLabel>Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentLabel>
-        }
-    </FluentCard>
-
-    @* Intent input *@
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-            <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="3"
-                          Placeholder="Ex: Les personnages découvrent une porte secrète..." />
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
-                <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage" 
-                            Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">
-                    ✨ Générer la suite
-                </FluentButton>
-                
-                <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> 
-                    ← Retour au dashboard
-                </FluentButton>
-            </FluentStack>
-        </FluentStack>
-    </FluentCard>
-
-    @* Error display *@
-    @if (!string.IsNullOrEmpty(_errorMessage))
-    {
-        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
-    }
+        </div>
+    </div>
 </FluentStack>
 
 @code {
@@ -76,12 +243,44 @@
     private bool _isGenerating = false;
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
+    private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
+    private IReadOnlyDictionary<int, string?> _pageModels = new Dictionary<int, string?>();
+    private IReadOnlyList<StoryChoice> _choices = Array.Empty<StoryChoice>();
+    private IReadOnlyList<CharacterProfile> _characters = Array.Empty<CharacterProfile>();
+    private IReadOnlyList<StorySecret> _secrets = Array.Empty<StorySecret>();
+    private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
+    private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
+    private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
+    private string? _currentPageModel;
+    private IReadOnlyList<ModelOption> _imageModels = Array.Empty<ModelOption>();
+    private string _selectedImageModel = string.Empty; // "" = no image
+    private string? _currentPageImage;
+
+    // Image dropdown = a "no image" sentinel followed by the available image models.
+    private IReadOnlyList<ModelOption> _imageModelOptions => [new ModelOption(string.Empty, "🚫 Sans image"), .. _imageModels];
+    private IReadOnlyList<AzureSubscriptionInfo> _subscriptions = Array.Empty<AzureSubscriptionInfo>();
+    private string? _currentSubscription;
+
+    // Human-readable "provider · model" for a stored model id (local Foundry or azure:*).
+    private string ModelBadge(string? modelId) => ModelDisplay.Badge(modelId, _models);
+
+    private string? PageModel(int pageIndex) => _pageModels.GetValueOrDefault(pageIndex);
 
     protected override async Task OnInitializedAsync()
     {
+        // Re-render when the Expert toggle (in the layout) changes.
+        ExpertMode.OnExpertModeToggled += HandleExpertToggled;
+
         _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
+        _localModels = await ModelCatalog.GetModelsAsync(LlmClient);
+        _subscriptions = await AzureState.GetSubscriptionsAsync();
+        _currentSubscription = AzureState.CurrentSubscriptionId;
+        await RebuildModelListAsync();
+        _imageModels = await AzureState.GetAzureImageModelsAsync();
+        _selectedModel = _models.FirstOrDefault()?.Id ?? _selectedModel;
+
         await LoadPageHistory();
-        
+
         // Load latest page if exists
         if (_pageHistory.Any())
         {
@@ -90,9 +289,72 @@
         }
     }
 
+    // The stored model may be an alias (older story) while the catalogue uses concrete
+    // variant ids — map it to a real option, else keep the first available model.
+    private string ResolveSelectedModel(string stored)
+    {
+        if (_models.Any(m => m.Id == stored)) return stored;
+        var byAlias = _models.FirstOrDefault(m => m.Id.StartsWith(stored, StringComparison.OrdinalIgnoreCase));
+        return byAlias?.Id ?? _models.FirstOrDefault()?.Id ?? stored;
+    }
+
+    // Merge local Foundry models with the current Azure subscription's chat deployments.
+    private async Task RebuildModelListAsync()
+    {
+        var azureModels = await AzureState.GetAzureModelsAsync();
+        _models = [.. _localModels, .. azureModels];
+        _imageModels = await AzureState.GetAzureImageModelsAsync();
+    }
+
+    private async Task LoadImage(int pageIndex)
+    {
+        _currentPageImage = await GenService.GetPageImageAsync(SlotName, pageIndex);
+    }
+
+    private async Task OnSubscriptionChanged(string? subscriptionId)
+    {
+        if (string.IsNullOrEmpty(subscriptionId))
+            return;
+
+        _currentSubscription = subscriptionId;
+        AzureState.SetCurrentSubscription(subscriptionId);
+        await RebuildModelListAsync();
+    }
+
+    private void HandleExpertToggled() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ExpertMode.OnExpertModeToggled -= HandleExpertToggled;
+
+    private async Task LoadTraces(int pageIndex)
+    {
+        _agentTraces = await GenService.GetAgentTraceAsync(SlotName, pageIndex);
+    }
+
+    private async Task LoadChoices(int pageIndex)
+    {
+        _choices = await GenService.GetPageChoicesAsync(SlotName, pageIndex);
+    }
+
+    private async Task LoadCharacters(int pageIndex)
+    {
+        _characters = await GenService.GetPageCharactersAsync(SlotName, pageIndex);
+    }
+
+    private async Task LoadSecrets(int pageIndex)
+    {
+        _secrets = await GenService.GetPageSecretsAsync(SlotName, pageIndex);
+    }
+
+    private async Task ChooseAndContinue(StoryChoice choice)
+    {
+        _userIntent = choice.Text;
+        await GenerateNextPage();
+    }
+
     private async Task LoadPageHistory()
     {
         _pageHistory = await GenService.GetPageHistoryAsync(SlotName);
+        _pageModels = await GenService.GetPageModelsAsync(SlotName);
     }
 
     private async Task LoadPage(int pageIndex)
@@ -101,34 +363,63 @@
         
         var pageResult = await GenService.LoadPageAsync(SlotName, pageIndex);
         pageResult.Match(
-            onSuccess: page => _currentNarrative = page.NarrativeText,
+            onSuccess: page =>
+            {
+                _currentNarrative = page.NarrativeText;
+                _currentPageModel = page.ModelUsed;
+                // Default the model selector to the model this page was generated with.
+                if (!string.IsNullOrWhiteSpace(page.ModelUsed) && page.ModelUsed != "N/A")
+                    _selectedModel = ResolveSelectedModel(page.ModelUsed);
+                return string.Empty;
+            },
             onFailure: error => _errorMessage = error);
+
+        await LoadTraces(pageIndex);
+        await LoadChoices(pageIndex);
+        await LoadCharacters(pageIndex);
+        await LoadSecrets(pageIndex);
+        await LoadImage(pageIndex);
     }
 
     private async Task GenerateNextPage()
     {
         _isGenerating = true;
         _errorMessage = string.Empty;
+        _currentNarrative = string.Empty;
+        _choices = Array.Empty<StoryChoice>();          // hide stale choices while the next page streams
+        _characters = Array.Empty<CharacterProfile>();  // and the previous roster
+        _secrets = Array.Empty<StorySecret>();          // and the previous secrets
+        _currentPageImage = null;                       // and the previous image
+        var intent = _userIntent;
 
         try
         {
-            var result = await GenService.GenerateNextPageAsync(SlotName, _userIntent);
-            
-            result.Match<int>(
-                onSuccess: pageInfo =>
+            // Throttle re-renders so a fast token stream doesn't flood the circuit.
+            var lastRender = DateTime.UtcNow;
+            var imageModel = string.IsNullOrEmpty(_selectedImageModel) ? null : _selectedImageModel;
+            await foreach (var chunk in GenService.GenerateNextPageStreamingAsync(SlotName, intent, _selectedModel, imageModel))
+            {
+                _currentNarrative += chunk;
+
+                var now = DateTime.UtcNow;
+                if ((now - lastRender).TotalMilliseconds >= 60)
                 {
-                    _currentNarrative = pageInfo.NarrativeText;
-                    _currentPageIndex = pageInfo.PageIndex;
-                    _userIntent = string.Empty; // Clear input
-                    return 0;
-                },
-                onFailure: error =>
-                {
-                    _errorMessage = error;
-                    return -1;
-                });
-            
-            await LoadPageHistory(); // Refresh timeline
+                    lastRender = now;
+                    StateHasChanged();
+                }
+            }
+
+            // Generation + save completed successfully.
+            _currentPageModel = _selectedModel; // the page just generated used this model
+            _userIntent = string.Empty; // Clear input
+            await LoadPageHistory();    // Refresh timeline
+            if (_pageHistory.Any())
+                _currentPageIndex = _pageHistory.Max();
+            await LoadTraces(_currentPageIndex);     // Expert data for the new page
+            await LoadChoices(_currentPageIndex);    // Next-step choices for the new page
+            await LoadCharacters(_currentPageIndex); // Character roster for the new page
+            await LoadSecrets(_currentPageIndex);    // Revealed/hidden secrets for the new page
+            await LoadImage(_currentPageIndex);      // Generated image for the new page
         }
         catch (Exception ex)
         {

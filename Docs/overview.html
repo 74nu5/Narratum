@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Narratum — Dossier technique</title>
+</head>
+<body>
+<style>
+  :root {
+    --paper: #f5f5f8;
+    --surface: #ffffff;
+    --surface-2: #fbfbfd;
+    --ink: #1b1b26;
+    --ink-soft: #43434f;
+    --muted: #70707f;
+    --line: #e6e6ee;
+    --line-strong: #d5d5e0;
+    --accent: #5b52e0;
+    --accent-ink: #453cc4;
+    --accent-soft: #ecebfb;
+    --done: #0f7a56;
+    --done-soft: #e2f3ec;
+    --wip: #9a6a12;
+    --wip-soft: #f6edda;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+    --maxw: 62rem;
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131318;
+      --surface: #1b1b23;
+      --surface-2: #20202a;
+      --ink: #eceaf4;
+      --ink-soft: #bcbaca;
+      --muted: #8a8a9b;
+      --line: #2a2a36;
+      --line-strong: #363644;
+      --accent: #9a92ff;
+      --accent-ink: #b3adff;
+      --accent-soft: #241f4a;
+      --done: #3ddba0;
+      --done-soft: #143026;
+      --wip: #e4bd5e;
+      --wip-soft: #33280f;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #f5f5f8; --surface: #ffffff; --surface-2: #fbfbfd;
+    --ink: #1b1b26; --ink-soft: #43434f; --muted: #70707f;
+    --line: #e6e6ee; --line-strong: #d5d5e0;
+    --accent: #5b52e0; --accent-ink: #453cc4; --accent-soft: #ecebfb;
+    --done: #0f7a56; --done-soft: #e2f3ec; --wip: #9a6a12; --wip-soft: #f6edda;
+  }
+  :root[data-theme="dark"] {
+    --paper: #131318; --surface: #1b1b23; --surface-2: #20202a;
+    --ink: #eceaf4; --ink-soft: #bcbaca; --muted: #8a8a9b;
+    --line: #2a2a36; --line-strong: #363644;
+    --accent: #9a92ff; --accent-ink: #b3adff; --accent-soft: #241f4a;
+    --done: #3ddba0; --done-soft: #143026; --wip: #e4bd5e; --wip-soft: #33280f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ---------- Masthead ---------- */
+  .masthead { padding: 4.5rem 0 2.5rem; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2.6rem, 6vw, 4rem);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .dek {
+    font-family: var(--serif);
+    font-size: clamp(1.1rem, 2.4vw, 1.4rem);
+    font-style: italic;
+    color: var(--ink-soft);
+    max-width: 40ch;
+    margin: 1rem 0 1.75rem;
+    text-wrap: balance;
+  }
+  .stack-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 100px;
+    padding: 0.28rem 0.7rem;
+  }
+
+  /* ---------- Sections ---------- */
+  section { padding: 3.25rem 0; border-bottom: 1px solid var(--line); }
+  .sec-head { display: flex; align-items: baseline; gap: 0.9rem; margin: 0 0 1.5rem; }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent-ink);
+    padding-top: 0.35rem;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.4vw, 2rem);
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  p { margin: 0 0 1rem; max-width: 65ch; color: var(--ink-soft); }
+  p strong { color: var(--ink); font-weight: 600; }
+  .lead { font-size: 1.06rem; color: var(--ink); }
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    padding: 0.08em 0.38em;
+    border-radius: 5px;
+  }
+
+  /* ---------- Thesis blockquote ---------- */
+  blockquote {
+    margin: 1.75rem 0 0.5rem;
+    padding: 1.25rem 1.5rem;
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: var(--ink);
+    max-width: 46ch;
+  }
+  blockquote .who { display: block; font-family: var(--mono); font-style: normal; font-size: 0.72rem; letter-spacing: 0.08em; color: var(--muted); margin-top: 0.75rem; text-transform: uppercase; }
+
+  /* ---------- Layer diagram ---------- */
+  .layers { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.5rem 0 1rem; }
+  .layer {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 1rem;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+  }
+  .layer--core { border-color: var(--accent); background: var(--accent-soft); }
+  .layer-label { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .layer--core .layer-label { color: var(--accent-ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    padding: 0.3rem 0.6rem;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .chip .n { color: var(--muted); font-size: 0.72em; margin-left: 0.4em; font-variant-numeric: tabular-nums; }
+  .chip--muted { opacity: 0.6; border-style: dashed; }
+  .layer--core .chip { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); }
+  .flow-note {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-family: var(--mono); font-size: 0.74rem; color: var(--muted);
+    margin: 0.75rem 0 0;
+  }
+  .flow-note .arr { color: var(--accent); font-size: 1.1rem; }
+
+  /* ---------- Pipeline ---------- */
+  .pipe { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; margin: 0.5rem 0 0; }
+  .pstep {
+    flex: 1 1 8rem;
+    min-width: 8rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.8rem 0.9rem;
+    position: relative;
+  }
+  .pstep .k { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-ink); }
+  .pstep .v { display: block; margin-top: 0.25rem; font-size: 0.92rem; color: var(--ink); }
+  .pstep small { color: var(--muted); font-size: 0.78rem; }
+
+  /* ---------- Phase timeline ---------- */
+  .phases { display: flex; flex-direction: column; gap: 0; margin-top: 0.5rem; }
+  .phase {
+    display: grid;
+    grid-template-columns: 3rem 1fr;
+    gap: 1.1rem;
+    padding: 1.15rem 0;
+    border-top: 1px solid var(--line);
+  }
+  .phase:first-child { border-top: none; }
+  .phase-n {
+    font-family: var(--serif);
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase h3 { margin: 0 0 0.3rem; font-size: 1.08rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .phase p { margin: 0; font-size: 0.95rem; }
+  .pill {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .pill--done { color: var(--done); background: var(--done-soft); }
+  .pill--wip { color: var(--wip); background: var(--wip-soft); }
+
+  /* ---------- Module table ---------- */
+  .tbl-wrap { overflow-x: auto; margin-top: 0.5rem; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 34rem; }
+  th, td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--line); }
+  thead th { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mod { font-family: var(--mono); color: var(--accent-ink); white-space: nowrap; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  td.role { color: var(--ink-soft); }
+
+  /* ---------- Metrics ---------- */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.75rem; margin: 0.5rem 0 1.25rem; }
+  .metric { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+  .metric .big { font-family: var(--serif); font-size: 1.9rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .metric .lbl { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+  .metric .lbl.ok { color: var(--done); }
+
+  /* ---------- Evolution cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.9rem; margin-top: 0.5rem; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.15rem 1.2rem; }
+  .card h3 { margin: 0 0 0.75rem; font-size: 0.82rem; font-family: var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-ink); }
+  .card ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .card li { font-size: 0.9rem; color: var(--ink-soft); padding-left: 1.1rem; position: relative; line-height: 1.45; }
+  .card li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+  .card li b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Caveats ---------- */
+  .notes { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.5rem; }
+  .note { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.6rem; font-size: 0.9rem; color: var(--ink-soft); }
+  .note .m { color: var(--wip); }
+
+  footer { padding: 2.5rem 0 4rem; }
+  footer p { font-size: 0.82rem; color: var(--muted); font-family: var(--mono); max-width: none; }
+
+  a { color: var(--accent-ink); text-underline-offset: 2px; }
+  a:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .layer { grid-template-columns: 1fr; gap: 0.5rem; }
+    .phase { grid-template-columns: 2.2rem 1fr; gap: 0.8rem; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip, .pstep, .card { transition: border-color 120ms ease, transform 120ms ease; }
+    .card:hover { border-color: var(--line-strong); }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Dossier technique · reprise de projet</p>
+    <h1>Narratum</h1>
+    <p class="dek">Un moteur narratif déterministe qui garde la cohérence d'une histoire — le LLM n'écrit que la prose.</p>
+    <div class="stack-tags">
+      <span class="tag">.NET 10 / C#</span>
+      <span class="tag">Architecture hexagonale</span>
+      <span class="tag">Blazor Server + FluentUI</span>
+      <span class="tag">EF Core · SQLite</span>
+      <span class="tag">Foundry Local (LLM privé)</span>
+      <span class="tag">15 projets</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>La thèse</h2></div>
+    <p class="lead">Narratum n'est pas un wrapper autour d'un LLM. C'est <strong>un moteur d'histoire</strong> : les événements, l'état, la mémoire et l'orchestration garantissent la cohérence narrative de façon déterministe. Le modèle de langage est relégué à ce qu'il fait de mieux — <strong>tourner la phrase</strong> — et le système fonctionnerait encore, en version mockée, même avec un LLM « stupide ».</p>
+    <p>Conséquence directe sur le design : tout a été bâti par <strong>phases strictes, sans IA d'abord</strong>. Le moteur devait être « béton » avant qu'une seule ligne ne soit générée. C'est ce qui explique le découpage en couches ci-dessous, et pourquoi la persistance, la mémoire et les règles existent avant même la couche LLM.</p>
+    <blockquote>
+      Aucun LLM ne doit écrire une ligne tant que le moteur narratif n'est pas béton. Nous construisons un moteur, pas une démo.
+      <span class="who">Principe directeur — ROADMAP.md</span>
+    </blockquote>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>Architecture en couches</h2></div>
+    <p>Découpage hexagonal (onion) : chaque projet ne dépend que des couches en dessous, et le noyau ne connaît personne. Les <em>ports</em> (interfaces) sont définis dans les couches internes ; les <em>adaptateurs</em> (SQLite, Foundry Local) vivent à la périphérie.</p>
+
+    <div class="layers">
+      <div class="layer">
+        <span class="layer-label">Interface</span>
+        <div class="chips"><span class="chip">Web <span class="n">774</span></span></div>
+      </div>
+      <div class="layer">
+        <span class="layer-label">Adaptateurs / Infra</span>
+        <div class="chips">
+          <span class="chip">Persistence <span class="n">1 422</span></span>
+          <span class="chip">Llm <span class="n">843</span></span>
+        </div>
+      </div>
+      <div class="layer">
+        <span class="layer-label">Orchestration IA</span>
+        <div class="chips"><span class="chip">Orchestration <span class="n">9 980</span></span></div>
+      </div>
+      <div class="layer">
+        <span class="layer-label">Moteur (sans IA)</span>
+        <div class="chips">
+          <span class="chip">Memory <span class="n">2 980</span></span>
+          <span class="chip">Simulation <span class="n">1 025</span></span>
+          <span class="chip chip--muted">Rules <span class="n">scaffold</span></span>
+        </div>
+      </div>
+      <div class="layer">
+        <span class="layer-label">Modèle du domaine</span>
+        <div class="chips">
+          <span class="chip">Domain <span class="n">598</span></span>
+          <span class="chip">State <span class="n">434</span></span>
+        </div>
+      </div>
+      <div class="layer layer--core">
+        <span class="layer-label">Noyau</span>
+        <div class="chips"><span class="chip">Core <span class="n">156</span></span></div>
+      </div>
+    </div>
+    <p class="flow-note"><span class="arr">↓</span> les dépendances pointent vers le bas · <span style="color:var(--ink-soft)">chiffres = lignes de C#</span></p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Module</th><th>Rôle</th><th>Lignes</th></tr></thead>
+        <tbody>
+          <tr><td class="mod">Core</td><td class="role"><code>Result&lt;T&gt;</code>, <code>Id</code>, ports (dont <code>IStoryRepository</code>)</td><td class="num">156</td></tr>
+          <tr><td class="mod">Domain</td><td class="role">Hiérarchie d'événements immuables (le fait canonique)</td><td class="num">598</td></tr>
+          <tr><td class="mod">State</td><td class="role">État immuable : <code>StoryState</code>, <code>CharacterState</code>, snapshots</td><td class="num">434</td></tr>
+          <tr><td class="mod">Simulation</td><td class="role">Monde caché : événements hors-scène</td><td class="num">1 025</td></tr>
+          <tr><td class="mod">Memory</td><td class="role">Mémoire hiérarchique (Événement → Chapitre → Arc → Monde)</td><td class="num">2 980</td></tr>
+          <tr><td class="mod">Orchestration</td><td class="role">Pipeline multi-agents, prompts, validation, métriques</td><td class="num">9 980</td></tr>
+          <tr><td class="mod">Llm</td><td class="role">Adaptateur <code>IChatClient</code> → Foundry Local, streaming, lazy-init</td><td class="num">843</td></tr>
+          <tr><td class="mod">Persistence</td><td class="role">EF Core + SQLite, repository, snapshots, factory par-opération</td><td class="num">1 422</td></tr>
+          <tr><td class="mod">Web</td><td class="role">Blazor Server + FluentUI : wizard, dashboard, génération</td><td class="num">774</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>Le pipeline de génération</h2></div>
+    <p>Ce qui se passe quand on demande la page suivante d'une histoire. Le chemin <strong>streaming</strong> (nouveau) appelle directement l'agent Narrateur pour afficher le texte en direct, puis persiste la page complète.</p>
+    <div class="pipe">
+      <div class="pstep"><span class="k">1 · État</span><span class="v">Charge le dernier <code>StoryState</code></span><small>event-sourcing + snapshot JSON</small></div>
+      <div class="pstep"><span class="k">2 · Contexte</span><span class="v">Personnages, faits, événements récents</span><small>compression au-delà de 100 events</small></div>
+      <div class="pstep"><span class="k">3 · Prompt</span><span class="v">Prompt Narrateur enrichi</span><small>genre, ton, continuité</small></div>
+      <div class="pstep"><span class="k">4 · LLM</span><span class="v">Foundry Local · streaming</span><small>température par agent</small></div>
+      <div class="pstep"><span class="k">5 · Validation</span><span class="v">Structure &amp; cohérence</span><small>retry si échec (chemin batch)</small></div>
+      <div class="pstep"><span class="k">6 · Sauvegarde</span><span class="v">Nouvelle page + snapshot</span><small>contexte EF frais par opération</small></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>Fonctionnalités, par phase</h2></div>
+    <p>Les six phases suivent l'approche « anti-bidouille » : chacune ne démarre qu'une fois la précédente solide. Toutes sont aujourd'hui complètes.</p>
+    <div class="phases">
+      <div class="phase">
+        <div class="phase-n">1</div>
+        <div>
+          <h3>Fondations — sans IA <span class="pill pill--done">Complète</span></h3>
+          <p>Moteur testable sans LLM : entités, état immuable, event-sourcing, persistance SQLite déterministe, démo CLI (Playground).</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-n">2</div>
+        <div>
+          <h3>Mémoire hiérarchique <span class="pill pill--done">Complète</span></h3>
+          <p>Quatre niveaux (Événement → Chapitre → Arc → Monde), extraction de faits, état canonique et validation de cohérence.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-n">3</div>
+        <div>
+          <h3>Orchestration multi-agents <span class="pill pill--done">Complète</span></h3>
+          <p>Pipeline (Contexte → Prompt → Agents → Validation → Intégration), 4 agents spécialisés (Narrateur, Personnage, Résumé, Cohérence), retry, logging &amp; métriques.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-n">4</div>
+        <div>
+          <h3>Intégration LLM <span class="pill pill--done">Complète</span></h3>
+          <p>Foundry Local 100 % local &amp; privé via <code>IChatClient</code>, initialisation paresseuse, retry avec backoff, routage de modèle par agent.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-n">5</div>
+        <div>
+          <h3>Narration contrôlée <span class="pill pill--done">Complète</span></h3>
+          <p>Prompts optimisés, cache de résumés, compression de contexte, température par agent — et désormais <strong>streaming token-par-token</strong> à l'écran.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-n">6</div>
+        <div>
+          <h3>Interface web <span class="pill pill--done">Complète</span></h3>
+          <p>Blazor Server + FluentUI : wizard de création, dashboard, lecteur, génération, plus timeline, éditeur et visualisations.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>État actuel</h2></div>
+    <p>Après la remise à niveau récente (correctifs de compilation, bugs runtime EF/DI, contexte par-opération, streaming), la solution est verte.</p>
+    <div class="metrics">
+      <div class="metric"><div class="big">0 / 0</div><div class="lbl ok">Erreurs / warnings</div></div>
+      <div class="metric"><div class="big">551</div><div class="lbl">Tests orchestration</div></div>
+      <div class="metric"><div class="big">171</div><div class="lbl">Tests mémoire</div></div>
+      <div class="metric"><div class="big">154</div><div class="lbl">Tests fondations</div></div>
+      <div class="metric"><div class="big">20</div><div class="lbl">Tests web + E2E</div></div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="m">▲</span><span>Le <b>streaming réel</b> nécessite un modèle Foundry Local en cours d'exécution — validé par tests unitaires + rendu, pas encore par un défilement live en environnement CI.</span></div>
+      <div class="note"><span class="m">▲</span><span>Le pipeline Web n'active pour l'instant que l'agent <b>Narrateur</b> ; validation de cohérence et mémoire ne sont pas injectées côté Web.</span></div>
+      <div class="note"><span class="m">▲</span><span><code>Web/narratum.db</code> (base de démo) est versionnée dans git — pratique mais fragile ; un seed reproductible serait plus sain.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>Évolutions possibles</h2></div>
+    <p>Aucune n'est bloquante — ce sont des pistes ordonnées par rapport qualité/effort, ancrées dans l'état réel du code.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>Profondeur narrative</h3>
+        <ul>
+          <li><b>Activer le multi-agents</b> côté Web : brancher Personnage, Résumé et Cohérence (déjà écrits) dans la génération.</li>
+          <li><b>Câbler la mémoire</b> (<code>IMemoryService</code>) et la validation de cohérence dans le service Web.</li>
+          <li><b>Concrétiser <code>Rules</code></b> : le projet est un scaffold ; y porter un vrai moteur de règles narratives.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>LLM &amp; qualité</h3>
+        <ul>
+          <li><b>Streaming dans le pipeline complet</b> : aujourd'hui le chemin streaming contourne la validation.</li>
+          <li><b>Multi-provider</b> : l'adaptateur <code>IChatClient</code> ouvre déjà la porte à Ollama / OpenAI en plus de Foundry.</li>
+          <li><b>Score de qualité narrative</b> et A/B de prompts pour exploiter la compression de contexte déjà en place.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Expérience &amp; UX</h3>
+        <ul>
+          <li><b>Connecter timeline / éditeur / visualisations</b> (composants Phase 6) aux vraies données.</li>
+          <li><b>Édition inline</b> et régénération de passages, avec le streaming en direct.</li>
+          <li><b>Export</b> d'histoires (Markdown, ePub/PDF).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Robustesse &amp; ops</h3>
+        <ul>
+          <li><b>Migrations EF</b> à la place de <code>EnsureCreated</code>, + sortir la base de démo du versionning.</li>
+          <li><b>Llm.Tests cross-platform</b> (épinglé <code>win-x64</code>) et E2E Playwright en CI.</li>
+          <li><b>Observabilité</b> : exposer les métriques de pipeline déjà collectées.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Narratum — générateur d'histoires déterministe · dossier généré à la reprise du projet, ancré sur l'état réel du dépôt.</p>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -55,8 +55,8 @@ public sealed record RetryContext(
 
     public static RetryContext FromValidationResult(ValidationResult result, TimeSpan elapsed)
         => new(
-            result.ErrorMessages.ToList(),
-            result.Warnings.Select(w => w.Message).ToList(),
+            [.. result.ErrorMessages],
+            [.. result.Warnings.Select(w => w.Message)],
             elapsed,
             new Dictionary<string, object>(result.Metadata));
 

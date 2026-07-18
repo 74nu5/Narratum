@@ -1,4 +1,7 @@
 using System.ClientModel;
+using System.ClientModel.Primitives;
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,44 +22,62 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
     private ILlmLifecycleManager? _lifecycleManager;
-    private IDisposable? _chatClientDisposable;
+    private IChatClient? _chatClient;
+    private TokenCredential? _azureCredential;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
 
     public LlmClientConfig Config { get; }
 
     public LlmClientFactory(
         LlmClientConfig config,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        TokenCredential? azureCredential = null)
     {
         Config = config ?? throw new ArgumentNullException(nameof(config));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        _azureCredential = azureCredential;
     }
 
     public async Task<ILlmClient> CreateClientAsync(CancellationToken cancellationToken = default)
     {
-        IChatClient chatClient;
-
-        switch (Config.Provider)
-        {
-            case LlmProviderType.FoundryLocal:
-                chatClient = await CreateFoundryLocalClientAsync(cancellationToken);
-                break;
-
-            case LlmProviderType.Ollama:
-                chatClient = CreateOllamaClient();
-                break;
-
-            default:
-                throw new InvalidOperationException($"Unknown provider: {Config.Provider}");
-        }
-
-        // Disposer l'ancien client avant réassignation
-        _chatClientDisposable?.Dispose();
-        _chatClientDisposable = chatClient as IDisposable;
+        // The chat client and the Foundry lifecycle manager both wrap a single, process-wide
+        // local service (FoundryLocalManager is created at most once per process), so they are
+        // created once and shared. Each caller gets its own thin adapter — cheap, and safe for a
+        // scoped consumer (LazyLlmClient) to dispose without touching the shared resources.
+        var chatClient = await GetOrCreateChatClientAsync(cancellationToken);
 
         return new ChatClientLlmAdapter(
             chatClient,
             Config,
-            _loggerFactory.CreateLogger<ChatClientLlmAdapter>());
+            _loggerFactory.CreateLogger<ChatClientLlmAdapter>(),
+            _lifecycleManager);
+    }
+
+    private async Task<IChatClient> GetOrCreateChatClientAsync(CancellationToken cancellationToken)
+    {
+        if (_chatClient is not null)
+            return _chatClient;
+
+        await _initLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_chatClient is not null)
+                return _chatClient;
+
+            _chatClient = Config.Provider switch
+            {
+                LlmProviderType.FoundryLocal => await CreateFoundryLocalClientAsync(cancellationToken),
+                LlmProviderType.Ollama => CreateOllamaClient(),
+                LlmProviderType.AzureFoundry => CreateAzureFoundryClient(),
+                _ => throw new InvalidOperationException($"Unknown provider: {Config.Provider}")
+            };
+
+            return _chatClient;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task<IChatClient> CreateFoundryLocalClientAsync(CancellationToken cancellationToken)
@@ -66,13 +87,23 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
             _loggerFactory.CreateLogger<FoundryLocalLifecycleManager>());
 
         var baseUrl = await _lifecycleManager.GetBaseUrlAsync(cancellationToken);
-        await _lifecycleManager.EnsureModelAvailableAsync(
-            Config.FoundryLocal.ModelAlias, cancellationToken);
 
-        // OpenAI SDK pointe vers le endpoint local Foundry
+        // No startup model load: the adapter loads whichever model each request needs,
+        // on demand. This avoids always loading the default model even when the user
+        // picks a different one.
+
+        // OpenAI SDK pointe vers le endpoint local Foundry.
+        // Le NetworkTimeout par défaut (100 s) est trop court pour de la génération locale
+        // avec un gros modèle ; on l'aligne sur la config. Sur localhost, insister avec des
+        // retries sur un timeout ne sert à rien — on les réduit.
         var openAiClient = new OpenAIClient(
             new ApiKeyCredential("notneeded"),
-            new OpenAIClientOptions { Endpoint = new Uri(baseUrl) });
+            new OpenAIClientOptions
+            {
+                Endpoint = new Uri(baseUrl),
+                NetworkTimeout = TimeSpan.FromSeconds(Config.TimeoutSeconds),
+                RetryPolicy = new ClientRetryPolicy(maxRetries: 1)
+            });
 
         return openAiClient
             .GetChatClient(Config.DefaultModel)
@@ -85,13 +116,49 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
         return new OllamaApiClient(new Uri(baseUrl), Config.DefaultModel);
     }
 
+    /// <summary>
+    /// Azure AI Foundry (cloud) via the OpenAI-compatible <c>/openai/v1</c> endpoint, authenticated
+    /// with Entra ID (bearer token, no key). Integrates like any other OpenAI chat client.
+    /// </summary>
+    private IChatClient CreateAzureFoundryClient()
+    {
+        var endpoint = Config.AzureFoundry.Endpoint;
+        if (string.IsNullOrWhiteSpace(endpoint))
+            throw new InvalidOperationException(
+                "AzureFoundry.Endpoint is required for the AzureFoundry provider.");
+
+        var v1Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/");
+
+        // On machines with the Azure Arc agent, ManagedIdentity fails hard, so exclude it —
+        // DefaultAzureCredential then falls through to the developer's az login session.
+        _azureCredential ??= new DefaultAzureCredential(
+            new DefaultAzureCredentialOptions { ExcludeManagedIdentityCredential = true });
+
+#pragma warning disable OPENAI001 // BearerTokenPolicy auth on OpenAIClient is an evaluation API.
+        var tokenPolicy = new BearerTokenPolicy(_azureCredential, Config.AzureFoundry.Scope);
+        var openAiClient = new OpenAIClient(
+            authenticationPolicy: tokenPolicy,
+            options: new OpenAIClientOptions
+            {
+                Endpoint = v1Endpoint,
+                NetworkTimeout = TimeSpan.FromSeconds(Config.TimeoutSeconds)
+            });
+#pragma warning restore OPENAI001
+
+        return openAiClient
+            .GetChatClient(Config.DefaultModel)
+            .AsIChatClient();
+    }
+
     public async ValueTask DisposeAsync()
     {
-        _chatClientDisposable?.Dispose();
+        (_chatClient as IDisposable)?.Dispose();
 
         if (_lifecycleManager is not null)
         {
             await _lifecycleManager.DisposeAsync();
         }
+
+        _initLock.Dispose();
     }
 }

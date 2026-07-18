@@ -57,6 +57,31 @@ public record PageSnapshotEntity
     public string? SerializedPipelineResult { get; init; }
 
     /// <summary>
+    /// Choix de suite proposés pour cette page (JSON), présentés au joueur.
+    /// </summary>
+    public string? SerializedChoices { get; init; }
+
+    /// <summary>
+    /// Casting structuré (JSON) à ce point de l'histoire : fiches des personnages présents.
+    /// </summary>
+    public string? SerializedCharacters { get; init; }
+
+    /// <summary>
+    /// Secrets (JSON) produits à cette page : informations révélées et cachées.
+    /// </summary>
+    public string? SerializedSecrets { get; init; }
+
+    /// <summary>
+    /// Chemin (URL relative) de l'image générée pour cette page, ou null si aucune.
+    /// </summary>
+    public string? ImagePath { get; init; }
+
+    /// <summary>
+    /// Prompt visuel utilisé pour générer l'image (référence / info-bulle).
+    /// </summary>
+    public string? ImagePrompt { get; init; }
+
+    /// <summary>
     /// Prompts envoyés aux agents (mode expert).
     /// </summary>
     public string? PromptsSent { get; init; }

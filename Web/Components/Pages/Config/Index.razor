@@ -1,6 +1,7 @@
 @page "/config"
 @rendermode InteractiveServer
 @inject ModelSelectionService ModelService
+@inject ModelCatalogService ModelCatalog
 @inject Narratum.Orchestration.Llm.ILlmClient LlmClient
 @inject NavigationManager Navigation
 
@@ -15,11 +16,17 @@
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
             <FluentLabel Typo="Typography.H4">Modèle de narration</FluentLabel>
-            <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle" Style="max-width: 400px;">
-                <FluentOption Value="phi-4-mini">Phi-4-mini (Rapide, recommandé)</FluentOption>
-                <FluentOption Value="phi-4">Phi-4 (Plus précis)</FluentOption>
-                <FluentOption Value="custom">Modèle personnalisé...</FluentOption>
-            </FluentSelect>
+            <FluentLabel Typo="Typography.Body" Style="opacity:0.7;">
+                Modèle par défaut de session. Chaque histoire choisit son modèle à la création,
+                et chaque page peut le changer depuis l'écran de génération.
+            </FluentLabel>
+            <FluentSelect TOption="ModelOption"
+                          Items="_selectableModels"
+                          OptionValue="@(m => m.Id)"
+                          OptionText="@(m => m.Label)"
+                          @bind-Value="_selectedModel"
+                          Label="Modèle"
+                          Style="width: 100%; max-width: 480px;" />
             
             @if (_selectedModel == "custom")
             {
@@ -75,10 +82,20 @@
     private bool _testing = false;
     private string? _testResult;
     private bool _testSuccess;
+    private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
+    // The catalogue plus a trailing "custom" sentinel that reveals the free-text field.
+    private IReadOnlyList<ModelOption> _selectableModels = ModelSelectionService.AvailableModels;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _selectedModel = ModelService.CurrentNarratorModel ?? "phi-4-mini";
+        _models = await ModelCatalog.GetModelsAsync(LlmClient);
+        _selectableModels = _models.Append(new ModelOption("custom", "Modèle personnalisé…")).ToList();
+
+        var current = ModelService.CurrentNarratorModel;
+        // Keep the saved model selected if it's a known option; otherwise default to the first.
+        _selectedModel = !string.IsNullOrWhiteSpace(current) && _models.Any(m => m.Id == current)
+            ? current
+            : _models.FirstOrDefault()?.Id ?? "phi-4-mini";
     }
 
     private void SaveConfig()

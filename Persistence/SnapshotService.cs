@@ -88,14 +88,14 @@ public class SnapshotService : ISnapshotService
         {
             // Désérialiser les données
             var characterStates = DeserializeCharacterStates(snapshot.CharacterStatesData);
-            var events = DeserializeEvents(snapshot.EventsData);
             var worldState = DeserializeWorldState(snapshot.WorldStateData);
 
-            // Créer le StoryState restauré
-            // Pour Phase 1.5, création simple - Phase 2+ gérera les chapitres
-            var restoredState = new StoryState(
-                worldState: worldState
-            );
+            // Créer le StoryState restauré en réattachant les personnages.
+            // (Les événements ne sont pas restaurés : la sérialisation actuelle ne conserve
+            //  qu'id/type/timestamp — voir DeserializeEvents. Le texte narratif des pages sert
+            //  de source de vérité pour le contenu de l'histoire.)
+            var restoredState = new StoryState(worldState)
+                .WithCharacters([.. characterStates.Values]);
 
             return Result<StoryState>.Ok(restoredState);
         }
@@ -191,6 +191,7 @@ public class SnapshotService : ISnapshotService
         var worldData = new
         {
             worldId = state.WorldState.WorldId.Value,
+            worldName = state.WorldState.WorldName,
             narrativeTime = state.WorldState.NarrativeTime.Ticks,
             totalEventCount = state.EventHistory.Count,
             currentChapterId = state.CurrentChapter?.Id.Value
@@ -299,7 +300,7 @@ public class SnapshotService : ISnapshotService
         if (string.IsNullOrWhiteSpace(data))
         {
             // Fallback : créer un WorldState minimal
-            var world = new StoryWorld(name: "Restored World");
+            var world = new StoryWorld(name: "Monde");
             return new WorldState(worldId: world.Id, worldName: world.Name);
         }
 
@@ -310,23 +311,31 @@ public class SnapshotService : ISnapshotService
 
             var worldIdGuid = Guid.Parse(root.GetProperty("worldId").GetString()!);
             var worldId = new Id(worldIdGuid);
-            
+
+            // Nom du monde : lu depuis le snapshot. Fallback neutre pour les anciens
+            // snapshots créés avant que le nom ne soit sérialisé.
+            var worldName = "Monde";
+            if (root.TryGetProperty("worldName", out var nameElement) &&
+                nameElement.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(nameElement.GetString()))
+            {
+                worldName = nameElement.GetString()!;
+            }
+
             var narrativeTimeTicks = root.GetProperty("narrativeTime").GetInt64();
             var narrativeTime = new DateTime(narrativeTimeTicks);
-            
+
             var totalEventCount = root.GetProperty("totalEventCount").GetInt32();
-            
+
             Id? currentChapterId = null;
-            if (root.TryGetProperty("currentChapterId", out var chapterElement) && 
+            if (root.TryGetProperty("currentChapterId", out var chapterElement) &&
                 chapterElement.ValueKind == JsonValueKind.String)
             {
                 var chapterGuid = Guid.Parse(chapterElement.GetString()!);
                 currentChapterId = new Id(chapterGuid);
             }
 
-            // Créer le WorldState avec les données désérialisées
-            // Note: WorldName n'est pas sérialisé dans SerializeWorldState actuel
-            var worldState = new WorldState(worldId, "Restored World", narrativeTime)
+            var worldState = new WorldState(worldId, worldName, narrativeTime)
             {
                 TotalEventCount = totalEventCount,
                 CurrentChapterId = currentChapterId
@@ -337,7 +346,7 @@ public class SnapshotService : ISnapshotService
         catch
         {
             // En cas d'erreur, retourner un WorldState minimal
-            var world = new StoryWorld(name: "Restored World");
+            var world = new StoryWorld(name: "Monde");
             return new WorldState(worldId: world.Id, worldName: world.Name);
         }
     }

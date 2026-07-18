@@ -6,4 +6,8 @@
     <Description>Core abstractions and interfaces for Narratum engine</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.302" />
+  </ItemGroup>
+
 </Project>

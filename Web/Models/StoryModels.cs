@@ -9,7 +9,8 @@ public record StoryCreationRequest(
     List<(string Name, string? Description)> Characters,
     string? WorldDescription = null,
     string? NarrativeStyle = null,
-    List<(string Name, string? Description)>? Locations = null);
+    List<(string Name, string? Description)>? Locations = null,
+    string? Model = null);
 
 /// <summary>
 /// Métadonnées d'une histoire pour la liste/bibliothèque.

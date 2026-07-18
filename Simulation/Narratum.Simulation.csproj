@@ -13,4 +13,8 @@
     <ProjectReference Include="..\Rules\Narratum.Rules.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.302" />
+  </ItemGroup>
+
 </Project>

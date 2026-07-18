@@ -133,7 +133,7 @@ public class AgentExecutorTests
 
         // Assert
         var output = ((Result<RawOutput>.Success)result).Value;
-        output.TotalDuration.Should().BeGreaterOrEqualTo(TimeSpan.FromMilliseconds(50));
+        output.TotalDuration.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(50));
     }
 
     [Fact]

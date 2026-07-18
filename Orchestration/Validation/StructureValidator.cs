@@ -37,7 +37,7 @@ public sealed class StructureValidator : IStructureValidator
         if (output.Responses.Count == 0)
         {
             errors.Add(StructureValidationError.NoResponses());
-            return StructureValidationResult.Invalid(errors.ToArray());
+            return StructureValidationResult.Invalid([.. errors]);
         }
 
         // Valider chaque réponse

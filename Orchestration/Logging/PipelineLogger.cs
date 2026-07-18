@@ -202,10 +202,9 @@ public sealed class PipelineLogger : IPipelineLogger
     {
         lock (_lock)
         {
-            return _events
+            return [.. _events
                 .Where(e => e.PipelineId == pipelineId)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -213,7 +212,7 @@ public sealed class PipelineLogger : IPipelineLogger
     {
         lock (_lock)
         {
-            return _events.OrderBy(e => e.Timestamp).ToList();
+            return [.. _events.OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -221,10 +220,9 @@ public sealed class PipelineLogger : IPipelineLogger
     {
         lock (_lock)
         {
-            return _events
+            return [.. _events
                 .Where(e => e.Type == type)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 

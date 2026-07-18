@@ -129,7 +129,7 @@ public sealed class LlmClientConfigTests
     public void TimeoutSeconds_HasReasonableDefault()
     {
         var config = new LlmClientConfig();
-        config.TimeoutSeconds.Should().BeGreaterOrEqualTo(30);
+        config.TimeoutSeconds.Should().BeGreaterThanOrEqualTo(30);
     }
 
     [Fact]

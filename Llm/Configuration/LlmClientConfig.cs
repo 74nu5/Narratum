@@ -24,9 +24,10 @@ public sealed record LlmClientConfig
     public string DefaultModel { get; init; } = "phi-4-mini";
 
     /// <summary>
-    /// Timeout pour chaque requête HTTP (secondes).
+    /// Timeout réseau pour chaque requête (secondes). Généreux par défaut : la génération
+    /// locale (gros modèle, longue histoire, agents en série) peut dépasser 100 s.
     /// </summary>
-    public int TimeoutSeconds { get; init; } = 120;
+    public int TimeoutSeconds { get; init; } = 300;
 
     /// <summary>
     /// Mapping optionnel agent → modèle. Permet à chaque agent d'utiliser un modèle différent.
@@ -44,6 +45,11 @@ public sealed record LlmClientConfig
     /// Configuration spécifique Foundry Local.
     /// </summary>
     public FoundryLocalConfig FoundryLocal { get; init; } = new();
+
+    /// <summary>
+    /// Configuration spécifique Azure AI Foundry (cloud).
+    /// </summary>
+    public AzureFoundryConfig AzureFoundry { get; init; } = new();
 
     /// <summary>
     /// Résout le modèle à utiliser pour un type d'agent donné.
@@ -105,4 +111,24 @@ public sealed record FoundryLocalConfig
     /// Télécharger automatiquement les modèles manquants.
     /// </summary>
     public bool AutoDownload { get; init; } = true;
+}
+
+/// <summary>
+/// Configuration spécifique à Azure AI Foundry (cloud).
+/// L'authentification est Entra ID (aucune clé) ; le chat passe par l'endpoint OpenAI-compatible
+/// <c>/openai/v1</c> de la ressource.
+/// </summary>
+public sealed record AzureFoundryConfig
+{
+    /// <summary>
+    /// Endpoint de base du compte Azure AI Foundry / OpenAI
+    /// (ex. https://mon-resource.cognitiveservices.azure.com/). La route <c>/openai/v1/</c> est
+    /// ajoutée automatiquement. Null si le provider Azure n'est pas utilisé au démarrage.
+    /// </summary>
+    public string? Endpoint { get; init; }
+
+    /// <summary>
+    /// Scope Entra ID demandé pour le jeton d'accès à l'endpoint.
+    /// </summary>
+    public string Scope { get; init; } = "https://ai.azure.com/.default";
 }

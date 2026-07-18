@@ -1,0 +1,367 @@
+@using Narratum.Web.Models
+@using Narratum.Domain
+@inject IJSRuntime JSRuntime
+
+<div class="timeline-container" @ref="timelineContainerRef">
+    <div class="timeline-header">
+        <h3>Timeline Narrative</h3>
+        <div class="timeline-controls">
+            <button class="btn btn-sm btn-secondary" @onclick="ZoomIn" title="Zoom avant">
+                <span class="icon">+</span>
+            </button>
+            <button class="btn btn-sm btn-secondary" @onclick="ZoomOut" title="Zoom arrière">
+                <span class="icon">-</span>
+            </button>
+            <button class="btn btn-sm btn-secondary" @onclick="ResetZoom" title="Réinitialiser">
+                <span class="icon">⟲</span>
+            </button>
+        </div>
+
+        <div class="timeline-filters">
+            <select class="form-select form-select-sm" @onchange="OnFilterCharacterChanged">
+                <option value="">Tous les personnages</option>
+                @foreach (var character in Characters)
+                {
+                    <option value="@character.Id">@character.Name</option>
+                }
+            </select>
+
+            <select class="form-select form-select-sm" @onchange="OnFilterTypeChanged">
+                <option value="">Tous les événements</option>
+                <option value="CharacterEncounter">Rencontres</option>
+                <option value="Revelation">Révélations</option>
+                <option value="CharacterMoved">Déplacements</option>
+                <option value="CharacterDeath">Morts</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="timeline-wrapper" @ref="timelineWrapperRef">
+        <div class="timeline-track" style="transform: scale(@ZoomLevel)">
+            @if (FilteredEvents.Any())
+            {
+                @foreach (var evt in FilteredEvents)
+                {
+                    var position = GetEventPosition(evt);
+                    var eventClass = GetEventClass(evt);
+
+                    <div class="timeline-event @eventClass"
+                         style="left: @(position)%"
+                         @onclick="() => SelectEvent(evt)"
+                         @onmouseenter="() => ShowTooltip(evt)"
+                         @onmouseleave="HideTooltip">
+
+                        <div class="event-marker"
+                             style="background-color: @GetEventColor(evt)">
+                        </div>
+
+                        @if (evt == SelectedEvent)
+                        {
+                            <div class="event-connector"></div>
+                        }
+                    </div>
+                }
+
+                <!-- Current time indicator -->
+                <div class="timeline-now-indicator"
+                     style="left: @GetCurrentTimePosition()%">
+                    <div class="now-line"></div>
+                    <div class="now-label">Maintenant</div>
+                </div>
+            }
+            else
+            {
+                <div class="timeline-empty">
+                    <p>Aucun événement à afficher</p>
+                </div>
+            }
+        </div>
+
+        <!-- Time labels -->
+        <div class="timeline-labels">
+            @for (int i = 0; i <= 10; i++)
+            {
+                var labelPosition = i * 10;
+                <div class="time-label" style="left: @(labelPosition)%">
+                    @GetTimeLabel(labelPosition)
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    @if (HoveredEvent != null)
+    {
+        <div class="event-tooltip"
+             style="left: @TooltipX; top: @TooltipY">
+            <div class="tooltip-header">
+                <strong>@GetEventTitle(HoveredEvent)</strong>
+                <span class="tooltip-time">@HoveredEvent.Timestamp.ToString("HH:mm")</span>
+            </div>
+            <p class="tooltip-description">@GetEventDescription(HoveredEvent)</p>
+            @if (GetEventCharacters(HoveredEvent).Any())
+            {
+                <div class="tooltip-characters">
+                    <small>Personnages: @string.Join(", ", GetEventCharacters(HoveredEvent))</small>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Event Details Panel -->
+    @if (SelectedEvent != null)
+    {
+        <div class="event-details-panel">
+            <div class="panel-header">
+                <h4>@GetEventTitle(SelectedEvent)</h4>
+                <button class="btn btn-sm btn-close" @onclick="CloseDetails">×</button>
+            </div>
+
+            <div class="panel-body">
+                <div class="detail-row">
+                    <span class="detail-label">Type:</span>
+                    <span class="detail-value">@SelectedEvent.GetType().Name.Replace("Event", "")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Horodatage:</span>
+                    <span class="detail-value">@SelectedEvent.Timestamp.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                @if (GetEventCharacters(SelectedEvent).Any())
+                {
+                    <div class="detail-row">
+                        <span class="detail-label">Personnages:</span>
+                        <span class="detail-value">@string.Join(", ", GetEventCharacters(SelectedEvent))</span>
+                    </div>
+                }
+                <div class="detail-description">
+                    <p>@GetEventDescription(SelectedEvent)</p>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-sm btn-primary" @onclick="NavigateToEvent">
+                    Aller à cet événement
+                </button>
+                <button class="btn btn-sm btn-secondary" @onclick="EditEvent">
+                    Modifier
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<Event> Events { get; set; } = new();
+    [Parameter] public List<CharacterInfo> Characters { get; set; } = new();
+    [Parameter] public EventCallback<Event> OnEventSelected { get; set; }
+    [Parameter] public EventCallback<Event> OnEventEdit { get; set; }
+
+    private ElementReference timelineContainerRef;
+    private ElementReference timelineWrapperRef;
+
+    private double ZoomLevel { get; set; } = 1.0;
+    private const double MIN_ZOOM = 0.5;
+    private const double MAX_ZOOM = 3.0;
+    private const double ZOOM_STEP = 0.2;
+
+    private List<Event> FilteredEvents => ApplyFilters();
+    private string? FilterCharacterId { get; set; }
+    private string? FilterEventType { get; set; }
+
+    private Event? SelectedEvent { get; set; }
+    private Event? HoveredEvent { get; set; }
+    private string TooltipX { get; set; } = "0px";
+    private string TooltipY { get; set; } = "0px";
+
+    private void ZoomIn()
+    {
+        if (ZoomLevel < MAX_ZOOM)
+        {
+            ZoomLevel = Math.Min(ZoomLevel + ZOOM_STEP, MAX_ZOOM);
+            StateHasChanged();
+        }
+    }
+
+    private void ZoomOut()
+    {
+        if (ZoomLevel > MIN_ZOOM)
+        {
+            ZoomLevel = Math.Max(ZoomLevel - ZOOM_STEP, MIN_ZOOM);
+            StateHasChanged();
+        }
+    }
+
+    private void ResetZoom()
+    {
+        ZoomLevel = 1.0;
+        StateHasChanged();
+    }
+
+    private double GetEventPosition(Event evt)
+    {
+        if (!Events.Any()) return 0;
+
+        var minTime = Events.Min(e => e.Timestamp);
+        var maxTime = Events.Max(e => e.Timestamp);
+        var totalDuration = (maxTime - minTime).TotalSeconds;
+
+        if (totalDuration == 0) return 50;
+
+        var eventOffset = (evt.Timestamp - minTime).TotalSeconds;
+        return (eventOffset / totalDuration) * 100;
+    }
+
+    private double GetCurrentTimePosition()
+    {
+        if (!Events.Any()) return 100;
+
+        var minTime = Events.Min(e => e.Timestamp);
+        var maxTime = Events.Max(e => e.Timestamp);
+        var totalDuration = (maxTime - minTime).TotalSeconds;
+
+        if (totalDuration == 0) return 100;
+
+        var now = DateTime.UtcNow;
+        if (now > maxTime) return 100;
+        if (now < minTime) return 0;
+
+        var offset = (now - minTime).TotalSeconds;
+        return (offset / totalDuration) * 100;
+    }
+
+    private string GetTimeLabel(double position)
+    {
+        if (!Events.Any()) return "";
+
+        var minTime = Events.Min(e => e.Timestamp);
+        var maxTime = Events.Max(e => e.Timestamp);
+        var totalDuration = (maxTime - minTime).TotalSeconds;
+
+        var timeAtPosition = minTime.AddSeconds(totalDuration * (position / 100));
+        return timeAtPosition.ToString("HH:mm");
+    }
+
+    private string GetEventClass(Event evt)
+    {
+        var classes = new List<string>();
+
+        if (evt == SelectedEvent)
+            classes.Add("selected");
+
+        if (evt == HoveredEvent)
+            classes.Add("hovered");
+
+        return string.Join(" ", classes);
+    }
+
+    private string GetEventColor(Event evt)
+    {
+        return evt.Type switch
+        {
+            "CharacterEncounter" => "#6366f1",  // Indigo
+            "Revelation" => "#10b981",          // Green
+            "CharacterMoved" => "#f59e0b",      // Orange
+            "CharacterDeath" => "#ef4444",      // Red
+            _ => "#6b7280"                      // Gray
+        };
+    }
+
+    private string GetEventTitle(Event evt)
+    {
+        return evt.Type;
+    }
+
+    private string GetEventDescription(Event evt)
+    {
+        return evt switch
+        {
+            RevelationEvent revelation => $"Révélation: {revelation.GetContent()}",
+            CharacterDeathEvent death => $"Mort du personnage{(death.GetCause() is { } c ? $" ({c})" : "")}",
+            _ => $"Événement: {evt.Type}"
+        };
+    }
+
+    private List<string> GetEventCharacters(Event evt)
+    {
+        // ActorIds maps to characters involved; name resolution done by parent via Characters list
+        return evt.ActorIds
+            .Select(id => Characters.FirstOrDefault(c => c.Id == id.ToString())?.Name)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToList();
+    }
+
+    private void SelectEvent(Event evt)
+    {
+        SelectedEvent = evt;
+        OnEventSelected.InvokeAsync(evt);
+        StateHasChanged();
+    }
+
+    private void CloseDetails()
+    {
+        SelectedEvent = null;
+        StateHasChanged();
+    }
+
+    private async Task ShowTooltip(Event evt)
+    {
+        HoveredEvent = evt;
+        // Calculate tooltip position - simplified version
+        TooltipX = "50%";
+        TooltipY = "20px";
+        StateHasChanged();
+    }
+
+    private void HideTooltip()
+    {
+        HoveredEvent = null;
+        StateHasChanged();
+    }
+
+    private async Task NavigateToEvent()
+    {
+        if (SelectedEvent != null)
+        {
+            await OnEventSelected.InvokeAsync(SelectedEvent);
+        }
+    }
+
+    private async Task EditEvent()
+    {
+        if (SelectedEvent != null)
+        {
+            await OnEventEdit.InvokeAsync(SelectedEvent);
+        }
+    }
+
+    private void OnFilterCharacterChanged(ChangeEventArgs e)
+    {
+        FilterCharacterId = e.Value?.ToString();
+        StateHasChanged();
+    }
+
+    private void OnFilterTypeChanged(ChangeEventArgs e)
+    {
+        FilterEventType = e.Value?.ToString();
+        StateHasChanged();
+    }
+
+    private List<Event> ApplyFilters()
+    {
+        var filtered = Events.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(FilterEventType))
+        {
+            filtered = filtered.Where(e => e.Type.Contains(FilterEventType));
+        }
+
+        if (!string.IsNullOrEmpty(FilterCharacterId))
+        {
+            // Filter by character - implementation depends on event structure
+            // filtered = filtered.Where(e => e.InvolvesCharacter(FilterCharacterId));
+        }
+
+        return filtered.OrderBy(e => e.Timestamp).ToList();
+    }
+}

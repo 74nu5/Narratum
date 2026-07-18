@@ -411,7 +411,7 @@ public sealed class MetricsCollector
     {
         lock (_lock)
         {
-            return _dataPoints.ToList();
+            return [.. _dataPoints];
         }
     }
 
@@ -422,9 +422,7 @@ public sealed class MetricsCollector
     {
         lock (_lock)
         {
-            return _dataPoints
-                .Where(dp => dp.Name.Equals(metricName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            return [.. _dataPoints.Where(dp => dp.Name.Equals(metricName, StringComparison.OrdinalIgnoreCase))];
         }
     }
 
@@ -448,7 +446,7 @@ public sealed class MetricsCollector
                 .GroupBy(dp => dp.Name)
                 .ToDictionary(
                     g => g.Key,
-                    g => MetricStatistics.Calculate(g.Key, g.Select(dp => dp.Value).ToList()));
+                    g => MetricStatistics.Calculate(g.Key, [.. g.Select(dp => dp.Value)]));
         }
     }
 

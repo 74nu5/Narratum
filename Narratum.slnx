@@ -1,0 +1,48 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Core/">
+    <Project Path="Core/Narratum.Core.csproj" />
+  </Folder>
+  <Folder Name="/Domain/">
+    <Project Path="Domain/Narratum.Domain.csproj" />
+  </Folder>
+  <Folder Name="/Llm.Tests/">
+    <Project Path="Llm.Tests/Narratum.Llm.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Llm/">
+    <Project Path="Llm/Narratum.Llm.csproj" />
+  </Folder>
+  <Folder Name="/Memory/">
+    <Project Path="Memory/Narratum.Memory.csproj" />
+  </Folder>
+  <Folder Name="/Orchestration.Tests/">
+    <Project Path="Orchestration.Tests/Narratum.Orchestration.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Orchestration/">
+    <Project Path="Orchestration/Narratum.Orchestration.csproj" />
+  </Folder>
+  <Folder Name="/Persistence/">
+    <Project Path="Persistence/Narratum.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/Rules/">
+    <Project Path="Rules/Narratum.Rules.csproj" />
+  </Folder>
+  <Folder Name="/Simulation/">
+    <Project Path="Simulation/Narratum.Simulation.csproj" />
+  </Folder>
+  <Folder Name="/State/">
+    <Project Path="State/Narratum.State.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Narratum.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Web/">
+    <Project Path="Web/Narratum.Web.csproj" />
+  </Folder>
+  <Project Path="Memory.Tests/Memory.Tests.csproj" />
+  <Project Path="Web.Tests/Web.Tests.csproj" />
+</Solution>

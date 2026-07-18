@@ -55,10 +55,9 @@ public class FactExtractorService : IFactExtractor
         var facts = extractor.Extract(domainEvent, context);
         
         // Assurer le déterminisme: trier les faits par contenu
-        return facts
+        return [.. facts
             .OrderBy(f => f.Content)
-            .ThenBy(f => f.Id.ToString())
-            .ToList();
+            .ThenBy(f => f.Id.ToString())];
     }
 
     public IReadOnlyList<Fact> ExtractFromEvents(

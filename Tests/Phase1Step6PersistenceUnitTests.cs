@@ -122,4 +122,24 @@ public class Phase1Step6PersistenceUnitTests
         snapshot.WorldStateData.Should().NotBeNullOrEmpty();
         snapshot.EventsData.Should().NotBeNullOrEmpty();
     }
+
+    [Fact]
+    public void SnapshotService_RoundTrip_ShouldPreserveWorldNameAndCharacters()
+    {
+        var service = new SnapshotService();
+        var worldState = new WorldState(worldId: Id.New(), worldName: "Aethermoor");
+        var alice = new CharacterState(characterId: Id.New(), name: "Alice");
+        var state = new StoryState(worldState: worldState).WithCharacter(alice);
+
+        var snapshot = service.CreateSnapshot(state);
+        var restored = service.RestoreFromSnapshot(snapshot);
+
+        restored.Should().BeOfType<Result<StoryState>.Success>();
+        var restoredState = ((Result<StoryState>.Success)restored).Value;
+
+        // Regression: restore used to drop the world name (hardcoded "Restored World")
+        // and discard the characters entirely.
+        restoredState.WorldState.WorldName.Should().Be("Aethermoor");
+        restoredState.Characters.Values.Should().ContainSingle(c => c.Name == "Alice");
+    }
 }

@@ -54,7 +54,7 @@ public class SQLiteMemoryRepository : IMemoryRepository
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
 
-        return entities.Select(e => e.ToDomain()).ToList();
+        return [.. entities.Select(e => e.ToDomain())];
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public class SQLiteMemoryRepository : IMemoryRepository
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
 
-        return entities.Select(e => e.ToDomain()).ToList();
+        return [.. entities.Select(e => e.ToDomain())];
     }
 
     /// <summary>
@@ -170,7 +170,7 @@ public class SQLiteMemoryRepository : IMemoryRepository
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
 
-        return entities.Select(e => e.ToDomain()).ToList();
+        return [.. entities.Select(e => e.ToDomain())];
     }
 
     /// <summary>

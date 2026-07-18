@@ -1,57 +1,48 @@
+using Microsoft.Extensions.Logging;
 using Narratum.Web.Models;
-using Narratum.Persistence;
-using Microsoft.EntityFrameworkCore;
+using Narratum.Core;
 
 namespace Narratum.Web.Services;
 
 /// <summary>
 /// Service de gestion de la bibliothèque d'histoires.
 /// Liste toutes les histoires sauvegardées.
+/// Uses IStoryRepository (hexagonal architecture).
 /// </summary>
 public class StoryLibraryService
 {
-    private readonly NarrativumDbContext _dbContext;
+    private readonly IStoryRepository _storyRepository;
+    private readonly ILogger<StoryLibraryService> _logger;
 
-    public StoryLibraryService(NarrativumDbContext dbContext)
+    public StoryLibraryService(
+        IStoryRepository storyRepository,
+        ILogger<StoryLibraryService> logger)
     {
-        _dbContext = dbContext;
+        _storyRepository = storyRepository ?? throw new ArgumentNullException(nameof(storyRepository));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Liste toutes les histoires disponibles en se basant sur les PageSnapshots.
+    /// Liste toutes les histoires disponibles.
     /// </summary>
-    public async Task<List<StoryEntry>> ListStoriesAsync()
+    public async Task<List<Narratum.Web.Models.StoryEntry>> ListStoriesAsync()
     {
-        // Load all page snapshots in memory for grouping (avoids EF GroupBy limitations)
-        var allPages = await _dbContext.PageSnapshots
-            .Select(p => new { p.SlotName, p.PageIndex, p.GeneratedAt, p.GenreStyle })
-            .ToListAsync();
+        _logger.LogDebug("Loading story library");
 
-        if (allPages.Count == 0)
-            return new List<StoryEntry>();
+        var stories = await _storyRepository.ListStoriesAsync();
 
-        // Load display names from SaveSlots (may be absent for old data)
-        var slots = await _dbContext.SaveSlots
-            .ToDictionaryAsync(s => s.SlotName);
+        _logger.LogInformation("Story library loaded: {StoryCount} stories found", stories.Count);
 
-        return allPages
-            .GroupBy(p => p.SlotName)
-            .Select(g =>
-            {
-                var initPage = g.FirstOrDefault(p => p.PageIndex == 0);
-                slots.TryGetValue(g.Key, out var slot);
-                return new StoryEntry
-                {
-                    SlotName = g.Key,
-                    DisplayName = slot?.DisplayName ?? g.Key,
-                    LastModified = g.Max(p => p.GeneratedAt),
-                    PageCount = g.Count(p => p.PageIndex > 0),
-                    GenreStyle = initPage?.GenreStyle ?? "Fantasy",
-                    Description = slot?.Description
-                };
-            })
-            .OrderByDescending(s => s.LastModified)
-            .ToList();
+        // Map Core.StoryEntry to Web.Models.StoryEntry
+        return [.. stories.Select(s => new Narratum.Web.Models.StoryEntry
+        {
+            SlotName = s.SlotName,
+            DisplayName = s.DisplayName,
+            LastModified = s.LastUpdated,
+            PageCount = s.PageCount,
+            GenreStyle = s.GenreStyle,
+            Description = s.Description
+        })];
     }
 
     /// <summary>
@@ -59,27 +50,10 @@ public class StoryLibraryService
     /// </summary>
     public async Task DeleteStoryAsync(string slotName)
     {
-        // Remove SaveSlots entry if present
-        var slot = await _dbContext.SaveSlots.FindAsync(slotName);
-        if (slot != null)
-        {
-            _dbContext.SaveSlots.Remove(slot);
-        }
+        _logger.LogInformation("Deleting story: {SlotName}", slotName);
 
-        // Remove SavedStates entry if present
-        var snapshot = await _dbContext.SavedStates
-            .FirstOrDefaultAsync(s => s.SlotName == slotName);
-        if (snapshot != null)
-        {
-            _dbContext.SavedStates.Remove(snapshot);
-        }
+        await _storyRepository.DeleteStoryAsync(slotName);
 
-        // Always remove all PageSnapshots for this slot
-        var pages = await _dbContext.PageSnapshots
-            .Where(p => p.SlotName == slotName)
-            .ToListAsync();
-        _dbContext.PageSnapshots.RemoveRange(pages);
-
-        await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("Story deleted successfully: {SlotName}", slotName);
     }
 }

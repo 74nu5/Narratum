@@ -1,72 +1,99 @@
+namespace Narratum.Llm.Lifecycle;
+
 using Microsoft.AI.Foundry.Local;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Narratum.Llm.Configuration;
 
-namespace Narratum.Llm.Lifecycle;
+using Narratum.Llm.Configuration;
+using Narratum.Orchestration.Llm;
+
+using LogLevel = Microsoft.AI.Foundry.Local.LogLevel;
 
 /// <summary>
-/// Gestionnaire de cycle de vie pour Microsoft Foundry Local.
-/// Initialise le SDK, télécharge et charge les modèles, démarre le service web.
+///     Gestionnaire de cycle de vie pour Microsoft Foundry Local.
+///     Initialise le SDK, télécharge et charge les modèles, démarre le service web.
 /// </summary>
 public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
 {
     private readonly FoundryLocalConfig _config;
     private readonly ILogger _logger;
     private string? _baseUrl;
-    private bool _initialized;
     private bool _disposed;
-
-    public string ProviderName => "FoundryLocal";
+    private bool _initialized;
 
     public FoundryLocalLifecycleManager(
         FoundryLocalConfig config,
         ILogger<FoundryLocalLifecycleManager>? logger = null)
     {
-        _config = config ?? throw new ArgumentNullException(nameof(config));
-        _logger = logger ?? NullLogger<FoundryLocalLifecycleManager>.Instance;
+        this._config = config ?? throw new ArgumentNullException(nameof(config));
+        this._logger = logger ?? NullLogger<FoundryLocalLifecycleManager>.Instance;
     }
 
-    /// <summary>
-    /// Initialise le SDK Foundry Local et démarre le service web (LAZY).
-    /// Cette méthode est appelée automatiquement lors de la première utilisation.
-    /// </summary>
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    public string ProviderName
+        => "FoundryLocal";
+
+    public async Task<IReadOnlyList<LlmModelInfo>> ListModelsAsync(CancellationToken cancellationToken = default)
     {
-        if (_initialized) return;
+        if (!this._initialized)
+            await this.InitializeAsync(cancellationToken);
 
-        _logger.LogInformation("Initializing Foundry Local (on first use)...");
+        var result = await FoundryLocalManager.Instance.DownloadAndRegisterEpsAsync(cancellationToken);
 
-        var foundryConfig = new Microsoft.AI.Foundry.Local.Configuration
+        // Execution-provider (EP) diagnostics. NPU/GPU variants only appear when their EP is
+        // registered — e.g. openvino-npu needs the OpenVINO EP. Log which EPs registered/failed
+        // and what the SDK discovered, so a missing device (no NPU in the list) is explainable.
+        this._logger.LogInformation(
+            "Foundry EP registration: success={Success}, status={Status}, registered=[{Registered}], failed=[{Failed}]",
+            result.Success,
+            result.Status,
+            string.Join(", ", result.RegisteredEps ?? []),
+            string.Join(", ", result.FailedEps ?? []));
+
+        this._logger.LogInformation(
+            "Foundry EPs discovered: {Eps}",
+            string.Join(", ", FoundryLocalManager.Instance.DiscoverEps()
+                .Select(e => $"{e.Name}({(e.IsRegistered ? "registered" : "not-registered")})")));
+
+        if (!result.Success)
         {
-            AppName = "Narratum",
-            LogLevel = Microsoft.AI.Foundry.Local.LogLevel.Information,
-            ModelCacheDir = string.IsNullOrEmpty(_config.CacheDirectory) ? null : _config.CacheDirectory,
-            Web = new Microsoft.AI.Foundry.Local.Configuration.WebService
-            {
-                Urls = "http://127.0.0.1:5001"
-            }
-        };
+            this._logger.LogError("Failed to download and register EPS.");
+            return [];
+        }
 
-        await FoundryLocalManager.CreateAsync(foundryConfig, _logger);
-        var mgr = FoundryLocalManager.Instance;
+        var catalog = await FoundryLocalManager.Instance.GetCatalogAsync();
+        var models = await ExpandVariantsAsync(catalog);
 
-        await mgr.StartWebServiceAsync();
-        _baseUrl = foundryConfig.Web.Urls;
-        _initialized = true;
+        // Device breakdown of the surfaced variants — e.g. "CPU=12, GPU=12, NPU=0" makes it
+        // obvious when a device is entirely missing from the catalogue.
+        this._logger.LogInformation(
+            "Foundry variants by device: {Breakdown}",
+            string.Join(", ", models
+                .GroupBy(m => DeriveDevice(m) ?? "unknown")
+                .OrderBy(g => g.Key)
+                .Select(g => $"{g.Key}={g.Count()}")));
 
-        _logger.LogInformation("Foundry Local initialized successfully at {BaseUrl}", _baseUrl);
+        return
+        [
+            .. models
+                .Select(static m => new LlmModelInfo(
+                    m.Id,
+                    m.Alias ?? m.Info?.Alias ?? m.Id,
+                    m.Info?.DisplayName ?? m.Alias ?? m.Id,
+                    m.Info?.Cached ?? false,
+                    m.Info?.Task,
+                    DeriveDevice(m))),
+        ];
     }
 
     public async Task<bool> IsRunningAsync(CancellationToken cancellationToken = default)
     {
-        if (!_initialized) return false;
+        if (!this._initialized) return false;
 
         try
         {
             using var client = new HttpClient();
             client.Timeout = TimeSpan.FromSeconds(5);
-            using var response = await client.GetAsync($"{_baseUrl}/v1/models", cancellationToken);
+            using var response = await client.GetAsync($"{this._baseUrl}/v1/models", cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch
@@ -75,59 +102,187 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         }
     }
 
-    public async Task EnsureModelAvailableAsync(
+    public async Task<string> EnsureModelAvailableAsync(
         string modelName,
         CancellationToken cancellationToken = default)
     {
-        if (!_initialized)
-            await InitializeAsync(cancellationToken);
+        if (!this._initialized)
+            await this.InitializeAsync(cancellationToken);
 
         var mgr = FoundryLocalManager.Instance;
         var catalog = await mgr.GetCatalogAsync();
 
-        var model = await catalog.GetModelAsync(modelName)
-            ?? throw new InvalidOperationException($"Model '{modelName}' not found in Foundry Local catalog");
+        // Match the catalogue EXACTLY, across every device variant. catalog.GetModelAsync()
+        // does fuzzy matching and can return the wrong model (e.g. "mistral-nemo-12b-instruct"
+        // resolved to a "ministral-..." model), so we don't use it.
+        // The dropdown sends a concrete variant id (…-generic-gpu:1) — match that first so the
+        // requested device is honoured. A bare alias (legacy stories / agent config) falls back
+        // to the best available variant (NPU > CPU > GPU).
+        var models = await ExpandVariantsAsync(catalog);
+        var model = models.FirstOrDefault(m => string.Equals(m.Id, modelName, StringComparison.OrdinalIgnoreCase))
+                    ?? models.Where(m => string.Equals(m.Alias, modelName, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(DeviceRank)
+                        .FirstOrDefault()
+                    ?? throw new InvalidOperationException(
+                        $"Model '{modelName}' not found in Foundry Local catalog (exact match on alias/id)");
 
-        if (_config.AutoDownload)
+        if (!await model.IsLoadedAsync())
         {
-            _logger.LogInformation("Downloading model {Model}...", modelName);
-            await model.DownloadAsync(progress =>
+            if (this._config.AutoDownload && !await model.IsCachedAsync())
             {
-                if (progress % 25 < 1)
-                    _logger.LogInformation("Download progress: {Progress:F0}%", progress);
-            });
+                this._logger.LogInformation("Downloading model {Model}...", modelName);
+                await model.DownloadAsync(progress =>
+                {
+                    if (progress % 25 < 1)
+                        this._logger.LogInformation("Download progress for {Model}: {Progress:F0}%", modelName, progress);
+                });
+            }
+
+            this._logger.LogInformation("Loading model {Model} (served id {Id})...", modelName, model.Id);
+            await model.LoadAsync();
         }
 
-        _logger.LogInformation("Loading model {Model}...", modelName);
-        await model.LoadAsync();
-        _logger.LogInformation("Model {Model} loaded successfully", modelName);
+        this._logger.LogInformation("Model {Model} ready (served id {Id})", modelName, model.Id);
+
+        // Foundry's OpenAI endpoint serves models by their concrete id, not the alias.
+        return model.Id;
     }
 
     public async Task<string> GetBaseUrlAsync(CancellationToken cancellationToken = default)
     {
-        if (!_initialized)
-            await InitializeAsync(cancellationToken);
+        if (!this._initialized)
+            await this.InitializeAsync(cancellationToken);
 
-        return $"{_baseUrl}/v1";
+        return $"{this._baseUrl}/v1";
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (this._disposed)
+            return;
 
-        if (_initialized)
+        this._disposed = true;
+
+        if (this._initialized)
         {
             try
             {
                 var mgr = FoundryLocalManager.Instance;
                 await mgr.StopWebServiceAsync();
-                _logger.LogInformation("Foundry Local service stopped");
+                this._logger.LogInformation("Foundry Local service stopped");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error stopping Foundry Local service");
+                this._logger.LogWarning(ex, "Error stopping Foundry Local service");
             }
         }
+    }
+
+    /// <summary>
+    ///     Initialise le SDK Foundry Local et démarre le service web (LAZY).
+    ///     Cette méthode est appelée automatiquement lors de la première utilisation.
+    /// </summary>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (this._initialized) return;
+
+        this._logger.LogInformation("Initializing Foundry Local (on first use)...");
+
+        var foundryConfig = new Configuration
+        {
+            AppName = "Narratum",
+            LogLevel = LogLevel.Information,
+            ModelCacheDir = string.IsNullOrEmpty(this._config.CacheDirectory) ? null : this._config.CacheDirectory,
+            Web = new()
+            {
+                Urls = "http://127.0.0.1:5001",
+            },
+        };
+
+        // FoundryLocalManager is a process-global singleton, created at most once per process.
+        // Another lifecycle-manager instance (e.g. a different Blazor circuit, or a stale one
+        // left over after a hot reload) may already have created it. Reuse it in that case
+        // instead of calling CreateAsync again, which throws "already been created".
+        if (FoundryLocalManager.IsInitialized)
+        {
+            this._logger.LogInformation("Foundry Local already created; reusing the existing instance.");
+        }
+        else
+        {
+            var created = false;
+            try
+            {
+                await FoundryLocalManager.CreateAsync(foundryConfig, this._logger);
+                created = true;
+            }
+            catch (FoundryLocalException) when (FoundryLocalManager.IsInitialized)
+            {
+                // Lost a race with a concurrent initializer; the singleton now exists — reuse it.
+                this._logger.LogInformation("Foundry Local was created concurrently; reusing the existing instance.");
+            }
+
+            // Only the instance that actually created the manager starts the web service.
+            if (created)
+                await FoundryLocalManager.Instance.StartWebServiceAsync();
+        }
+
+        this._baseUrl = foundryConfig.Web.Urls;
+        this._initialized = true;
+
+        this._logger.LogInformation("Foundry Local initialized successfully at {BaseUrl}", this._baseUrl);
+    }
+
+    /// <summary>
+    ///     Flattens the catalogue into every concrete, device-specific variant. A model exposes
+    ///     several variants (generic-gpu, openvino-npu, generic-cpu, …), each an IModel with its
+    ///     own id and Runtime. ListModelsAsync returns only the default (usually CPU) entry, so we
+    ///     expand .Variants to surface the GPU/NPU options, de-duplicated by concrete id.
+    /// </summary>
+    private static async Task<List<IModel>> ExpandVariantsAsync(ICatalog catalog)
+    {
+        var models = await catalog.ListModelsAsync();
+        var byId = new Dictionary<string, IModel>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var m in models)
+        {
+            var modelDetails = await catalog.GetModelAsync(m.Alias);
+            if (modelDetails is null)
+                continue;
+
+            byId[m.Id] = modelDetails;
+            foreach (var v in modelDetails.Variants)
+                byId[v.Id] = v;
+        }
+
+        return [.. byId.Values];
+    }
+
+    // A bare alias (legacy story / agent config) resolves to the most reliable variant:
+    // NPU first (fast, low-power, verified to produce clean output on the OpenVINO EP), then
+    // CPU, and WebGPU last since it can emit degenerate output on some machines.
+    private static int DeviceRank(IModel m)
+        => DeriveDevice(m) switch
+        {
+            "NPU" => 0,
+            "CPU" => 1,
+            "GPU" => 2,
+            _ => 3,
+        };
+
+    /// <summary>Real device from the variant's Runtime; falls back to parsing the id.</summary>
+    private static string? DeriveDevice(IModel m)
+    {
+        switch (m.Info?.Runtime?.DeviceType)
+        {
+            case DeviceType.GPU: return "GPU";
+            case DeviceType.NPU: return "NPU";
+            case DeviceType.CPU: return "CPU";
+        }
+
+        var id = m.Id;
+        if (id.Contains("gpu", StringComparison.OrdinalIgnoreCase)) return "GPU";
+        if (id.Contains("npu", StringComparison.OrdinalIgnoreCase)) return "NPU";
+        if (id.Contains("cpu", StringComparison.OrdinalIgnoreCase)) return "CPU";
+        return null;
     }
 }
