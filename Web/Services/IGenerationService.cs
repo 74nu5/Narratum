@@ -73,6 +73,13 @@ public interface IGenerationService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Maps each page index to the model id it was generated with (for provider indicators).
+    /// </summary>
+    Task<IReadOnlyDictionary<int, string?>> GetPageModelsAsync(
+        string slotName,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Gets the display name for a story slot.
     /// </summary>
     /// <param name="slotName">Story slot identifier</param>

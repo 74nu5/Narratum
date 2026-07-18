@@ -80,8 +80,9 @@
                         @foreach (var pageIdx in _pageHistory)
                         {
                             <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
-                                          @onclick="() => LoadPage(pageIdx)">
-                                Page @pageIdx
+                                          @onclick="() => LoadPage(pageIdx)"
+                                          Title="@(string.IsNullOrWhiteSpace(PageModel(pageIdx)) ? "état initial" : ModelBadge(PageModel(pageIdx)))">
+                                @ModelDisplay.Icon(PageModel(pageIdx)) Page @pageIdx
                             </FluentButton>
                         }
                     </FluentStack>
@@ -177,6 +178,7 @@
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
     private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
+    private IReadOnlyDictionary<int, string?> _pageModels = new Dictionary<int, string?>();
     private IReadOnlyList<StoryChoice> _choices = Array.Empty<StoryChoice>();
     private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
     private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
@@ -186,20 +188,9 @@
     private string? _currentSubscription;
 
     // Human-readable "provider · model" for a stored model id (local Foundry or azure:*).
-    private string ModelBadge(string? modelId)
-    {
-        if (string.IsNullOrWhiteSpace(modelId) || modelId == "N/A")
-            return "modèle inconnu";
+    private string ModelBadge(string? modelId) => ModelDisplay.Badge(modelId, _models);
 
-        if (AzureModelRef.IsAzureModel(modelId))
-        {
-            var (_, deployment) = AzureModelRef.Parse(modelId);
-            return $"☁️ {deployment} · Azure (cloud)";
-        }
-
-        var label = _models.FirstOrDefault(m => m.Id == modelId)?.Label ?? modelId;
-        return $"💻 {label} · local";
-    }
+    private string? PageModel(int pageIndex) => _pageModels.GetValueOrDefault(pageIndex);
 
     protected override async Task OnInitializedAsync()
     {
@@ -272,6 +263,7 @@
     private async Task LoadPageHistory()
     {
         _pageHistory = await GenService.GetPageHistoryAsync(SlotName);
+        _pageModels = await GenService.GetPageModelsAsync(SlotName);
     }
 
     private async Task LoadPage(int pageIndex)

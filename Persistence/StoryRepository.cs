@@ -359,6 +359,19 @@ public class StoryRepository : IStoryRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyDictionary<int, string?>> GetPageModelsAsync(string slotName, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var rows = await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName)
+            .Select(p => new { p.PageIndex, p.ModelUsed })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => r.PageIndex, r => r.ModelUsed);
+    }
+
     public async Task SavePageExpertDataAsync(string slotName, int pageIndex, string expertData, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

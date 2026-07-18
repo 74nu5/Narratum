@@ -66,6 +66,9 @@
                                       @bind-Value="this.model"
                                       Label="Modèle de génération (local ou cloud)"
                                       Style="width: 100%; max-width: 480px;" />
+                        <div style="font-size: 0.82rem; opacity: 0.75; margin-top: -8px;">
+                            ▶ Sera généré avec : <strong>@ModelDisplay.Badge(this.model, this.models)</strong>
+                        </div>
                     </FluentStack>
                 </FluentCard>
                 break;

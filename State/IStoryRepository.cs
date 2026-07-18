@@ -69,6 +69,11 @@ public interface IStoryRepository
     Task<List<int>> GetPageHistoryAsync(string slotName, CancellationToken ct = default);
 
     /// <summary>
+    /// Maps each page index to the model id it was generated with (for provider indicators).
+    /// </summary>
+    Task<IReadOnlyDictionary<int, string?>> GetPageModelsAsync(string slotName, CancellationToken ct = default);
+
+    /// <summary>
     /// Stores Expert-mode data (e.g. serialized per-agent traces) for a saved page.
     /// </summary>
     Task SavePageExpertDataAsync(string slotName, int pageIndex, string expertData, CancellationToken ct = default);

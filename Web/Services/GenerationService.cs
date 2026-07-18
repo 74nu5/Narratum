@@ -590,6 +590,13 @@ public class GenerationService : IGenerationService
         return await _storyRepository.GetPageHistoryAsync(slotName, ct);
     }
 
+    public async Task<IReadOnlyDictionary<int, string?>> GetPageModelsAsync(
+        string slotName,
+        CancellationToken ct = default)
+    {
+        return await _storyRepository.GetPageModelsAsync(slotName, ct);
+    }
+
     /// <summary>
     /// Gets the display name for a story slot (falls back to slot name).
     /// </summary>
