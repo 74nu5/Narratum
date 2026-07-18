@@ -11,9 +11,10 @@ public interface ILlmLifecycleManager : IAsyncDisposable
     Task<bool> IsRunningAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// S'assure que le modèle est disponible (téléchargé et chargé).
+    /// S'assure que le modèle est disponible (téléchargé et chargé) et retourne
+    /// l'identifiant concret servi par le fournisseur (à utiliser tel quel dans la requête).
     /// </summary>
-    Task EnsureModelAvailableAsync(string modelName, CancellationToken cancellationToken = default);
+    Task<string> EnsureModelAvailableAsync(string modelName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retourne l'URL de base du service LLM.

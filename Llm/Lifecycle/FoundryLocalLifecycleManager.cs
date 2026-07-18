@@ -75,7 +75,7 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         }
     }
 
-    public async Task EnsureModelAvailableAsync(
+    public async Task<string> EnsureModelAvailableAsync(
         string modelName,
         CancellationToken cancellationToken = default)
     {
@@ -88,19 +88,26 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         var model = await catalog.GetModelAsync(modelName)
             ?? throw new InvalidOperationException($"Model '{modelName}' not found in Foundry Local catalog");
 
-        if (_config.AutoDownload)
+        if (!await model.IsLoadedAsync())
         {
-            _logger.LogInformation("Downloading model {Model}...", modelName);
-            await model.DownloadAsync(progress =>
+            if (_config.AutoDownload && !await model.IsCachedAsync())
             {
-                if (progress % 25 < 1)
-                    _logger.LogInformation("Download progress: {Progress:F0}%", progress);
-            });
+                _logger.LogInformation("Downloading model {Model}...", modelName);
+                await model.DownloadAsync(progress =>
+                {
+                    if (progress % 25 < 1)
+                        _logger.LogInformation("Download progress for {Model}: {Progress:F0}%", modelName, progress);
+                });
+            }
+
+            _logger.LogInformation("Loading model {Model} (served id {Id})...", modelName, model.Id);
+            await model.LoadAsync();
         }
 
-        _logger.LogInformation("Loading model {Model}...", modelName);
-        await model.LoadAsync();
-        _logger.LogInformation("Model {Model} loaded successfully", modelName);
+        _logger.LogInformation("Model {Model} ready (served id {Id})", modelName, model.Id);
+
+        // Foundry's OpenAI endpoint serves models by their concrete id, not the alias.
+        return model.Id;
     }
 
     public async Task<string> GetBaseUrlAsync(CancellationToken cancellationToken = default)

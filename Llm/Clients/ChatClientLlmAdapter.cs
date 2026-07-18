@@ -22,11 +22,11 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
     private readonly LlmClientConfig _config;
     private readonly ILogger _logger;
 
-    // Ensures a requested model is actually loaded in the local provider before use.
-    // Foundry Local rejects requests for models it hasn't loaded, so switching models
-    // per request requires loading them on demand.
+    // Ensures a requested model is loaded before use and maps it to the concrete id the
+    // provider actually serves. Foundry Local rejects requests for models it hasn't loaded,
+    // and its OpenAI endpoint serves by concrete id (e.g. "Phi-4-mini-...-cpu:5"), not alias.
     private readonly ILlmLifecycleManager? _lifecycleManager;
-    private readonly HashSet<string> _loadedModels = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _servedIdCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private bool _disposed;
 
@@ -57,35 +57,31 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? NullLogger<ChatClientLlmAdapter>.Instance;
         _lifecycleManager = lifecycleManager;
-
-        // The factory already loaded these at startup — don't reload them.
-        if (!string.IsNullOrWhiteSpace(_config.FoundryLocal.ModelAlias))
-            _loadedModels.Add(_config.FoundryLocal.ModelAlias);
-        if (!string.IsNullOrWhiteSpace(_config.DefaultModel))
-            _loadedModels.Add(_config.DefaultModel);
     }
 
     /// <summary>
-    /// Ensures the given model is downloaded and loaded in the local provider before a
-    /// request uses it. Cached per adapter so each model loads at most once.
+    /// Ensures the requested model is loaded and returns the concrete id the provider
+    /// serves it under (which is what the request must send). Cached per adapter so each
+    /// model is resolved/loaded at most once. Without a lifecycle manager (e.g. Ollama),
+    /// the requested name is returned unchanged.
     /// </summary>
-    private async Task EnsureModelLoadedAsync(string modelName, CancellationToken cancellationToken)
+    private async Task<string> ResolveServedModelIdAsync(string requestedModel, CancellationToken cancellationToken)
     {
-        if (_lifecycleManager is null || string.IsNullOrWhiteSpace(modelName))
-            return;
+        if (_lifecycleManager is null || string.IsNullOrWhiteSpace(requestedModel))
+            return requestedModel;
 
-        if (_loadedModels.Contains(modelName))
-            return;
+        if (_servedIdCache.TryGetValue(requestedModel, out var cached))
+            return cached;
 
         await _loadLock.WaitAsync(cancellationToken);
         try
         {
-            if (_loadedModels.Contains(modelName))
-                return;
+            if (_servedIdCache.TryGetValue(requestedModel, out cached))
+                return cached;
 
-            _logger.LogInformation("Model {Model} not loaded yet — loading it in {Provider}...", modelName, _config.Provider);
-            await _lifecycleManager.EnsureModelAvailableAsync(modelName, cancellationToken);
-            _loadedModels.Add(modelName);
+            var servedId = await _lifecycleManager.EnsureModelAvailableAsync(requestedModel, cancellationToken);
+            _servedIdCache[requestedModel] = servedId;
+            return servedId;
         }
         finally
         {
@@ -104,7 +100,7 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
 
         try
         {
-            await EnsureModelLoadedAsync(modelName, cancellationToken);
+            var servedModelId = await ResolveServedModelIdAsync(modelName, cancellationToken);
 
             var messages = new List<ChatMessage>
             {
@@ -114,7 +110,7 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
 
             var options = new ChatOptions
             {
-                ModelId = modelName,
+                ModelId = servedModelId,
                 Temperature = (float)request.Parameters.Temperature,
                 MaxOutputTokens = request.Parameters.MaxTokens,
                 TopP = (float)request.Parameters.TopP,
@@ -199,9 +195,9 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
         ArgumentNullException.ThrowIfNull(request);
 
         var modelName = ResolveModelName(request);
-        _logger.LogDebug("Streaming with model {Model} via {Provider}", modelName, _config.Provider);
+        _logger.LogInformation("Streaming with model {Model} via {Provider}", modelName, _config.Provider);
 
-        await EnsureModelLoadedAsync(modelName, cancellationToken);
+        var servedModelId = await ResolveServedModelIdAsync(modelName, cancellationToken);
 
         var messages = new List<ChatMessage>
         {
@@ -211,7 +207,7 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
 
         var options = new ChatOptions
         {
-            ModelId = modelName,
+            ModelId = servedModelId,
             Temperature = (float)request.Parameters.Temperature,
             MaxOutputTokens = request.Parameters.MaxTokens,
             TopP = (float)request.Parameters.TopP,
