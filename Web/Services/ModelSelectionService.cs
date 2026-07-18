@@ -28,11 +28,15 @@ public class ModelSelectionService : IModelResolver
     /// </summary>
     public static IReadOnlyList<ModelOption> AvailableModels { get; } = new List<ModelOption>
     {
-        new("phi-4-mini", "Phi-4-mini — rapide, recommandé"),
-        new("phi-4", "Phi-4 — plus précis"),
-        new("qwen2.5-1.5b-instruct", "Qwen2.5 1.5B — léger"),
-        new("mistral-7b-instruct-v0.2", "Mistral 7B Instruct"),
-        new("llama-3.2-3b-instruct", "Llama 3.2 3B"),
+        // Curated for French narrative generation (fast → highest quality).
+        // Ids match Foundry Local; a model downloads on first use if not cached.
+        new("phi-4-mini", "Phi-4-mini — 3.6 Go · rapide (NPU) · défaut"),
+        new("qwen2.5-7b", "Qwen2.5 7B — 4.2 Go · polyvalent, bon en français (NPU)"),
+        new("qwen3-4b", "Qwen3 4B — 2.9 Go · récent, bon compromis (GPU)"),
+        new("qwen3-8b", "Qwen3 8B — 6 Go · récent, qualité (GPU)"),
+        new("mistral-nemo-12b-instruct", "Mistral Nemo 12B — 7.3 Go · excellent en français (GPU)"),
+        new("phi-4", "Phi-4 — 8.8 Go · très cohérent (GPU)"),
+        new("gpt-oss-20b", "GPT-OSS 20B — 11.8 Go · qualité max, plus lent (GPU)"),
     };
 
     /// <summary>
