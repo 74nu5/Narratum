@@ -1,52 +1,308 @@
-/* Two-column layout: fixed composer sidebar on the left, fluid page text on
-   the right. minmax(0, 1fr) lets the text column shrink instead of overflowing. */
-.gen-layout {
+/* Full-width story page: a single centered column that stacks the title,
+   timeline, story hero, the choices/composer row and (optionally) expert traces. */
+.story-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.story-title {
+    margin: 0;
+}
+
+/* ---- Timeline ------------------------------------------------------------ */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.timeline-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.55;
+}
+
+.timeline-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.page-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--colorNeutralStroke2, #3a3a42);
+    background: var(--colorNeutralBackground3, #2a2a31);
+    color: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.page-pill:hover {
+    border-color: var(--colorBrandStroke1, #4f8ef7);
+}
+
+.page-pill--active {
+    background: var(--colorBrandBackground, #2563eb);
+    border-color: transparent;
+    color: var(--colorNeutralForegroundOnBrand, #fff);
+}
+
+.page-pill-icon {
+    line-height: 1;
+}
+
+/* ---- Story hero ---------------------------------------------------------- */
+.hero-card {
+    padding: 24px;
+}
+
+/* Badge showing which provider/model produced the visible page. */
+.model-badge {
+    display: inline-block;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.7rem;
+    margin-bottom: 1rem;
+    border-radius: 999px;
+    background: var(--colorNeutralBackground3, #2a2a31);
+    border: 1px solid var(--colorNeutralStroke2, #3a3a42);
+}
+
+.model-badge--live {
+    background: var(--colorBrandBackground, #2563eb);
+    color: var(--colorNeutralForegroundOnBrand, #fff);
+    border-color: transparent;
+}
+
+.hero-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 220px;
+}
+
+/* Image on the left (roughly square), narrative on the right. */
+.hero-grid {
     display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+}
+
+.hero-grid--noimage {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.hero-figure {
+    margin: 0;
+}
+
+.hero-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+}
+
+.hero-text {
+    white-space: pre-wrap;
+    line-height: 1.7;
+    font-size: 0.98rem;
+    color: var(--colorNeutralForeground1, #e6e6ea);
+}
+
+.hero-divider {
+    border: none;
+    border-top: 1px solid var(--colorNeutralStroke2, #3a3a42);
+    margin: 24px 0;
+}
+
+/* Secrets + characters displayed side by side beneath the story. */
+.panels-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Revealed secrets: highlighted notes with a category tag. */
+.secret-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.secret-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: 8px;
+    background: var(--colorPaletteMarigoldBackground2, #3a3212);
+    border: 1px solid var(--colorPaletteMarigoldBorderActive, #6b5a1f);
+}
+
+.secret-cat {
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+.secret-content {
+    font-size: 0.9rem;
+}
+
+/* Character roster: a grid of compact cards. */
+.character-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.character-item {
+    border: 1px solid var(--colorNeutralStroke2, #3a3a42);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    background: var(--colorNeutralBackground3, #2a2a31);
+}
+
+.character-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.character-name {
+    font-weight: 600;
+}
+
+.character-role {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--colorBrandBackground, #2563eb);
+    color: var(--colorNeutralForegroundOnBrand, #fff);
+}
+
+.character-desc {
+    font-size: 0.88rem;
+    opacity: 0.85;
+    margin-top: 0.3rem;
+}
+
+.character-evo {
+    font-size: 0.82rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* ---- Action row: choices + composer ------------------------------------- */
+.action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
     align-items: start;
 }
 
-/* Sticky, full-viewport-height composer so it stays in view and the intent
-   field can grow to fill the whole height. */
-.gen-sidebar {
-    position: sticky;
-    top: 16px;
-    height: calc(100vh - 160px);
-    display: flex;
+/* No choices yet (first page / while generating): composer alone, constrained. */
+.action-row--single {
+    grid-template-columns: minmax(0, 560px);
+    justify-content: center;
 }
 
+.choices-card,
 .composer-card {
-    width: 100%;
+    padding: 20px;
 }
 
-/* Own flex column inside the card so the intent field grows to fill the height. */
 .composer-body {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    height: 100%;
-    min-height: 0;
+    gap: 14px;
 }
 
-/* Collapse to a single column on narrow viewports; let content size naturally. */
-@media (max-width: 900px) {
-    .gen-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .gen-sidebar {
-        position: static;
-        height: auto;
-    }
-
-    .composer-body {
-        height: auto;
-    }
+/* Next-step choices: stacked, full-width action buttons. */
+.choice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
 }
 
+.choice-button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--colorNeutralStroke2, #3a3a42);
+    border-radius: 8px;
+    background: var(--colorNeutralBackground3, #2a2a31);
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.choice-button:hover:not(:disabled) {
+    border-color: var(--colorBrandStroke1, #4f8ef7);
+    background: var(--colorNeutralBackground4, #33333b);
+}
+
+.choice-button:focus-visible {
+    outline: 2px solid var(--colorBrandStroke1, #4f8ef7);
+    outline-offset: 2px;
+}
+
+.choice-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.choice-text {
+    font-weight: 600;
+}
+
+.choice-desc {
+    opacity: 0.7;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+/* "What model is in use" caption under the model selector. */
+.model-inuse {
+    font-size: 0.82rem;
+    opacity: 0.75;
+    margin-top: -6px;
+}
+
+/* ---- Expert traces ------------------------------------------------------- */
 .agent-trace {
-    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
+    border: 1px solid var(--colorNeutralStroke2, #3a3a42);
     border-radius: 6px;
     padding: 0;
     overflow: hidden;
@@ -72,7 +328,7 @@
 
 .agent-trace > summary::before {
     content: "▸";
-    color: var(--accent-fill-rest, #6366f1);
+    color: var(--colorBrandForeground1, #4f8ef7);
     transition: transform 0.15s ease;
     display: inline-block;
 }
@@ -103,176 +359,33 @@
     white-space: pre-wrap;
     line-height: 1.55;
     font-size: 0.92rem;
-    border-top: 1px solid var(--neutral-stroke-rest, #ececf1);
+    border-top: 1px solid var(--colorNeutralStroke2, #3a3a42);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .agent-trace > summary::before {
-        transition: none;
+/* ---- Responsive: collapse the two-column rows on narrow viewports -------- */
+@media (max-width: 860px) {
+    .hero-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .hero-figure {
+        max-width: 340px;
+    }
+
+    .panels-row,
+    .action-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .action-row--single {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
-/* "What model is in use" indicators — always visible so the provider (local vs cloud)
-   is never ambiguous. */
-.model-inuse {
-    font-size: 0.82rem;
-    opacity: 0.75;
-    margin-top: -6px;
-}
-
-.model-badge {
-    display: inline-block;
-    font-size: 0.82rem;
-    padding: 0.3rem 0.7rem;
-    margin-bottom: 0.9rem;
-    border-radius: 999px;
-    background: var(--neutral-fill-secondary-rest, #f0f0f4);
-    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
-}
-
-.model-badge--live {
-    background: var(--accent-fill-rest, #6366f1);
-    color: var(--foreground-on-accent-rest, #fff);
-    border-color: transparent;
-}
-
-/* Generated page illustration. */
-.page-image {
-    display: block;
-    width: 100%;
-    max-width: 640px;
-    border-radius: 10px;
-    margin: 0 auto 1rem;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
-}
-
-/* Revealed secrets: highlighted notes with a category tag. */
-.secret-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.secret-item {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    padding: 0.55rem 0.8rem;
-    border-radius: 8px;
-    background: var(--warning-background-rest, #fdf6e3);
-    border: 1px solid var(--warning-stroke-rest, #f0e0b0);
-}
-
-.secret-cat {
-    font-family: ui-monospace, "Cascadia Code", monospace;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    opacity: 0.7;
-    white-space: nowrap;
-}
-
-.secret-content {
-    font-size: 0.9rem;
-}
-
-/* Character roster: a grid of compact cards. */
-.character-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px;
-}
-
-.character-item {
-    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
-    border-radius: 8px;
-    padding: 0.6rem 0.8rem;
-    background: var(--neutral-fill-rest, #fff);
-}
-
-.character-head {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.character-name {
-    font-weight: 600;
-}
-
-.character-role {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    background: var(--accent-fill-rest, #6366f1);
-    color: var(--foreground-on-accent-rest, #fff);
-}
-
-.character-desc {
-    font-size: 0.88rem;
-    opacity: 0.85;
-    margin-top: 0.3rem;
-}
-
-.character-evo {
-    font-size: 0.82rem;
-    opacity: 0.7;
-    margin-top: 0.25rem;
-    font-style: italic;
-}
-
-/* Next-step choices: three stacked, full-width action buttons. */
-.choice-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.choice-button {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
-    text-align: left;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
-    border-radius: 8px;
-    background: var(--neutral-fill-rest, #fff);
-    color: inherit;
-    cursor: pointer;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.choice-button:hover:not(:disabled) {
-    border-color: var(--accent-fill-rest, #6366f1);
-    background: var(--neutral-fill-hover, #f5f5fa);
-}
-
-.choice-button:focus-visible {
-    outline: 2px solid var(--accent-fill-rest, #6366f1);
-    outline-offset: 2px;
-}
-
-.choice-button:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.choice-text {
-    font-weight: 600;
-}
-
-.choice-desc {
-    opacity: 0.7;
-    font-size: 0.88rem;
-    line-height: 1.45;
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .choice-button {
+    .agent-trace > summary::before,
+    .choice-button,
+    .page-pill {
         transition: none;
     }
 }
