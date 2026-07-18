@@ -41,10 +41,10 @@ public class ModelCatalogService
             try
             {
                 var models = await provider.GetModelsAsync(ct);
-                // Offer EVERY device variant (GPU / NPU / CPU) so the user can pick a specific
-                // one — useful when a variant misbehaves (e.g. a broken WebGPU build) and they
-                // want to fall back to CPU/NPU. Variants of the same model stay adjacent, in
-                // GPU → NPU → CPU order.
+                // Offer EVERY device variant so the user can pick a specific one. Variants of a
+                // model stay adjacent, ordered CPU → NPU → GPU: CPU is the reliable baseline and
+                // becomes the default selection, while WebGPU builds (which can emit degenerate
+                // output on some machines) sit last — available, but never the default.
                 var options = models
                     .Where(IsNarrativeModel)
                     .OrderBy(m => m.Alias, StringComparer.OrdinalIgnoreCase)
@@ -72,12 +72,12 @@ public class ModelCatalogService
         return !excluded.Any(x => probe.Contains(x));
     }
 
-    /// <summary>Ordering weight so variants list GPU, then NPU, then CPU.</summary>
+    /// <summary>Ordering weight so variants list CPU, then NPU, then GPU (least reliable last).</summary>
     private static int DeviceRank(string? device) => device?.ToUpperInvariant() switch
     {
-        "GPU" => 0,
+        "CPU" => 0,
         "NPU" => 1,
-        "CPU" => 2,
+        "GPU" => 2,
         _ => 3
     };
 

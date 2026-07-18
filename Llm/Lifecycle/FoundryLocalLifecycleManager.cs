@@ -232,12 +232,14 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         return [.. byId.Values];
     }
 
+    // A bare alias (legacy story / agent config) resolves to the most reliable variant:
+    // CPU first, then NPU, and WebGPU last since it can emit degenerate output on some machines.
     private static int DeviceRank(IModel m)
         => DeriveDevice(m) switch
         {
-            "GPU" => 0,
+            "CPU" => 0,
             "NPU" => 1,
-            "CPU" => 2,
+            "GPU" => 2,
             _ => 3,
         };
 
