@@ -15,8 +15,9 @@
     <div class="gen-layout">
         @* LEFT: composer / controls, laid out vertically *@
         <aside class="gen-sidebar">
-            <FluentCard>
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+            <FluentCard Class="composer-card">
+                @* Own flex column so the intent field grows to fill the card's height. *@
+                <div class="composer-body">
                     <FluentLabel Typo="Typography.H4">✍️ Composer la suite</FluentLabel>
 
                     <FluentSelect TOption="ModelOption"
@@ -27,7 +28,8 @@
                                   Label="Modèle (pour cette page)"
                                   Style="width: 100%;" />
 
-                    <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="6"
+                    <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?"
+                                  Class="composer-intent"
                                   Style="width: 100%;"
                                   Placeholder="Ex: Les personnages découvrent une porte secrète..." />
 
@@ -46,7 +48,7 @@
                     {
                         <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
                     }
-                </FluentStack>
+                </div>
             </FluentCard>
         </aside>
 

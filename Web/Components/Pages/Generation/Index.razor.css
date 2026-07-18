@@ -7,13 +7,29 @@
     align-items: start;
 }
 
-/* Sticky so the composer stays in view while reading the page. */
+/* Sticky, full-viewport-height composer so it stays in view and the intent
+   field can grow to fill the whole height. */
 .gen-sidebar {
     position: sticky;
     top: 16px;
+    height: calc(100vh - 160px);
+    display: flex;
 }
 
-/* Collapse to a single column on narrow viewports. */
+.composer-card {
+    width: 100%;
+}
+
+/* Own flex column inside the card so the intent field grows to fill the height. */
+.composer-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Collapse to a single column on narrow viewports; let content size naturally. */
 @media (max-width: 900px) {
     .gen-layout {
         grid-template-columns: 1fr;
@@ -21,6 +37,11 @@
 
     .gen-sidebar {
         position: static;
+        height: auto;
+    }
+
+    .composer-body {
+        height: auto;
     }
 }
 
