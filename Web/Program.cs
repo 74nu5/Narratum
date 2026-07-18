@@ -47,6 +47,7 @@ builder.Services.AddScoped<StoryLibraryService>();
 builder.Services.AddScoped<ModelSelectionService>();
 builder.Services.AddSingleton<ModelCatalogService>();
 builder.Services.AddSingleton<AzureFoundryState>();
+builder.Services.AddSingleton<ImageStorageService>();
 builder.Services.AddScoped<IModelResolver>(sp => sp.GetRequiredService<ModelSelectionService>());
 builder.Services.AddScoped<IGenerationService, GenerationService>();
 builder.Services.AddScoped<ExpertModeService>();
@@ -68,6 +69,15 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serve runtime-generated page images (written outside wwwroot) under /generated-images.
+var imageStorage = app.Services.GetRequiredService<ImageStorageService>();
+app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(imageStorage.RootPath),
+    RequestPath = ImageStorageService.RequestPath
+});
+
 app.UseAntiforgery();
 app.MapStaticAssets();
 

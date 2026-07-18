@@ -37,7 +37,12 @@ public enum AgentType
     /// <summary>
     /// Agent de secrets - suit les informations révélées et cachées (sortie structurée).
     /// </summary>
-    Secret
+    Secret,
+
+    /// <summary>
+    /// Agent de prompt d'image - transforme le texte d'une page en prompt visuel.
+    /// </summary>
+    ImagePrompt
 }
 
 /// <summary>

@@ -72,6 +72,16 @@ public record PageSnapshotEntity
     public string? SerializedSecrets { get; init; }
 
     /// <summary>
+    /// Chemin (URL relative) de l'image générée pour cette page, ou null si aucune.
+    /// </summary>
+    public string? ImagePath { get; init; }
+
+    /// <summary>
+    /// Prompt visuel utilisé pour générer l'image (référence / info-bulle).
+    /// </summary>
+    public string? ImagePrompt { get; init; }
+
+    /// <summary>
     /// Prompts envoyés aux agents (mode expert).
     /// </summary>
     public string? PromptsSent { get; init; }

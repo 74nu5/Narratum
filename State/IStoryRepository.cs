@@ -120,6 +120,16 @@ public interface IStoryRepository
     Task<IReadOnlyList<string>> GetAllPageSecretsAsync(string slotName, CancellationToken ct = default);
 
     /// <summary>
+    /// Stores the generated image path and its prompt for a saved page.
+    /// </summary>
+    Task SavePageImageAsync(string slotName, int pageIndex, string imagePath, string imagePrompt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the generated image path for a page, or null if none.
+    /// </summary>
+    Task<string?> GetPageImageAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns the concatenated narrative text of every page (in order) — the story so far.
     /// </summary>
     Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default);

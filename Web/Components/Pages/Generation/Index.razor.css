@@ -136,6 +136,16 @@
     border-color: transparent;
 }
 
+/* Generated page illustration. */
+.page-image {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    border-radius: 10px;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+}
+
 /* Revealed secrets: highlighted notes with a category tag. */
 .secret-list {
     display: flex;

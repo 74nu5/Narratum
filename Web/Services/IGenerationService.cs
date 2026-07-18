@@ -43,11 +43,13 @@ public interface IGenerationService
     /// <param name="slotName">Story slot identifier</param>
     /// <param name="intentDescription">User's narrative direction</param>
     /// <param name="model">LLM model to use for this page; null falls back to the default.</param>
+    /// <param name="imageModel">Image model for this page; null/none skips image generation.</param>
     /// <param name="ct">Cancellation token</param>
     IAsyncEnumerable<string> GenerateNextPageStreamingAsync(
         string slotName,
         string intentDescription,
         string? model = null,
+        string? imageModel = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -119,6 +121,14 @@ public interface IGenerationService
     /// Gets the secrets recorded for a page (revealed and hidden). Empty when none were stored.
     /// </summary>
     Task<IReadOnlyList<StorySecret>> GetPageSecretsAsync(
+        string slotName,
+        int pageIndex,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the generated image URL for a page, or null if none.
+    /// </summary>
+    Task<string?> GetPageImageAsync(
         string slotName,
         int pageIndex,
         CancellationToken ct = default);

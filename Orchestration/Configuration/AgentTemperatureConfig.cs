@@ -45,6 +45,12 @@ public sealed record AgentTemperatureConfig
     public double SecretTemperature { get; init; } = 0.4;
 
     /// <summary>
+    /// Temperature for the ImagePrompt agent (page text → visual prompt).
+    /// Moderate for evocative but faithful descriptions.
+    /// </summary>
+    public double ImagePromptTemperature { get; init; } = 0.6;
+
+    /// <summary>
     /// Default configuration with balanced temperatures.
     /// </summary>
     public static AgentTemperatureConfig Default => new();
@@ -82,6 +88,7 @@ public sealed record AgentTemperatureConfig
         AgentType.Consistency => ConsistencyTemperature,
         AgentType.Choice => ChoiceTemperature,
         AgentType.Secret => SecretTemperature,
+        AgentType.ImagePrompt => ImagePromptTemperature,
         _ => 0.7 // Default fallback
     };
 
@@ -95,7 +102,8 @@ public sealed record AgentTemperatureConfig
             && IsValidTemperature(SummaryTemperature)
             && IsValidTemperature(ConsistencyTemperature)
             && IsValidTemperature(ChoiceTemperature)
-            && IsValidTemperature(SecretTemperature);
+            && IsValidTemperature(SecretTemperature)
+            && IsValidTemperature(ImagePromptTemperature);
     }
 
     private static bool IsValidTemperature(double temp)

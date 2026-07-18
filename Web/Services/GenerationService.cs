@@ -25,6 +25,8 @@ public class GenerationService : IGenerationService
     private readonly IStoryRepository _storyRepository;
     private readonly ModelSelectionService _modelSelector;
     private readonly ILlmClient _llmClient;
+    private readonly IImageGenerator _imageGenerator;
+    private readonly ImageStorageService _imageStorage;
     private readonly ILogger<GenerationService> _logger;
     private readonly PromptOptimizationService _promptOptimizer = new();
     private readonly AgentTemperatureConfig _temperatures = AgentTemperatureConfig.Default;
@@ -41,12 +43,16 @@ public class GenerationService : IGenerationService
         IStoryRepository storyRepository,
         ModelSelectionService modelSelector,
         ILlmClient llmClient,
+        IImageGenerator imageGenerator,
+        ImageStorageService imageStorage,
         ILogger<GenerationService> logger)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _storyRepository = storyRepository ?? throw new ArgumentNullException(nameof(storyRepository));
         _modelSelector = modelSelector ?? throw new ArgumentNullException(nameof(modelSelector));
         _llmClient = llmClient ?? throw new ArgumentNullException(nameof(llmClient));
+        _imageGenerator = imageGenerator ?? throw new ArgumentNullException(nameof(imageGenerator));
+        _imageStorage = imageStorage ?? throw new ArgumentNullException(nameof(imageStorage));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -247,6 +253,7 @@ public class GenerationService : IGenerationService
         string slotName,
         string intentDescription,
         string? model = null,
+        string? imageModel = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         using var scope = _logger.BeginScope(new Dictionary<string, object>
@@ -419,6 +426,30 @@ public class GenerationService : IGenerationService
             string.Join("\n", secrets.Select(s => $"• [{s.Category}] {(s.IsRevealed ? "révélé" : "caché")} — {s.Content}")),
             secretTimer.Elapsed.TotalMilliseconds));
 
+        // 7. Image — two-stage: an ImagePrompt agent turns the page into a visual prompt, then the
+        // chosen image model renders it. Only when the user picked an image model; best-effort.
+        if (_imageGenerator.CanHandle(imageModel))
+        {
+            var imageTimer = Stopwatch.StartNew();
+            var (imagePath, imagePrompt) = await GenerateImageAsync(slotName, newPageIndex, fullText, imageModel!, chosenModel, ct);
+            imageTimer.Stop();
+            if (imagePath is not null)
+            {
+                try
+                {
+                    await _storyRepository.SavePageImageAsync(slotName, newPageIndex, imagePath, imagePrompt, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to persist image for page {PageIndex}", newPageIndex);
+                }
+            }
+            traces.Add(new AgentTraceInfo(
+                "Image", "Prompt visuel + génération",
+                imagePath is not null ? $"{imagePath}\n« {imagePrompt} »" : $"(échec) prompt : {imagePrompt}",
+                imageTimer.Elapsed.TotalMilliseconds));
+        }
+
         // Persist the Expert traces — best effort: the page is already saved.
         try
         {
@@ -487,8 +518,60 @@ public class GenerationService : IGenerationService
         AgentType.Character => "Tu es l'archiviste des personnages. Tu tiens à jour, de façon factuelle, la fiche de chaque personnage d'une histoire. " + FrenchOnly,
         AgentType.Choice => "Tu conçois des choix interactifs qui font avancer une histoire. " + FrenchOnly,
         AgentType.Secret => "Tu gères les informations secrètes d'une histoire : ce que le lecteur découvre et ce que seul le narrateur sait. " + FrenchOnly,
+        AgentType.ImagePrompt => "Tu transformes une scène narrative en un prompt visuel concis pour un générateur d'images. " + FrenchOnly,
         _ => "Tu es un agent narratif. " + FrenchOnly
     };
+
+    /// <summary>
+    /// Two-stage image generation: an ImagePrompt agent turns the page into a visual prompt (using
+    /// the text model), then the chosen image model renders it and the bytes are saved to a file.
+    /// Returns the served image URL (or null on failure) and the prompt used.
+    /// </summary>
+    private async Task<(string? Path, string Prompt)> GenerateImageAsync(
+        string slotName, int pageIndex, string narrative, string imageModel, string textModel, CancellationToken ct)
+    {
+        var promptAgent = await RunAgentAsync(
+            AgentType.ImagePrompt, "Prompt d'image", "Texte → prompt visuel",
+            BuildImagePromptPrompt(narrative), textModel, ct);
+
+        var imagePrompt = promptAgent.Output;
+        if (string.IsNullOrWhiteSpace(imagePrompt) || imagePrompt.StartsWith("(agent", StringComparison.Ordinal))
+            imagePrompt = narrative.Length > 400 ? narrative[..400] : narrative; // fallback: the narrative itself
+
+        var result = await _imageGenerator.GenerateAsync(imagePrompt, imageModel, ct);
+        if (result is Result<ImageResult>.Success success)
+        {
+            try
+            {
+                var path = await _imageStorage.SaveAsync(
+                    slotName, pageIndex, success.Value.Bytes, success.Value.FileExtension, ct);
+                return (path, imagePrompt);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to save generated image file for page {PageIndex}", pageIndex);
+            }
+        }
+        else if (result is Result<ImageResult>.Failure failure)
+        {
+            _logger.LogWarning("Image generation failed: {Message}", failure.Message);
+        }
+
+        return (null, imagePrompt);
+    }
+
+    /// <summary>Builds the prompt asking for a single concise visual prompt of the latest page.</summary>
+    private static string BuildImagePromptPrompt(string narrative)
+    {
+        var scene = string.IsNullOrWhiteSpace(narrative) ? "(scène à peine commencée)" : narrative;
+
+        return
+            $"Voici la dernière page de l'histoire :\n\n{scene}\n\n" +
+            "Rédige un UNIQUE prompt visuel décrivant cette scène pour un générateur d'images : " +
+            "cadre, décor, personnages, ambiance et lumière, en une à deux phrases denses. " +
+            "Style illustration / art numérique, cinématographique. Aucun texte ni dialogue dans l'image. " +
+            "Réponds uniquement avec le prompt, sans préambule.";
+    }
 
     /// <summary>
     /// Generates the structured secrets for a page — a mix of revealed (the reader just learned
@@ -768,6 +851,12 @@ public class GenerationService : IGenerationService
             return Array.Empty<StorySecret>();
         }
     }
+
+    /// <summary>
+    /// Reads the generated image URL for a page, or null if none.
+    /// </summary>
+    public async Task<string?> GetPageImageAsync(string slotName, int pageIndex, CancellationToken ct = default)
+        => await _storyRepository.GetPageImageAsync(slotName, pageIndex, ct);
 
     /// <summary>
     /// Loads a specific page from database.

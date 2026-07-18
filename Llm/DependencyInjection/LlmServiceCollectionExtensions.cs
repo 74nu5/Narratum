@@ -38,6 +38,12 @@ public static class LlmServiceCollectionExtensions
             sp.GetRequiredService<TokenCredential>(),
             sp.GetService<ILogger<AzureFoundryDirectory>>()));
 
+        // Cloud image generation (Azure AI Foundry, Entra ID).
+        services.TryAddSingleton<IImageGenerator>(sp => new AzureImageGenerator(
+            sp.GetRequiredService<TokenCredential>(),
+            timeoutSeconds: config.TimeoutSeconds,
+            logger: sp.GetService<ILogger<AzureImageGenerator>>()));
+
         // ILlmClient is the routing client: it dispatches each request to the local provider or to
         // Azure (per the model id). Scoped + lazy so Foundry Local init never blocks startup and the
         // DI container owns disposal.

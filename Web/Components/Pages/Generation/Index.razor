@@ -46,6 +46,17 @@
 
                     <div class="model-inuse">▶ Prochaine page : <strong>@ModelBadge(_selectedModel)</strong></div>
 
+                    @if (_imageModels.Count > 0)
+                    {
+                        <FluentSelect TOption="ModelOption"
+                                      Items="_imageModelOptions"
+                                      OptionValue="@(m => m.Id)"
+                                      OptionText="@(m => m.Label)"
+                                      @bind-Value="_selectedImageModel"
+                                      Label="Image (cloud)"
+                                      Style="width: 100%;" />
+                    }
+
                     <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?"
                                   Class="composer-intent"
                                   Style="width: 100%;"
@@ -109,6 +120,10 @@
                     }
                     else if (!string.IsNullOrEmpty(_currentNarrative))
                     {
+                        @if (!string.IsNullOrEmpty(_currentPageImage))
+                        {
+                            <img src="@_currentPageImage" alt="Illustration de la scène" class="page-image" />
+                        }
                         @* Streams in live; a caret shows while more text is arriving *@
                         <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
                     }
@@ -237,6 +252,12 @@
     private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
     private string? _currentPageModel;
+    private IReadOnlyList<ModelOption> _imageModels = Array.Empty<ModelOption>();
+    private string _selectedImageModel = string.Empty; // "" = no image
+    private string? _currentPageImage;
+
+    // Image dropdown = a "no image" sentinel followed by the available image models.
+    private IReadOnlyList<ModelOption> _imageModelOptions => [new ModelOption(string.Empty, "🚫 Sans image"), .. _imageModels];
     private IReadOnlyList<AzureSubscriptionInfo> _subscriptions = Array.Empty<AzureSubscriptionInfo>();
     private string? _currentSubscription;
 
@@ -255,6 +276,7 @@
         _subscriptions = await AzureState.GetSubscriptionsAsync();
         _currentSubscription = AzureState.CurrentSubscriptionId;
         await RebuildModelListAsync();
+        _imageModels = await AzureState.GetAzureImageModelsAsync();
         _selectedModel = _models.FirstOrDefault()?.Id ?? _selectedModel;
 
         await LoadPageHistory();
@@ -281,6 +303,12 @@
     {
         var azureModels = await AzureState.GetAzureModelsAsync();
         _models = [.. _localModels, .. azureModels];
+        _imageModels = await AzureState.GetAzureImageModelsAsync();
+    }
+
+    private async Task LoadImage(int pageIndex)
+    {
+        _currentPageImage = await GenService.GetPageImageAsync(SlotName, pageIndex);
     }
 
     private async Task OnSubscriptionChanged(string? subscriptionId)
@@ -350,6 +378,7 @@
         await LoadChoices(pageIndex);
         await LoadCharacters(pageIndex);
         await LoadSecrets(pageIndex);
+        await LoadImage(pageIndex);
     }
 
     private async Task GenerateNextPage()
@@ -360,13 +389,15 @@
         _choices = Array.Empty<StoryChoice>();          // hide stale choices while the next page streams
         _characters = Array.Empty<CharacterProfile>();  // and the previous roster
         _secrets = Array.Empty<StorySecret>();          // and the previous secrets
+        _currentPageImage = null;                       // and the previous image
         var intent = _userIntent;
 
         try
         {
             // Throttle re-renders so a fast token stream doesn't flood the circuit.
             var lastRender = DateTime.UtcNow;
-            await foreach (var chunk in GenService.GenerateNextPageStreamingAsync(SlotName, intent, _selectedModel))
+            var imageModel = string.IsNullOrEmpty(_selectedImageModel) ? null : _selectedImageModel;
+            await foreach (var chunk in GenService.GenerateNextPageStreamingAsync(SlotName, intent, _selectedModel, imageModel))
             {
                 _currentNarrative += chunk;
 
@@ -388,6 +419,7 @@
             await LoadChoices(_currentPageIndex);    // Next-step choices for the new page
             await LoadCharacters(_currentPageIndex); // Character roster for the new page
             await LoadSecrets(_currentPageIndex);    // Revealed/hidden secrets for the new page
+            await LoadImage(_currentPageIndex);      // Generated image for the new page
         }
         catch (Exception ex)
         {

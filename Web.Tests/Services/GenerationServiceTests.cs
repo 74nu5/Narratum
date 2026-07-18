@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Narratum.Core;
@@ -40,7 +41,18 @@ public class GenerationServiceTests
             _mockRepository.Object,
             modelSelector,
             new Mock<ILlmClient>().Object,
+            new Mock<IImageGenerator>().Object,
+            CreateImageStorage(),
             NullLogger<GenerationService>.Instance);
+    }
+
+    // A real ImageStorageService over a temp content root (the sealed type can't be mocked, and
+    // image code only runs when an image model is selected — never in these tests).
+    private static ImageStorageService CreateImageStorage()
+    {
+        var env = new Mock<IWebHostEnvironment>();
+        env.SetupGet(e => e.ContentRootPath).Returns(Path.GetTempPath());
+        return new ImageStorageService(env.Object);
     }
 
     private static StoryCreationRequest CreateRequest(
@@ -267,6 +279,8 @@ public class GenerationServiceTests
             _mockRepository.Object,
             new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini", NarratorModel = "phi-4-mini" }),
             new FakeStreamingLlmClient("Once ", "upon ", "a time."),
+            new Mock<IImageGenerator>().Object,
+            CreateImageStorage(),
             NullLogger<GenerationService>.Instance);
 
         // Act
@@ -289,6 +303,8 @@ public class GenerationServiceTests
             _mockRepository.Object,
             new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini" }),
             new FakeStreamingLlmClient("x"),
+            new Mock<IImageGenerator>().Object,
+            CreateImageStorage(),
             NullLogger<GenerationService>.Instance);
 
         var act = async () =>
@@ -332,6 +348,8 @@ public class GenerationServiceTests
             _mockRepository.Object,
             new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini", NarratorModel = "phi-4-mini" }),
             fakeClient,
+            new Mock<IImageGenerator>().Object,
+            CreateImageStorage(),
             NullLogger<GenerationService>.Instance);
 
         // Act — request an explicit model for this page
@@ -422,6 +440,8 @@ public class GenerationServiceTests
             _mockRepository.Object,
             new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini" }),
             new ThrowingAgentsStreamingClient("Il ", "était ", "une fois."),
+            new Mock<IImageGenerator>().Object,
+            CreateImageStorage(),
             NullLogger<GenerationService>.Instance);
 
         // Act
