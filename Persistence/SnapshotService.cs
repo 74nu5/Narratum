@@ -95,7 +95,7 @@ public class SnapshotService : ISnapshotService
             //  qu'id/type/timestamp — voir DeserializeEvents. Le texte narratif des pages sert
             //  de source de vérité pour le contenu de l'histoire.)
             var restoredState = new StoryState(worldState)
-                .WithCharacters(characterStates.Values.ToArray());
+                .WithCharacters([.. characterStates.Values]);
 
             return Result<StoryState>.Ok(restoredState);
         }

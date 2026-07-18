@@ -54,10 +54,10 @@ public partial class Index
         var request = new StoryCreationRequest(
             this.worldName,
             this.genre,
-            this.characters.Select(c => (c.Name, (string?)c.Description)).ToList(),
+            [.. this.characters.Select(c => (c.Name, (string?)c.Description))],
             string.IsNullOrWhiteSpace(this.worldDescription) ? null : this.worldDescription,
             string.IsNullOrWhiteSpace(this.narrativeStyle) ? null : this.narrativeStyle,
-            this.locations.Select(l => (l.Name, (string?)l.Description)).ToList(),
+            [.. this.locations.Select(l => (l.Name, (string?)l.Description))],
             this.model);
 
         await this.GenService.CreateStoryAsync(slotName, request);

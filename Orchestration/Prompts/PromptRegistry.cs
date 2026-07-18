@@ -83,10 +83,9 @@ public sealed class PromptRegistry
     {
         lock (_lock)
         {
-            return _templates.Values
+            return [.. _templates.Values
                 .Concat(_defaultTemplates.Values)
-                .Distinct()
-                .ToList();
+                .Distinct()];
         }
     }
 

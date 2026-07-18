@@ -309,7 +309,7 @@ public sealed class AuditTrail
                 query = query.Where(e => e.PipelineId == pipelineId.Value);
             }
 
-            return query.OrderBy(e => e.Timestamp).ToList();
+            return [.. query.OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -320,10 +320,9 @@ public sealed class AuditTrail
     {
         lock (_lock)
         {
-            return _entries
+            return [.. _entries
                 .Where(e => e.Severity == severity)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -334,10 +333,9 @@ public sealed class AuditTrail
     {
         lock (_lock)
         {
-            return _entries
+            return [.. _entries
                 .Where(e => e.Category == category)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -348,10 +346,9 @@ public sealed class AuditTrail
     {
         lock (_lock)
         {
-            return _entries
+            return [.. _entries
                 .Where(e => e.Action.Equals(action, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -362,10 +359,9 @@ public sealed class AuditTrail
     {
         lock (_lock)
         {
-            return _entries
+            return [.. _entries
                 .Where(e => e.Timestamp >= from && e.Timestamp <= to)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -376,10 +372,9 @@ public sealed class AuditTrail
     {
         lock (_lock)
         {
-            return _entries
+            return [.. _entries
                 .Where(e => e.Severity >= AuditSeverity.Warning)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
+                .OrderBy(e => e.Timestamp)];
         }
     }
 
@@ -464,14 +459,14 @@ public sealed record AuditReport(
     /// </summary>
     public IReadOnlyDictionary<AuditCategory, IReadOnlyList<AuditEntry>> ByCategory =>
         Entries.GroupBy(e => e.Category)
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<AuditEntry>)g.ToList());
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<AuditEntry>)[.. g]);
 
     /// <summary>
     /// Entrées groupées par acteur.
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<AuditEntry>> ByActor =>
         Entries.GroupBy(e => e.Actor)
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<AuditEntry>)g.ToList());
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<AuditEntry>)[.. g]);
 
     /// <summary>
     /// Génère une représentation textuelle du rapport.

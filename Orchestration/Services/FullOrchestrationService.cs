@@ -388,7 +388,7 @@ public sealed class FullOrchestrationService
             var activeCharacters = new List<CharacterContext>();
             var characterIds = intent.TargetCharacterIds.Count > 0
                 ? intent.TargetCharacterIds
-                : storyState.Characters.Keys.ToList();
+                : [.. storyState.Characters.Keys];
 
             foreach (var characterId in characterIds)
             {
@@ -795,7 +795,7 @@ public sealed record FullPipelineResult
         Output = output;
         IsSuccess = isSuccess;
         ErrorMessage = errorMessage;
-        StageResults = stageResults.ToList();
+        StageResults = [.. stageResults];
         TotalDuration = totalDuration;
         RetryCount = retryCount;
         Metrics = metrics;

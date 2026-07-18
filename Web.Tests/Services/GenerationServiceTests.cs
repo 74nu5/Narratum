@@ -50,7 +50,7 @@ public class GenerationServiceTests
         params (string Name, string? Description)[] characters)
     {
         var chars = characters.Length > 0
-            ? characters.ToList()
+            ? [.. characters]
             : new List<(string Name, string? Description)> { ("Hero", "A brave warrior") };
 
         return new StoryCreationRequest(

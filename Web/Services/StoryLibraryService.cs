@@ -34,7 +34,7 @@ public class StoryLibraryService
         _logger.LogInformation("Story library loaded: {StoryCount} stories found", stories.Count);
 
         // Map Core.StoryEntry to Web.Models.StoryEntry
-        return stories.Select(s => new Narratum.Web.Models.StoryEntry
+        return [.. stories.Select(s => new Narratum.Web.Models.StoryEntry
         {
             SlotName = s.SlotName,
             DisplayName = s.DisplayName,
@@ -42,7 +42,7 @@ public class StoryLibraryService
             PageCount = s.PageCount,
             GenreStyle = s.GenreStyle,
             Description = s.Description
-        }).ToList();
+        })];
     }
 
     /// <summary>

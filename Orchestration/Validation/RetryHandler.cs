@@ -60,7 +60,7 @@ public sealed record RetryAttempt(
         => new(attemptNumber, true, duration, Array.Empty<string>(), Array.Empty<string>());
 
     public static RetryAttempt Failure(int attemptNumber, TimeSpan duration, ValidationResult result)
-        => new(attemptNumber, false, duration, result.ErrorMessages.ToList(), result.Warnings.Select(w => w.Message).ToList());
+        => new(attemptNumber, false, duration, [.. result.ErrorMessages], [.. result.Warnings.Select(w => w.Message)]);
 }
 
 /// <summary>

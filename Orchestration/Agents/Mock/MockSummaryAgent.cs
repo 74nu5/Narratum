@@ -128,7 +128,7 @@ public sealed class MockSummaryAgent : ISummaryAgent
             var eventType = group.Key;
             var count = group.Count();
 
-            sb.Append(FormatEventGroup(eventType, count, group.ToList()));
+            sb.Append(FormatEventGroup(eventType, count, [.. group]));
         }
 
         // Ajouter une conclusion générique

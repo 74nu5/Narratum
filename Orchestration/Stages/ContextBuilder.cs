@@ -68,7 +68,7 @@ public class ContextBuilder : IContextBuilder
                 {
                     var summaryResult = await _memoryService.SummarizeHistoryAsync(
                         worldId,
-                        currentState.EventHistory.Cast<object>().ToList(),
+                        [.. currentState.EventHistory.Cast<object>()],
                         targetLength: 300);
 
                     if (summaryResult is Result<string>.Success summarySuccess)
