@@ -227,6 +227,11 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
 
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
+        // For a local provider, "healthy" means the service endpoint is reachable — no
+        // specific model needs to be loaded. (IsRunningAsync handles its own errors.)
+        if (_lifecycleManager is not null)
+            return await _lifecycleManager.IsRunningAsync(cancellationToken);
+
         try
         {
             var messages = new List<ChatMessage>

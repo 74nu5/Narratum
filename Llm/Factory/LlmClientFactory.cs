@@ -67,8 +67,10 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
             _loggerFactory.CreateLogger<FoundryLocalLifecycleManager>());
 
         var baseUrl = await _lifecycleManager.GetBaseUrlAsync(cancellationToken);
-        await _lifecycleManager.EnsureModelAvailableAsync(
-            Config.FoundryLocal.ModelAlias, cancellationToken);
+
+        // No startup model load: the adapter loads whichever model each request needs,
+        // on demand. This avoids always loading the default model even when the user
+        // picks a different one.
 
         // OpenAI SDK pointe vers le endpoint local Foundry
         var openAiClient = new OpenAIClient(

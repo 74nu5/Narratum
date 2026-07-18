@@ -85,8 +85,16 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         var mgr = FoundryLocalManager.Instance;
         var catalog = await mgr.GetCatalogAsync();
 
-        var model = await catalog.GetModelAsync(modelName)
-            ?? throw new InvalidOperationException($"Model '{modelName}' not found in Foundry Local catalog");
+        // Match the catalogue EXACTLY by alias (Model Name) or concrete id.
+        // catalog.GetModelAsync() does fuzzy matching and can return the wrong model
+        // (e.g. "mistral-nemo-12b-instruct" resolved to a "ministral-..." model), so we
+        // don't use it.
+        var models = await catalog.ListModelsAsync();
+        var model = models.FirstOrDefault(m =>
+                        string.Equals(m.Alias, modelName, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(m.Id, modelName, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidOperationException(
+                        $"Model '{modelName}' not found in Foundry Local catalog (exact match on alias/id)");
 
         if (!await model.IsLoadedAsync())
         {
