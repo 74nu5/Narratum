@@ -21,9 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Microsoft Fluent UI Blazor -->
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.14.3" />
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.14.3" />
+    <!-- Microsoft Fluent UI Blazor (v5 RC) -->
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="5.0.0-rc.4-26180.1" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="5.0.0-rc.4-26180.1" />
   </ItemGroup>
 
   <ItemGroup>

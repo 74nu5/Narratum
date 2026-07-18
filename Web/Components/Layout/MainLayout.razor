@@ -2,41 +2,38 @@
 @inject ExpertModeService ExpertMode
 
 <FluentLayout>
-    <FluentHeader Style="padding: 0.5rem 1rem;">
+    <FluentLayoutItem Area="LayoutArea.Header" Style="padding: 0.5rem 1rem;">
         <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Start" VerticalAlignment="VerticalAlignment.Center">
-            <FluentLabel Typo="Typography.H3" Style="cursor: pointer;" @onclick="@(() => NavigationManager.NavigateTo("/"))">
+            <FluentText Size="TextSize.Size600" Weight="TextWeight.Bold" Style="cursor: pointer;" @onclick="@(() => NavigationManager.NavigateTo("/"))">
                 ✨ Narratum
-            </FluentLabel>
+            </FluentText>
             <FluentSpacer />
             <StorySwitcher />
             <FluentSpacer />
             <FluentSwitch Label="🔧 Expert" @bind-Value="@ExpertMode.IsExpertModeEnabled" />
-            <FluentButton Appearance="Appearance.Outline" @onclick='() => NavigationManager.NavigateTo("/config")'>
+            <FluentButton Appearance="ButtonAppearance.Outline" @onclick='() => NavigationManager.NavigateTo("/config")'>
                 ⚙️ Config
             </FluentButton>
         </FluentStack>
-    </FluentHeader>
-    
-    <FluentBodyContent Style="padding: 2rem;">
+    </FluentLayoutItem>
+
+    <FluentLayoutItem Area="LayoutArea.Content" Style="padding: 2rem;">
         <div class="page">
             <main>
                 @Body
             </main>
         </div>
-    </FluentBodyContent>
-    
-    <FluentFooter Style="padding: 1rem; border-top: 1px solid var(--neutral-stroke-divider-rest);">
+    </FluentLayoutItem>
+
+    <FluentLayoutItem Area="LayoutArea.Footer" Style="padding: 1rem; border-top: 1px solid var(--colorNeutralStroke2, #e0e0e6);">
         <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-            <FluentLabel Typo="Typography.Body">Narratum - Générateur d'histoires déterministe</FluentLabel>
+            <FluentText Size="TextSize.Size300">Narratum - Générateur d'histoires déterministe</FluentText>
             <SaveIndicator IsSaving="@_isSaving" SaveError="@_saveError" LastSaveTime="@_lastSaveTime" />
         </FluentStack>
-    </FluentFooter>
+    </FluentLayoutItem>
 </FluentLayout>
 
-<FluentToastProvider />
-<FluentDialogProvider />
-<FluentTooltipProvider />
-<FluentMessageBarProvider />
+<FluentProviders />
 
 @code {
     [Inject] private NavigationManager NavigationManager { get; set; } = default!;

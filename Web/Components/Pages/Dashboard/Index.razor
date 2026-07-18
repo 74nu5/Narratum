@@ -6,28 +6,28 @@
 <PageTitle>Dashboard - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H1">✨ Bienvenue sur Narratum</FluentLabel>
-    
+    <FluentText Block="true" Size="TextSize.Size900" Weight="TextWeight.Bold">✨ Bienvenue sur Narratum</FluentText>
+
     <FluentCard>
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
-            <FluentButton Appearance="Appearance.Accent" @onclick='() => this.Navigation.NavigateTo("/wizard")' Style="flex: 1;">
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick='() => this.Navigation.NavigateTo("/wizard")' Style="flex: 1;">
                 ➕ Créer une nouvelle histoire
             </FluentButton>
-            <FluentButton Appearance="Appearance.Neutral" @onclick='() => this.Navigation.NavigateTo("/library")' Style="flex: 1;">
+            <FluentButton Appearance="ButtonAppearance.Default" @onclick='() => this.Navigation.NavigateTo("/library")' Style="flex: 1;">
                 📚 Voir toutes mes histoires
             </FluentButton>
         </FluentStack>
     </FluentCard>
 
-    <FluentLabel Typo="Typography.H3">Histoires récentes</FluentLabel>
-    
+    <FluentText Block="true" Size="TextSize.Size600" Weight="TextWeight.Semibold">Histoires récentes</FluentText>
+
     @if (this.recentStories == null)
     {
-        <FluentProgressRing />
+        <FluentSpinner />
     }
     else if (!this.recentStories.Any())
     {
-        <FluentMessageBar Intent="MessageIntent.Info">
+        <FluentMessageBar Intent="MessageBarIntent.Info">
             Aucune histoire. Créez-en une pour commencer !
         </FluentMessageBar>
     }
@@ -37,12 +37,12 @@
             @foreach (var story in this.recentStories)
             {
                 <FluentCard Style="width: 300px; cursor: pointer;" @onclick="@(() => this.OpenStory(story.SlotName))">
-                    <FluentLabel Typo="Typography.H4">@story.DisplayName</FluentLabel>
-                    <FluentLabel>Genre: @story.GenreStyle</FluentLabel>
-                    <FluentLabel>Pages: @story.PageCount</FluentLabel>
-                    <FluentLabel Typo="Typography.Body">
+                    <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">@story.DisplayName</FluentText>
+                    <FluentText Block="true" Size="TextSize.Size300">Genre: @story.GenreStyle</FluentText>
+                    <FluentText Block="true" Size="TextSize.Size300">Pages: @story.PageCount</FluentText>
+                    <FluentText Block="true" Size="TextSize.Size300">
                         Modifié: @story.LastModified.ToString("dd/MM/yyyy")
-                    </FluentLabel>
+                    </FluentText>
                 </FluentCard>
             }
         </FluentStack>

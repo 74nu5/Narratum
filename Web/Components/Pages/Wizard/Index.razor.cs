@@ -12,6 +12,16 @@ public partial class Index
     private readonly string[] stepTitles = ["Monde", "Genre", "Personnages", "Lieux", "Résumé"];
     private int currentStep;
 
+    // Genre catalogue (code → French label) for the v5 Items-based select.
+    private static readonly IReadOnlyList<KeyValuePair<string, string>> genreOptions =
+    [
+        new("Fantasy", "Fantasy"),
+        new("SciFi", "Science-Fiction"),
+        new("Mystery", "Mystère"),
+        new("Horror", "Horreur"),
+        new("Historical", "Historique"),
+    ];
+
     private string worldName = string.Empty;
     private string worldDescription = string.Empty;
     private string genre = "Fantasy";

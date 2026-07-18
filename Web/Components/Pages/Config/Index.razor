@@ -9,65 +9,66 @@
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
     <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-        <FluentLabel Typo="Typography.H2">⚙️ Configuration LLM</FluentLabel>
-        <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> ← Dashboard</FluentButton>
+        <FluentText Block="true" Size="TextSize.Size700" Weight="TextWeight.Bold">⚙️ Configuration LLM</FluentText>
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick='() => Navigation.NavigateTo("/")'> ← Dashboard</FluentButton>
     </FluentStack>
-    
+
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-            <FluentLabel Typo="Typography.H4">Modèle de narration</FluentLabel>
-            <FluentLabel Typo="Typography.Body" Style="opacity:0.7;">
+            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">Modèle de narration</FluentText>
+            <FluentText Block="true" Size="TextSize.Size300" Style="opacity:0.7;">
                 Modèle par défaut de session. Chaque histoire choisit son modèle à la création,
                 et chaque page peut le changer depuis l'écran de génération.
-            </FluentLabel>
+            </FluentText>
             <FluentSelect TOption="ModelOption"
+                          TValue="string"
                           Items="_selectableModels"
                           OptionValue="@(m => m.Id)"
                           OptionText="@(m => m.Label)"
                           @bind-Value="_selectedModel"
                           Label="Modèle"
                           Style="width: 100%; max-width: 480px;" />
-            
+
             @if (_selectedModel == "custom")
             {
-                <FluentTextField @bind-Value="_customModel" Label="Nom du modèle personnalisé" 
+                <FluentTextInput @bind-Value="_customModel" Label="Nom du modèle personnalisé"
                                Placeholder="Ex: llama-3.2" Style="max-width: 400px;" />
             }
-            
-            <FluentButton Appearance="Appearance.Accent" OnClick="SaveConfig" Style="max-width: 200px;">
+
+            <FluentButton Appearance="ButtonAppearance.Primary" OnClick="SaveConfig" Style="max-width: 200px;">
                 💾 Sauvegarder
             </FluentButton>
 
             @if (_saved)
             {
-                <FluentMessageBar Intent="MessageIntent.Success">✓ Configuration sauvegardée !</FluentMessageBar>
+                <FluentMessageBar Intent="MessageBarIntent.Success">✓ Configuration sauvegardée !</FluentMessageBar>
             }
         </FluentStack>
     </FluentCard>
 
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
-            <FluentLabel Typo="Typography.H4">Informations système</FluentLabel>
-            <FluentLabel><strong>Modèle actuel :</strong> @ModelService.CurrentNarratorModel</FluentLabel>
-            <FluentLabel><strong>Provider :</strong> Foundry Local</FluentLabel>
-            <FluentLabel><strong>Endpoint :</strong> http://localhost:5272</FluentLabel>
+            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">Informations système</FluentText>
+            <FluentText Block="true" Size="TextSize.Size300"><strong>Modèle actuel :</strong> @ModelService.CurrentNarratorModel</FluentText>
+            <FluentText Block="true" Size="TextSize.Size300"><strong>Provider :</strong> Foundry Local</FluentText>
+            <FluentText Block="true" Size="TextSize.Size300"><strong>Endpoint :</strong> http://localhost:5272</FluentText>
         </FluentStack>
     </FluentCard>
 
     <FluentCard>
         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-            <FluentLabel Typo="Typography.H4">Test de connexion</FluentLabel>
-            <FluentButton Appearance="Appearance.Neutral" OnClick="TestConnection" Disabled="@_testing">
+            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">Test de connexion</FluentText>
+            <FluentButton Appearance="ButtonAppearance.Default" OnClick="TestConnection" Disabled="@_testing">
                 🔌 Tester la connexion LLM
             </FluentButton>
-            
+
             @if (_testing)
             {
-                <FluentProgressRing />
+                <FluentSpinner />
             }
             else if (_testResult != null)
             {
-                <FluentMessageBar Intent="@(_testSuccess ? MessageIntent.Success : MessageIntent.Error)">
+                <FluentMessageBar Intent="@(_testSuccess ? MessageBarIntent.Success : MessageBarIntent.Error)">
                     @_testResult
                 </FluentMessageBar>
             }

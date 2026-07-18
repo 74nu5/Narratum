@@ -1,21 +1,21 @@
 <FluentCard>
     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-        <FluentLabel Typo="Typography.Body">Définissez les lieux de votre histoire</FluentLabel>
-        
+        <FluentText Size="TextSize.Size300">Définissez les lieux de votre histoire</FluentText>
+
         @foreach (var location in Locations)
         {
-            <FluentCard Style="background-color: var(--neutral-layer-2);">
+            <FluentCard Style="background-color: var(--colorNeutralBackground2);">
                 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
-                    <FluentTextField @bind-Value="location.Name" Label="Nom du lieu" Style="flex: 1;" />
-                    <FluentTextField @bind-Value="location.Description" Label="Description" Style="flex: 2;" />
-                    <FluentButton Appearance="Appearance.Stealth" @onclick="() => RemoveLocation(location)">
+                    <FluentTextInput @bind-Value="location.Name" Label="Nom du lieu" Style="flex: 1;" />
+                    <FluentTextInput @bind-Value="location.Description" Label="Description" Style="flex: 2;" />
+                    <FluentButton Appearance="ButtonAppearance.Subtle" @onclick="() => RemoveLocation(location)">
                         ❌
                     </FluentButton>
                 </FluentStack>
             </FluentCard>
         }
-        
-        <FluentButton Appearance="Appearance.Outline" @onclick="AddLocation">
+
+        <FluentButton Appearance="ButtonAppearance.Outline" @onclick="AddLocation">
             ➕ Ajouter un lieu
         </FluentButton>
     </FluentStack>

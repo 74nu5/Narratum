@@ -1,21 +1,21 @@
 <FluentCard>
     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-        <FluentLabel Typo="Typography.Body">Ajoutez les personnages de votre histoire</FluentLabel>
-        
+        <FluentText Size="TextSize.Size300">Ajoutez les personnages de votre histoire</FluentText>
+
         @foreach (var character in Characters)
         {
-            <FluentCard Style="background-color: var(--neutral-layer-2);">
+            <FluentCard Style="background-color: var(--colorNeutralBackground2);">
                 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
-                    <FluentTextField @bind-Value="character.Name" Label="Nom" Style="flex: 1;" />
-                    <FluentTextField @bind-Value="character.Description" Label="Description" Style="flex: 2;" />
-                    <FluentButton Appearance="Appearance.Stealth" @onclick="() => RemoveCharacter(character)">
+                    <FluentTextInput @bind-Value="character.Name" Label="Nom" Style="flex: 1;" />
+                    <FluentTextInput @bind-Value="character.Description" Label="Description" Style="flex: 2;" />
+                    <FluentButton Appearance="ButtonAppearance.Subtle" @onclick="() => RemoveCharacter(character)">
                         ❌
                     </FluentButton>
                 </FluentStack>
             </FluentCard>
         }
-        
-        <FluentButton Appearance="Appearance.Outline" @onclick="AddCharacter">
+
+        <FluentButton Appearance="ButtonAppearance.Outline" @onclick="AddCharacter">
             ➕ Ajouter un personnage
         </FluentButton>
     </FluentStack>

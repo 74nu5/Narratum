@@ -3,26 +3,27 @@
 @inject NavigationManager Navigation
 
 <FluentSelect TOption="StoryEntry"
+              TValue="string"
               Items="@_stories"
               OptionValue="@(s => s.SlotName)"
               OptionText="@(s => s.DisplayName)"
-              @bind-SelectedOption="@SelectedStory"
+              @bind-Value="@SelectedSlot"
               Placeholder="Sélectionner une histoire..."
               Style="min-width: 200px;" />
 
 @code {
     private List<StoryEntry> _stories = new();
-    private StoryEntry? _selectedStory;
+    private string? _selectedSlot;
 
-    private StoryEntry? SelectedStory
+    private string? SelectedSlot
     {
-        get => _selectedStory;
+        get => _selectedSlot;
         set
         {
-            if (value != null && value != _selectedStory)
+            if (!string.IsNullOrEmpty(value) && value != _selectedSlot)
             {
-                _selectedStory = value;
-                Navigation.NavigateTo($"/generation/{value.SlotName}");
+                _selectedSlot = value;
+                Navigation.NavigateTo($"/generation/{value}");
             }
         }
     }

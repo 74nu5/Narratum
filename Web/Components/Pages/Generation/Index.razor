@@ -13,7 +13,7 @@
 <PageTitle>Génération - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
+    <FluentText Block="true" Size="TextSize.Size700" Weight="TextWeight.Bold">📖 @_displayTitle</FluentText>
 
     <div class="gen-layout">
         @* LEFT: composer / controls, laid out vertically *@
@@ -21,11 +21,12 @@
             <FluentCard Class="composer-card">
                 @* Own flex column so the intent field grows to fill the card's height. *@
                 <div class="composer-body">
-                    <FluentLabel Typo="Typography.H4">✍️ Composer la suite</FluentLabel>
+                    <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">✍️ Composer la suite</FluentText>
 
                     @if (_subscriptions.Count > 0)
                     {
                         <FluentSelect TOption="AzureSubscriptionInfo"
+                                      TValue="string"
                                       Items="_subscriptions"
                                       OptionValue="@(s => s.SubscriptionId)"
                                       OptionText="@(s => $"☁️ {s.DisplayName}")"
@@ -37,6 +38,7 @@
                     }
 
                     <FluentSelect TOption="ModelOption"
+                                  TValue="string"
                                   Items="_models"
                                   OptionValue="@(m => m.Id)"
                                   OptionText="@(m => m.Label)"
@@ -49,6 +51,7 @@
                     @if (_imageModels.Count > 0)
                     {
                         <FluentSelect TOption="ModelOption"
+                                      TValue="string"
                                       Items="_imageModelOptions"
                                       OptionValue="@(m => m.Id)"
                                       OptionText="@(m => m.Label)"
@@ -62,20 +65,20 @@
                                   Style="width: 100%;"
                                   Placeholder="Ex: Les personnages découvrent une porte secrète..." />
 
-                    <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage"
+                    <FluentButton Appearance="ButtonAppearance.Primary" @onclick="GenerateNextPage"
                                 Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))"
                                 Style="width: 100%;">
                         ✨ Générer la suite
                     </FluentButton>
 
-                    <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'
+                    <FluentButton Appearance="ButtonAppearance.Default" @onclick='() => Navigation.NavigateTo("/")'
                                 Style="width: 100%;">
                         ← Retour au dashboard
                     </FluentButton>
 
                     @if (!string.IsNullOrEmpty(_errorMessage))
                     {
-                        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
+                        <FluentMessageBar Intent="MessageBarIntent.Error">@_errorMessage</FluentMessageBar>
                     }
                 </div>
             </FluentCard>
@@ -86,11 +89,11 @@
             <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
                 @* Timeline *@
                 <FluentCard>
-                    <FluentLabel Typo="Typography.H4">Timeline</FluentLabel>
+                    <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">Timeline</FluentText>
                     <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
                         @foreach (var pageIdx in _pageHistory)
                         {
-                            <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
+                            <FluentButton Appearance="@(pageIdx == _currentPageIndex ? ButtonAppearance.Primary : ButtonAppearance.Default)"
                                           @onclick="() => LoadPage(pageIdx)"
                                           Title="@(string.IsNullOrWhiteSpace(PageModel(pageIdx)) ? "état initial" : ModelBadge(PageModel(pageIdx)))">
                                 @ModelDisplay.Icon(PageModel(pageIdx)) Page @pageIdx
@@ -114,8 +117,8 @@
                     {
                         @* Waiting for the first token *@
                         <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
-                            <FluentProgressRing />
-                            <FluentLabel>Génération en cours...</FluentLabel>
+                            <FluentSpinner />
+                            <FluentText Block="true" Size="TextSize.Size300">Génération en cours...</FluentText>
                         </FluentStack>
                     }
                     else if (!string.IsNullOrEmpty(_currentNarrative))
@@ -129,7 +132,7 @@
                     }
                     else
                     {
-                        <FluentLabel>Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentLabel>
+                        <FluentText Block="true" Size="TextSize.Size300">Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentText>
                     }
                 </FluentCard>
 
@@ -138,7 +141,7 @@
                 {
                     <FluentCard>
                         <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                            <FluentLabel Typo="Typography.H4">🔑 Secrets révélés</FluentLabel>
+                            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">🔑 Secrets révélés</FluentText>
                             <div class="secret-list">
                                 @foreach (var secret in _secrets.Where(s => s.IsRevealed))
                                 {
@@ -157,7 +160,7 @@
                 {
                     <FluentCard>
                         <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                            <FluentLabel Typo="Typography.H4">👥 Personnages</FluentLabel>
+                            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">👥 Personnages</FluentText>
                             <div class="character-list">
                                 @foreach (var character in _characters)
                                 {
@@ -189,7 +192,7 @@
                 {
                     <FluentCard>
                         <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                            <FluentLabel Typo="Typography.H4">Que faites-vous ?</FluentLabel>
+                            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">Que faites-vous ?</FluentText>
                             <div class="choice-list">
                                 @foreach (var choice in _choices)
                                 {
@@ -210,10 +213,10 @@
                 {
                     <FluentCard>
                         <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                            <FluentLabel Typo="Typography.H4">🔧 Coulisses des agents</FluentLabel>
-                            <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
+                            <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">🔧 Coulisses des agents</FluentText>
+                            <FluentText Block="true" Size="TextSize.Size300" Style="opacity: 0.7;">
                                 Ce que chaque agent spécialisé a produit pour cette page. Le lecteur ne voit que la prose du Narrateur.
-                            </FluentLabel>
+                            </FluentText>
                             @foreach (var trace in _agentTraces)
                             {
                                 <details class="agent-trace">

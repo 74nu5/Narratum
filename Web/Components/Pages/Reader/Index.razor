@@ -6,7 +6,7 @@
 <PageTitle>Lecture - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
+    <FluentText Block="true" Size="TextSize.Size700" Weight="TextWeight.Bold">📖 @_displayTitle</FluentText>
 
     @* Current page *@
     <FluentCard Style="min-height: 300px;">
@@ -16,25 +16,25 @@
         }
         else
         {
-            <FluentLabel>Aucune page à afficher.</FluentLabel>
+            <FluentText Block="true" Size="TextSize.Size300">Aucune page à afficher.</FluentText>
         }
     </FluentCard>
 
     @* Navigation *@
     <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
-        <FluentButton Appearance="Appearance.Neutral" @onclick="PreviousPage" Disabled="@(_currentPageIndex == 0)">
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="PreviousPage" Disabled="@(_currentPageIndex == 0)">
             ← Page précédente
         </FluentButton>
-        
-        <FluentLabel>Page @_currentPageIndex / @(_maxPage)</FluentLabel>
-        
-        <FluentButton Appearance="Appearance.Neutral" @onclick="NextPage" Disabled="@(_currentPageIndex >= _maxPage)">
+
+        <FluentText Size="TextSize.Size300">Page @_currentPageIndex / @(_maxPage)</FluentText>
+
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="NextPage" Disabled="@(_currentPageIndex >= _maxPage)">
             Page suivante →
         </FluentButton>
-        
+
         <FluentSpacer />
-        
-        <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> 
+
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick='() => Navigation.NavigateTo("/")'>
             ← Retour au dashboard
         </FluentButton>
     </FluentStack>
@@ -42,7 +42,7 @@
     @* Error display *@
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
+        <FluentMessageBar Intent="MessageBarIntent.Error">@_errorMessage</FluentMessageBar>
     }
 </FluentStack>
 

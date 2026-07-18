@@ -10,15 +10,15 @@
 <PageTitle>Créer une histoire - Narratum</PageTitle>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">✨ Créer une nouvelle histoire</FluentLabel>
-    
+    <FluentText Block="true" Size="TextSize.Size700" Weight="TextWeight.Bold">✨ Créer une nouvelle histoire</FluentText>
+
     @* Step indicator *@
     <FluentCard>
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
             @for (var i = 0; i < this.stepTitles.Length; i++)
             {
                 var stepIndex = i;
-                <FluentButton Appearance="@(stepIndex == this.currentStep ? Appearance.Accent : Appearance.Neutral)"
+                <FluentButton Appearance="@(stepIndex == this.currentStep ? ButtonAppearance.Primary : ButtonAppearance.Default)"
                               Disabled="@(stepIndex > this.currentStep)"
                               @onclick="() => this.currentStep = stepIndex">
                     @(stepIndex + 1). @this.stepTitles[stepIndex]
@@ -38,18 +38,20 @@
             case 1: @* Genre *@
                 <FluentCard>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-                        <FluentSelect TOption="string" Label="Genre" @bind-Value="this.genre">
-                            <FluentOption TOption="string" Value="Fantasy">Fantasy</FluentOption>
-                            <FluentOption TOption="string" Value="SciFi">Science-Fiction</FluentOption>
-                            <FluentOption TOption="string" Value="Mystery">Mystère</FluentOption>
-                            <FluentOption TOption="string" Value="Horror">Horreur</FluentOption>
-                            <FluentOption TOption="string" Value="Historical">Historique</FluentOption>
-                        </FluentSelect>
-                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3"
+                        <FluentSelect TOption="KeyValuePair<string, string>"
+                                      TValue="string"
+                                      Items="genreOptions"
+                                      OptionValue="@(g => g.Key)"
+                                      OptionText="@(g => g.Value)"
+                                      @bind-Value="this.genre"
+                                      Label="Genre"
+                                      Style="width: 100%; max-width: 480px;" />
+                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Style="width: 100%; height: 4.5rem;"
                                       Placeholder="Ex: Épique, sombre, humoristique..." />
                         @if (this.subscriptions.Count > 0)
                         {
                             <FluentSelect TOption="AzureSubscriptionInfo"
+                                          TValue="string"
                                           Items="this.subscriptions"
                                           OptionValue="@(s => s.SubscriptionId)"
                                           OptionText="@(s => $"☁️ {s.DisplayName}")"
@@ -60,6 +62,7 @@
                                           Style="width: 100%; max-width: 480px;" />
                         }
                         <FluentSelect TOption="ModelOption"
+                                      TValue="string"
                                       Items="this.models"
                                       OptionValue="@(m => m.Id)"
                                       OptionText="@(m => m.Label)"
@@ -84,21 +87,21 @@
             case 4: @* Résumé *@
                 <FluentCard>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-                        <FluentLabel Typo="Typography.H4">📋 Récapitulatif</FluentLabel>
-                        <FluentLabel><strong>Monde :</strong> @(this.worldName)
-                        </FluentLabel>
-                        <FluentLabel><strong>Description :</strong> @(this.worldDescription ?? "Aucune")
-                        </FluentLabel>
-                        <FluentLabel><strong>Genre :</strong> @(this.genre)
-                        </FluentLabel>
-                        <FluentLabel><strong>Style :</strong> @(this.narrativeStyle ?? "Par défaut")
-                        </FluentLabel>
-                        <FluentLabel><strong>Personnages :</strong> @this.characters.Count</FluentLabel>
-                        <FluentLabel><strong>Lieux :</strong> @this.locations.Count</FluentLabel>
-                        
+                        <FluentText Block="true" Size="TextSize.Size500" Weight="TextWeight.Semibold">📋 Récapitulatif</FluentText>
+                        <FluentText Block="true" Size="TextSize.Size300"><strong>Monde :</strong> @(this.worldName)
+                        </FluentText>
+                        <FluentText Block="true" Size="TextSize.Size300"><strong>Description :</strong> @(this.worldDescription ?? "Aucune")
+                        </FluentText>
+                        <FluentText Block="true" Size="TextSize.Size300"><strong>Genre :</strong> @(this.genre)
+                        </FluentText>
+                        <FluentText Block="true" Size="TextSize.Size300"><strong>Style :</strong> @(this.narrativeStyle ?? "Par défaut")
+                        </FluentText>
+                        <FluentText Block="true" Size="TextSize.Size300"><strong>Personnages :</strong> @this.characters.Count</FluentText>
+                        <FluentText Block="true" Size="TextSize.Size300"><strong>Lieux :</strong> @this.locations.Count</FluentText>
+
                         @if (this.characters.Count > 0)
                         {
-                            <FluentLabel Typo="Typography.Body"><strong>Liste des personnages :</strong></FluentLabel>
+                            <FluentText Block="true" Size="TextSize.Size300"><strong>Liste des personnages :</strong></FluentText>
                             <ul>
                                 @foreach (var c in this.characters)
                                 {
@@ -114,22 +117,22 @@
     
     @* Navigation buttons *@
     <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" HorizontalAlignment="HorizontalAlignment.End">
-        <FluentButton Appearance="Appearance.Neutral" @onclick='() => this.Navigation.NavigateTo("/")'> Annuler</FluentButton>
-        
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick='() => this.Navigation.NavigateTo("/")'> Annuler</FluentButton>
+
         @if (this.currentStep > 0)
         {
-            <FluentButton Appearance="Appearance.Neutral" @onclick="this.PreviousStep">← Précédent</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" @onclick="this.PreviousStep">← Précédent</FluentButton>
         }
-        
+
         @if (this.currentStep < this.stepTitles.Length - 1)
         {
-            <FluentButton Appearance="Appearance.Accent" @onclick="this.NextStep" Disabled="@(!this.CanProceed)">
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="this.NextStep" Disabled="@(!this.CanProceed)">
                 Suivant →
             </FluentButton>
         }
         else
         {
-            <FluentButton Appearance="Appearance.Accent" @onclick="this.CreateStory" Disabled="@(!this.CanCreate)">
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="this.CreateStory" Disabled="@(!this.CanCreate)">
                 🚀 Créer l'histoire
             </FluentButton>
         }

@@ -2,16 +2,16 @@
 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
     @if (IsSaving)
     {
-        <FluentProgressRing Style="width: 16px; height: 16px;" />
-        <FluentLabel Typo="Typography.Body">Sauvegarde en cours...</FluentLabel>
+        <FluentSpinner Style="width: 16px; height: 16px;" />
+        <FluentText Size="TextSize.Size300">Sauvegarde en cours...</FluentText>
     }
     else if (SaveError)
     {
-        <FluentLabel Typo="Typography.Body" Color="Color.Error">❌ Erreur de sauvegarde</FluentLabel>
+        <FluentText Size="TextSize.Size300" Style="color: var(--colorStatusDangerForeground1, #c50f1f);">❌ Erreur de sauvegarde</FluentText>
     }
     else if (LastSaveTime.HasValue)
     {
-        <FluentLabel Typo="Typography.Body" Color="Color.Success">✓ Sauvegardé à @LastSaveTime.Value.ToString("HH:mm:ss")</FluentLabel>
+        <FluentText Size="TextSize.Size300" Style="color: var(--colorStatusSuccessForeground1, #0e700e);">✓ Sauvegardé à @LastSaveTime.Value.ToString("HH:mm:ss")</FluentText>
     }
 </FluentStack>
 
