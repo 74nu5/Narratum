@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
@@ -108,19 +109,8 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IMod
                 new(ChatRole.User, request.UserPrompt)
             };
 
-            var options = new ChatOptions
-            {
-                ModelId = servedModelId,
-                Temperature = (float)request.Parameters.Temperature,
-                MaxOutputTokens = request.Parameters.MaxTokens,
-                TopP = (float)request.Parameters.TopP,
-                StopSequences = request.Parameters.StopTokens.Count > 0
-                    ? request.Parameters.StopTokens.ToList()
-                    : null
-            };
-
             var stopwatch = Stopwatch.StartNew();
-            var chatResponse = await _chatClient.GetResponseAsync(messages, options, cancellationToken);
+            var chatResponse = await GetResponseWithParamFallbackAsync(messages, servedModelId, request, cancellationToken);
             stopwatch.Stop();
 
             var content = chatResponse.Text;
@@ -185,6 +175,55 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IMod
     }
 
     /// <summary>
+    /// Builds the chat options. The <paramref name="full"/> set carries our tuning (temperature,
+    /// top-p, max tokens, stop). The minimal set is just the model id, for the retry against models
+    /// that reject extra parameters — GPT-5 reasoning models reject a custom temperature, some
+    /// Mistral deployments reject max_completion_tokens — so only the model id is universally safe.
+    /// </summary>
+    private static ChatOptions BuildChatOptions(string servedModelId, LlmRequest request, bool full)
+    {
+        if (!full)
+            return new ChatOptions { ModelId = servedModelId };
+
+        return new ChatOptions
+        {
+            ModelId = servedModelId,
+            Temperature = (float)request.Parameters.Temperature,
+            MaxOutputTokens = request.Parameters.MaxTokens,
+            TopP = (float)request.Parameters.TopP,
+            StopSequences = request.Parameters.StopTokens.Count > 0
+                ? request.Parameters.StopTokens.ToList()
+                : null
+        };
+    }
+
+    /// <summary>True for HTTP 400/422 — the model rejected a request parameter.</summary>
+    private static bool IsUnsupportedParameterError(Exception ex)
+        => ex is ClientResultException { Status: 400 or 422 };
+
+    /// <summary>
+    /// Calls the model with sampling parameters; if it rejects them (400/422), retries once with the
+    /// model's defaults so picky cloud models still work.
+    /// </summary>
+    private async Task<ChatResponse> GetResponseWithParamFallbackAsync(
+        List<ChatMessage> messages, string servedModelId, LlmRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _chatClient.GetResponseAsync(
+                messages, BuildChatOptions(servedModelId, request, full: true), cancellationToken);
+        }
+        catch (Exception ex) when (IsUnsupportedParameterError(ex))
+        {
+            _logger.LogInformation(
+                "Model {Model} rejected sampling parameters ({Message}); retrying with model defaults",
+                servedModelId, ex.Message);
+            return await _chatClient.GetResponseAsync(
+                messages, BuildChatOptions(servedModelId, request, full: false), cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Structured output with a native strict JSON schema (via <c>ChatOptions.ResponseFormat</c>,
     /// derived from <typeparamref name="T"/>). Small local models often ignore the schema, so on
     /// any failure we fall back to the shared tolerant prompt-based path.
@@ -207,13 +246,7 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IMod
                 new(ChatRole.User, request.UserPrompt)
             };
 
-            var options = new ChatOptions
-            {
-                ModelId = servedModelId,
-                Temperature = (float)request.Parameters.Temperature,
-                MaxOutputTokens = request.Parameters.MaxTokens,
-                TopP = (float)request.Parameters.TopP
-            };
+            var options = BuildChatOptions(servedModelId, request, full: true);
 
             try
             {
@@ -260,19 +293,64 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IMod
             new(ChatRole.User, request.UserPrompt)
         };
 
-        var options = new ChatOptions
+        await foreach (var chunk in StreamWithParamFallbackAsync(messages, servedModelId, request, cancellationToken)
+            .WithCancellation(cancellationToken))
         {
-            ModelId = servedModelId,
-            Temperature = (float)request.Parameters.Temperature,
-            MaxOutputTokens = request.Parameters.MaxTokens,
-            TopP = (float)request.Parameters.TopP,
-            StopSequences = request.Parameters.StopTokens.Count > 0
-                ? request.Parameters.StopTokens.ToList()
-                : null
-        };
+            yield return chunk;
+        }
+    }
+
+    /// <summary>
+    /// Streams with sampling parameters; if the model rejects them on the first chunk (400/422),
+    /// re-streams once with the model's defaults. Only a finally (never a catch) wraps a yield, so
+    /// the first MoveNext is driven manually to catch the parameter rejection.
+    /// </summary>
+    private async IAsyncEnumerable<string> StreamWithParamFallbackAsync(
+        List<ChatMessage> messages, string servedModelId, LlmRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var enumerator = _chatClient
+            .GetStreamingResponseAsync(messages, BuildChatOptions(servedModelId, request, full: true), cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+
+        var first = true;
+        var retryWithoutSampling = false;
+        try
+        {
+            while (true)
+            {
+                bool moved;
+                try
+                {
+                    moved = await enumerator.MoveNextAsync();
+                }
+                catch (Exception ex) when (first && IsUnsupportedParameterError(ex))
+                {
+                    _logger.LogInformation(
+                        "Model {Model} rejected sampling parameters while streaming; retrying with model defaults",
+                        servedModelId);
+                    retryWithoutSampling = true;
+                    break;
+                }
+
+                if (!moved)
+                    yield break;
+
+                first = false;
+                if (!string.IsNullOrEmpty(enumerator.Current.Text))
+                    yield return enumerator.Current.Text;
+            }
+        }
+        finally
+        {
+            await enumerator.DisposeAsync();
+        }
+
+        if (!retryWithoutSampling)
+            yield break;
 
         await foreach (var update in _chatClient
-            .GetStreamingResponseAsync(messages, options, cancellationToken)
+            .GetStreamingResponseAsync(messages, BuildChatOptions(servedModelId, request, full: false), cancellationToken)
             .WithCancellation(cancellationToken))
         {
             if (!string.IsNullOrEmpty(update.Text))
