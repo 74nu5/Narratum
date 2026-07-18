@@ -104,6 +104,22 @@ public interface IStoryRepository
     Task<string?> GetPageCharactersAsync(string slotName, int pageIndex, CancellationToken ct = default);
 
     /// <summary>
+    /// Stores the serialized secrets produced for a saved page.
+    /// </summary>
+    Task SavePageSecretsAsync(string slotName, int pageIndex, string secretsJson, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the serialized secrets for a page, or null if none were stored.
+    /// </summary>
+    Task<string?> GetPageSecretsAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the serialized secrets JSON of every page (in order) — used to accumulate hidden
+    /// secrets for narrative continuity.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetAllPageSecretsAsync(string slotName, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns the concatenated narrative text of every page (in order) — the story so far.
     /// </summary>
     Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default);

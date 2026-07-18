@@ -114,4 +114,12 @@ public interface IGenerationService
         string slotName,
         int pageIndex,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the secrets recorded for a page (revealed and hidden). Empty when none were stored.
+    /// </summary>
+    Task<IReadOnlyList<StorySecret>> GetPageSecretsAsync(
+        string slotName,
+        int pageIndex,
+        CancellationToken ct = default);
 }

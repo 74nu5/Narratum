@@ -444,6 +444,42 @@ public class StoryRepository : IStoryRepository
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task SavePageSecretsAsync(string slotName, int pageIndex, string secretsJson, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var page = await db.PageSnapshots
+            .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
+        if (page == null)
+            return;
+
+        db.Entry(page).CurrentValues.SetValues(page with { SerializedSecrets = secretsJson });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<string?> GetPageSecretsAsync(string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName && p.PageIndex == pageIndex)
+            .Select(p => p.SerializedSecrets)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<string>> GetAllPageSecretsAsync(string slotName, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName && p.SerializedSecrets != null)
+            .OrderBy(p => p.PageIndex)
+            .Select(p => p.SerializedSecrets!)
+            .ToListAsync(ct);
+    }
+
     public async Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

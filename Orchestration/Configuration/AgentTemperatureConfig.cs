@@ -39,6 +39,12 @@ public sealed record AgentTemperatureConfig
     public double ChoiceTemperature { get; init; } = 0.8;
 
     /// <summary>
+    /// Temperature for Secret agent (tracking revealed/hidden information).
+    /// Low-ish: secrets should follow from the text, not be invented wildly.
+    /// </summary>
+    public double SecretTemperature { get; init; } = 0.4;
+
+    /// <summary>
     /// Default configuration with balanced temperatures.
     /// </summary>
     public static AgentTemperatureConfig Default => new();
@@ -75,6 +81,7 @@ public sealed record AgentTemperatureConfig
         AgentType.Summary => SummaryTemperature,
         AgentType.Consistency => ConsistencyTemperature,
         AgentType.Choice => ChoiceTemperature,
+        AgentType.Secret => SecretTemperature,
         _ => 0.7 // Default fallback
     };
 
@@ -87,7 +94,8 @@ public sealed record AgentTemperatureConfig
             && IsValidTemperature(CharacterTemperature)
             && IsValidTemperature(SummaryTemperature)
             && IsValidTemperature(ConsistencyTemperature)
-            && IsValidTemperature(ChoiceTemperature);
+            && IsValidTemperature(ChoiceTemperature)
+            && IsValidTemperature(SecretTemperature);
     }
 
     private static bool IsValidTemperature(double temp)

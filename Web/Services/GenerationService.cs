@@ -295,10 +295,22 @@ public class GenerationService : IGenerationService
             summaryPrompt, chosenModel, ct);
         traces.Add(summary);
 
+        // Hidden secrets planted in earlier pages, fed back so the narrator can make them
+        // subtly present without revealing them — the real hidden-state continuity that
+        // story-maker generated but never re-consumed.
+        var hiddenSecrets = await GetHiddenSecretsAsync(slotName, ct);
+        if (hiddenSecrets.Count > 0)
+            _logger.LogInformation("Feeding {Count} hidden secret(s) into the narrator for continuity", hiddenSecrets.Count);
+        var hiddenSecretsSection = hiddenSecrets.Count > 0
+            ? "\n\nFILS CACHÉS À FAIRE VIVRE (contexte secret : fais-les affleurer subtilement, ne les révèle PAS explicitement) :\n"
+                + string.Join("\n", hiddenSecrets.Select(s => $"- {s}"))
+            : string.Empty;
+
         // 2. Narrator agent — the user-visible prose, streamed live.
         var narratorPrompt = _promptOptimizer.BuildOptimizedNarratorPrompt(
                 storyState, intent, previousNarrative: latestPage.NarrativeText)
             + $"\n\nRÉSUMÉ DU CONTEXTE (référence, ne pas recopier) :\n{summary.Output}"
+            + hiddenSecretsSection
             + "\n\n" + FrenchOnly;
 
         var narratorRequest = new LlmRequest(
@@ -388,6 +400,25 @@ public class GenerationService : IGenerationService
             string.Join("\n", choices.Select(c => $"• {c.Text} — {c.Description}")),
             choiceTimer.Elapsed.TotalMilliseconds));
 
+        // 6. Secret agent — tracks revealed/hidden information (structured), persisted. Hidden
+        // secrets feed later pages' narrator for genuine continuity (see above).
+        var secretTimer = Stopwatch.StartNew();
+        var secrets = await GenerateSecretsAsync(fullText, intentDescription, chosenModel, ct);
+        secretTimer.Stop();
+        try
+        {
+            await _storyRepository.SavePageSecretsAsync(
+                slotName, newPageIndex, JsonSerializer.Serialize(secrets), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist secrets for page {PageIndex}", newPageIndex);
+        }
+        traces.Add(new AgentTraceInfo(
+            "Secrets", "Infos révélées + cachées",
+            string.Join("\n", secrets.Select(s => $"• [{s.Category}] {(s.IsRevealed ? "révélé" : "caché")} — {s.Content}")),
+            secretTimer.Elapsed.TotalMilliseconds));
+
         // Persist the Expert traces — best effort: the page is already saved.
         try
         {
@@ -455,8 +486,96 @@ public class GenerationService : IGenerationService
         AgentType.Consistency => "Tu vérifies la cohérence d'un texte narratif au regard des faits établis. Réponds brièvement. " + FrenchOnly,
         AgentType.Character => "Tu es l'archiviste des personnages. Tu tiens à jour, de façon factuelle, la fiche de chaque personnage d'une histoire. " + FrenchOnly,
         AgentType.Choice => "Tu conçois des choix interactifs qui font avancer une histoire. " + FrenchOnly,
+        AgentType.Secret => "Tu gères les informations secrètes d'une histoire : ce que le lecteur découvre et ce que seul le narrateur sait. " + FrenchOnly,
         _ => "Tu es un agent narratif. " + FrenchOnly
     };
+
+    /// <summary>
+    /// Generates the structured secrets for a page — a mix of revealed (the reader just learned
+    /// them) and hidden (only the narrator knows; setups for future twists) information.
+    /// </summary>
+    private async Task<IReadOnlyList<StorySecret>> GenerateSecretsAsync(
+        string narrative, string chosenPath, string model, CancellationToken ct)
+    {
+        var request = new LlmRequest(
+            AgentSystemPrompt(AgentType.Secret),
+            BuildSecretsPrompt(narrative, chosenPath) + "\n\n" + FrenchOnly,
+            LlmParameters.Default with { Temperature = _temperatures.GetTemperature(AgentType.Secret) },
+            new Dictionary<string, object>
+            {
+                ["llm.agentType"] = AgentType.Secret,
+                ["llm.model"] = model
+            });
+
+        try
+        {
+            var result = await _llmClient.GenerateStructuredAsync<SecretSet>(request, ct);
+            if (result is Result<SecretSet>.Success success)
+                return StorySecrets.Clean(success.Value.Secrets);
+
+            _logger.LogWarning("Secret agent produced no valid structured output");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Secret agent failed");
+        }
+
+        return [];
+    }
+
+    /// <summary>
+    /// Accumulates the hidden secrets (IsRevealed = false) from every prior page, so they can be
+    /// fed back into the narrator prompt for continuity.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> GetHiddenSecretsAsync(string slotName, CancellationToken ct)
+    {
+        var allJson = await _storyRepository.GetAllPageSecretsAsync(slotName, ct);
+        var hidden = new List<string>();
+
+        foreach (var json in allJson ?? [])
+        {
+            try
+            {
+                var secrets = JsonSerializer.Deserialize<List<StorySecret>>(json);
+                if (secrets is null)
+                    continue;
+
+                hidden.AddRange(secrets
+                    .Where(s => !s.IsRevealed && !string.IsNullOrWhiteSpace(s.Content))
+                    .Select(s => s.Content));
+            }
+            catch (JsonException)
+            {
+                // Skip a malformed page's secrets.
+            }
+        }
+
+        return hidden.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Builds the prompt asking the Secret agent for 0–3 secrets from the latest page, each tagged
+    /// revealed or hidden, leaning toward hidden setups for future twists.
+    /// </summary>
+    private static string BuildSecretsPrompt(string narrative, string chosenPath)
+    {
+        var scene = string.IsNullOrWhiteSpace(narrative) ? "(scène à peine commencée)" : narrative;
+        var path = string.IsNullOrWhiteSpace(chosenPath) ? string.Empty : $"Intention du joueur : {chosenPath}\n\n";
+
+        return
+            $"Voici la dernière page de l'histoire :\n\n{scene}\n\n" + path +
+            "Identifie 0 à 3 informations secrètes de cette scène. Pour chacune :\n" +
+            "- « Content » : le secret, en une phrase ;\n" +
+            "- « Category » : « plot », « character » ou « location » ;\n" +
+            "- « IsRevealed » : true si le lecteur vient de le découvrir dans le texte ; " +
+            "false si c'est un élément que SEUL le narrateur sait (préparation d'un rebondissement futur, non montré au joueur).\n\n" +
+            "Vise environ un tiers de secrets révélés et deux tiers cachés. Appuie-toi sur le texte ; " +
+            "les secrets cachés peuvent préparer la suite.";
+    }
 
     /// <summary>
     /// Proposes the next-step choices via structured output, always normalized to exactly three
@@ -627,6 +746,26 @@ public class GenerationService : IGenerationService
         catch (JsonException)
         {
             return Array.Empty<CharacterProfile>();
+        }
+    }
+
+    /// <summary>
+    /// Reads the secrets stored for a page (both revealed and hidden; the UI shows only revealed).
+    /// </summary>
+    public async Task<IReadOnlyList<StorySecret>> GetPageSecretsAsync(
+        string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        var json = await _storyRepository.GetPageSecretsAsync(slotName, pageIndex, ct);
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<StorySecret>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<StorySecret>>(json) ?? (IReadOnlyList<StorySecret>)Array.Empty<StorySecret>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<StorySecret>();
         }
     }
 

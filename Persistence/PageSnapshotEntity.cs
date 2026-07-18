@@ -67,6 +67,11 @@ public record PageSnapshotEntity
     public string? SerializedCharacters { get; init; }
 
     /// <summary>
+    /// Secrets (JSON) produits à cette page : informations révélées et cachées.
+    /// </summary>
+    public string? SerializedSecrets { get; init; }
+
+    /// <summary>
     /// Prompts envoyés aux agents (mode expert).
     /// </summary>
     public string? PromptsSent { get; init; }

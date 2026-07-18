@@ -118,6 +118,25 @@
                     }
                 </FluentCard>
 
+                @* Revealed secrets: only what the reader is meant to see (hidden ones stay hidden) *@
+                @if (!_isGenerating && _secrets.Any(s => s.IsRevealed))
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">🔑 Secrets révélés</FluentLabel>
+                            <div class="secret-list">
+                                @foreach (var secret in _secrets.Where(s => s.IsRevealed))
+                                {
+                                    <div class="secret-item">
+                                        <span class="secret-cat">[@secret.Category]</span>
+                                        <span class="secret-content">@secret.Content</span>
+                                    </div>
+                                }
+                            </div>
+                        </FluentStack>
+                    </FluentCard>
+                }
+
                 @* Cast: the characters present at this point of the story *@
                 @if (!_isGenerating && _characters.Count > 0)
                 {
@@ -213,6 +232,7 @@
     private IReadOnlyDictionary<int, string?> _pageModels = new Dictionary<int, string?>();
     private IReadOnlyList<StoryChoice> _choices = Array.Empty<StoryChoice>();
     private IReadOnlyList<CharacterProfile> _characters = Array.Empty<CharacterProfile>();
+    private IReadOnlyList<StorySecret> _secrets = Array.Empty<StorySecret>();
     private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
     private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
@@ -292,6 +312,11 @@
         _characters = await GenService.GetPageCharactersAsync(SlotName, pageIndex);
     }
 
+    private async Task LoadSecrets(int pageIndex)
+    {
+        _secrets = await GenService.GetPageSecretsAsync(SlotName, pageIndex);
+    }
+
     private async Task ChooseAndContinue(StoryChoice choice)
     {
         _userIntent = choice.Text;
@@ -324,6 +349,7 @@
         await LoadTraces(pageIndex);
         await LoadChoices(pageIndex);
         await LoadCharacters(pageIndex);
+        await LoadSecrets(pageIndex);
     }
 
     private async Task GenerateNextPage()
@@ -333,6 +359,7 @@
         _currentNarrative = string.Empty;
         _choices = Array.Empty<StoryChoice>();          // hide stale choices while the next page streams
         _characters = Array.Empty<CharacterProfile>();  // and the previous roster
+        _secrets = Array.Empty<StorySecret>();          // and the previous secrets
         var intent = _userIntent;
 
         try
@@ -360,6 +387,7 @@
             await LoadTraces(_currentPageIndex);     // Expert data for the new page
             await LoadChoices(_currentPageIndex);    // Next-step choices for the new page
             await LoadCharacters(_currentPageIndex); // Character roster for the new page
+            await LoadSecrets(_currentPageIndex);    // Revealed/hidden secrets for the new page
         }
         catch (Exception ex)
         {

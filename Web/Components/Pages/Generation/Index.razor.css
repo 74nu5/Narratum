@@ -136,6 +136,36 @@
     border-color: transparent;
 }
 
+/* Revealed secrets: highlighted notes with a category tag. */
+.secret-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.secret-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: 8px;
+    background: var(--warning-background-rest, #fdf6e3);
+    border: 1px solid var(--warning-stroke-rest, #f0e0b0);
+}
+
+.secret-cat {
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+.secret-content {
+    font-size: 0.9rem;
+}
+
 /* Character roster: a grid of compact cards. */
 .character-list {
     display: grid;

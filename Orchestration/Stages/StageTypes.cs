@@ -32,7 +32,12 @@ public enum AgentType
     /// <summary>
     /// Agent de choix - propose les suites possibles de l'histoire (sortie structurée).
     /// </summary>
-    Choice
+    Choice,
+
+    /// <summary>
+    /// Agent de secrets - suit les informations révélées et cachées (sortie structurée).
+    /// </summary>
+    Secret
 }
 
 /// <summary>
