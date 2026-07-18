@@ -38,6 +38,22 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
             await this.InitializeAsync(cancellationToken);
 
         var result = await FoundryLocalManager.Instance.DownloadAndRegisterEpsAsync(cancellationToken);
+
+        // Execution-provider (EP) diagnostics. NPU/GPU variants only appear when their EP is
+        // registered — e.g. openvino-npu needs the OpenVINO EP. Log which EPs registered/failed
+        // and what the SDK discovered, so a missing device (no NPU in the list) is explainable.
+        this._logger.LogInformation(
+            "Foundry EP registration: success={Success}, status={Status}, registered=[{Registered}], failed=[{Failed}]",
+            result.Success,
+            result.Status,
+            string.Join(", ", result.RegisteredEps ?? []),
+            string.Join(", ", result.FailedEps ?? []));
+
+        this._logger.LogInformation(
+            "Foundry EPs discovered: {Eps}",
+            string.Join(", ", FoundryLocalManager.Instance.DiscoverEps()
+                .Select(e => $"{e.Name}({(e.IsRegistered ? "registered" : "not-registered")})")));
+
         if (!result.Success)
         {
             this._logger.LogError("Failed to download and register EPS.");
@@ -46,6 +62,15 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
 
         var catalog = await FoundryLocalManager.Instance.GetCatalogAsync();
         var models = await ExpandVariantsAsync(catalog);
+
+        // Device breakdown of the surfaced variants — e.g. "CPU=12, GPU=12, NPU=0" makes it
+        // obvious when a device is entirely missing from the catalogue.
+        this._logger.LogInformation(
+            "Foundry variants by device: {Breakdown}",
+            string.Join(", ", models
+                .GroupBy(m => DeriveDevice(m) ?? "unknown")
+                .OrderBy(g => g.Key)
+                .Select(g => $"{g.Key}={g.Count()}")));
 
         return
         [
