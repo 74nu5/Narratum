@@ -1,3 +1,37 @@
+/* Two-column layout: composer on the left, the page text on the right. */
+.gen-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.gen-sidebar {
+    flex: 0 0 340px;
+    max-width: 340px;
+    position: sticky;
+    top: 16px;
+}
+
+/* min-width:0 lets the text column shrink instead of overflowing the flex row. */
+.gen-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Stack vertically on narrow viewports. */
+@media (max-width: 900px) {
+    .gen-layout {
+        flex-direction: column;
+    }
+
+    .gen-sidebar {
+        position: static;
+        flex-basis: auto;
+        max-width: none;
+        width: 100%;
+    }
+}
+
 .agent-trace {
     border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
     border-radius: 6px;

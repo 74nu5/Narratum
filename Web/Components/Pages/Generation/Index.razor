@@ -12,95 +12,108 @@
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
     <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
 
-    @* Timeline *@
-    <FluentCard>
-        <FluentLabel Typo="Typography.H4">Timeline</FluentLabel>
-        <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
-            @foreach (var pageIdx in _pageHistory)
-            {
-                <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
-                              @onclick="() => LoadPage(pageIdx)">
-                    Page @pageIdx
-                </FluentButton>
-            }
-        </FluentStack>
-    </FluentCard>
+    <div class="gen-layout">
+        @* LEFT: composer / controls, laid out vertically *@
+        <aside class="gen-sidebar">
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                    <FluentLabel Typo="Typography.H4">✍️ Composer la suite</FluentLabel>
 
-    @* Current page content *@
-    <FluentCard Style="min-height: 300px;">
-        @if (_isGenerating && string.IsNullOrEmpty(_currentNarrative))
-        {
-            @* Waiting for the first token *@
-            <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
-                <FluentProgressRing />
-                <FluentLabel>Génération en cours...</FluentLabel>
-            </FluentStack>
-        }
-        else if (!string.IsNullOrEmpty(_currentNarrative))
-        {
-            @* Streams in live; a caret shows while more text is arriving *@
-            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
-        }
-        else
-        {
-            <FluentLabel>Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentLabel>
-        }
-    </FluentCard>
+                    <FluentSelect TOption="ModelOption"
+                                  Items="_models"
+                                  OptionValue="@(m => m.Id)"
+                                  OptionText="@(m => m.Label)"
+                                  @bind-Value="_selectedModel"
+                                  Label="Modèle (pour cette page)"
+                                  Style="width: 100%;" />
 
-    @* Expert mode: behind-the-scenes agent traces (hidden from normal readers) *@
-    @if (ExpertMode.IsExpertModeEnabled && _agentTraces.Count > 0)
-    {
-        <FluentCard>
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                <FluentLabel Typo="Typography.H4">🔧 Coulisses des agents</FluentLabel>
-                <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
-                    Ce que chaque agent spécialisé a produit pour cette page. Le lecteur ne voit que la prose du Narrateur.
-                </FluentLabel>
-                @foreach (var trace in _agentTraces)
+                    <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="6"
+                                  Style="width: 100%;"
+                                  Placeholder="Ex: Les personnages découvrent une porte secrète..." />
+
+                    <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage"
+                                Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))"
+                                Style="width: 100%;">
+                        ✨ Générer la suite
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'
+                                Style="width: 100%;">
+                        ← Retour au dashboard
+                    </FluentButton>
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
+                    }
+                </FluentStack>
+            </FluentCard>
+        </aside>
+
+        @* RIGHT: timeline, page text and expert traces *@
+        <div class="gen-main">
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+                @* Timeline *@
+                <FluentCard>
+                    <FluentLabel Typo="Typography.H4">Timeline</FluentLabel>
+                    <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
+                        @foreach (var pageIdx in _pageHistory)
+                        {
+                            <FluentButton Appearance="@(pageIdx == _currentPageIndex ? Appearance.Accent : Appearance.Neutral)"
+                                          @onclick="() => LoadPage(pageIdx)">
+                                Page @pageIdx
+                            </FluentButton>
+                        }
+                    </FluentStack>
+                </FluentCard>
+
+                @* Current page content *@
+                <FluentCard Style="min-height: 300px;">
+                    @if (_isGenerating && string.IsNullOrEmpty(_currentNarrative))
+                    {
+                        @* Waiting for the first token *@
+                        <FluentStack Orientation="Orientation.Vertical" VerticalAlignment="VerticalAlignment.Center" Style="min-height: 200px;">
+                            <FluentProgressRing />
+                            <FluentLabel>Génération en cours...</FluentLabel>
+                        </FluentStack>
+                    }
+                    else if (!string.IsNullOrEmpty(_currentNarrative))
+                    {
+                        @* Streams in live; a caret shows while more text is arriving *@
+                        <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
+                    }
+                    else
+                    {
+                        <FluentLabel>Aucune page générée. Saisissez une intention et cliquez sur "Générer".</FluentLabel>
+                    }
+                </FluentCard>
+
+                @* Expert mode: behind-the-scenes agent traces (hidden from normal readers) *@
+                @if (ExpertMode.IsExpertModeEnabled && _agentTraces.Count > 0)
                 {
-                    <details class="agent-trace">
-                        <summary>
-                            <span class="agent-name">@trace.Agent</span>
-                            <span class="agent-role">@trace.Role</span>
-                            <span class="agent-ms">@trace.DurationMs.ToString("F0") ms</span>
-                        </summary>
-                        <div class="agent-output">@trace.Output</div>
-                    </details>
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">🔧 Coulisses des agents</FluentLabel>
+                            <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
+                                Ce que chaque agent spécialisé a produit pour cette page. Le lecteur ne voit que la prose du Narrateur.
+                            </FluentLabel>
+                            @foreach (var trace in _agentTraces)
+                            {
+                                <details class="agent-trace">
+                                    <summary>
+                                        <span class="agent-name">@trace.Agent</span>
+                                        <span class="agent-role">@trace.Role</span>
+                                        <span class="agent-ms">@trace.DurationMs.ToString("F0") ms</span>
+                                    </summary>
+                                    <div class="agent-output">@trace.Output</div>
+                                </details>
+                            }
+                        </FluentStack>
+                    </FluentCard>
                 }
             </FluentStack>
-        </FluentCard>
-    }
-
-    @* Intent input *@
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-            <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="3"
-                          Placeholder="Ex: Les personnages découvrent une porte secrète..." />
-            <FluentSelect TOption="ModelOption"
-                          Items="_models"
-                          OptionValue="@(m => m.Id)"
-                          OptionText="@(m => m.Label)"
-                          @bind-Value="_selectedModel"
-                          Label="Modèle (pour cette page)"
-                          Style="width: 100%; max-width: 480px;" />
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
-                <FluentButton Appearance="Appearance.Accent" @onclick="GenerateNextPage" 
-                            Disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">
-                    ✨ Générer la suite
-                </FluentButton>
-                
-                <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> 
-                    ← Retour au dashboard
-                </FluentButton>
-            </FluentStack>
-        </FluentStack>
-    </FluentCard>
-
-    @* Error display *@
-    @if (!string.IsNullOrEmpty(_errorMessage))
-    {
-        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
-    }
+        </div>
+    </div>
 </FluentStack>
 
 @code {
