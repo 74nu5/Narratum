@@ -174,10 +174,33 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
             },
         };
 
-        await FoundryLocalManager.CreateAsync(foundryConfig, this._logger);
-        var mgr = FoundryLocalManager.Instance;
+        // FoundryLocalManager is a process-global singleton, created at most once per process.
+        // Another lifecycle-manager instance (e.g. a different Blazor circuit, or a stale one
+        // left over after a hot reload) may already have created it. Reuse it in that case
+        // instead of calling CreateAsync again, which throws "already been created".
+        if (FoundryLocalManager.IsInitialized)
+        {
+            this._logger.LogInformation("Foundry Local already created; reusing the existing instance.");
+        }
+        else
+        {
+            var created = false;
+            try
+            {
+                await FoundryLocalManager.CreateAsync(foundryConfig, this._logger);
+                created = true;
+            }
+            catch (FoundryLocalException) when (FoundryLocalManager.IsInitialized)
+            {
+                // Lost a race with a concurrent initializer; the singleton now exists — reuse it.
+                this._logger.LogInformation("Foundry Local was created concurrently; reusing the existing instance.");
+            }
 
-        await mgr.StartWebServiceAsync();
+            // Only the instance that actually created the manager starts the web service.
+            if (created)
+                await FoundryLocalManager.Instance.StartWebServiceAsync();
+        }
+
         this._baseUrl = foundryConfig.Web.Urls;
         this._initialized = true;
 

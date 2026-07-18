@@ -20,7 +20,8 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
     private ILlmLifecycleManager? _lifecycleManager;
-    private IDisposable? _chatClientDisposable;
+    private IChatClient? _chatClient;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
 
     public LlmClientConfig Config { get; }
 
@@ -34,31 +35,43 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
 
     public async Task<ILlmClient> CreateClientAsync(CancellationToken cancellationToken = default)
     {
-        IChatClient chatClient;
-
-        switch (Config.Provider)
-        {
-            case LlmProviderType.FoundryLocal:
-                chatClient = await CreateFoundryLocalClientAsync(cancellationToken);
-                break;
-
-            case LlmProviderType.Ollama:
-                chatClient = CreateOllamaClient();
-                break;
-
-            default:
-                throw new InvalidOperationException($"Unknown provider: {Config.Provider}");
-        }
-
-        // Disposer l'ancien client avant réassignation
-        _chatClientDisposable?.Dispose();
-        _chatClientDisposable = chatClient as IDisposable;
+        // The chat client and the Foundry lifecycle manager both wrap a single, process-wide
+        // local service (FoundryLocalManager is created at most once per process), so they are
+        // created once and shared. Each caller gets its own thin adapter — cheap, and safe for a
+        // scoped consumer (LazyLlmClient) to dispose without touching the shared resources.
+        var chatClient = await GetOrCreateChatClientAsync(cancellationToken);
 
         return new ChatClientLlmAdapter(
             chatClient,
             Config,
             _loggerFactory.CreateLogger<ChatClientLlmAdapter>(),
             _lifecycleManager);
+    }
+
+    private async Task<IChatClient> GetOrCreateChatClientAsync(CancellationToken cancellationToken)
+    {
+        if (_chatClient is not null)
+            return _chatClient;
+
+        await _initLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_chatClient is not null)
+                return _chatClient;
+
+            _chatClient = Config.Provider switch
+            {
+                LlmProviderType.FoundryLocal => await CreateFoundryLocalClientAsync(cancellationToken),
+                LlmProviderType.Ollama => CreateOllamaClient(),
+                _ => throw new InvalidOperationException($"Unknown provider: {Config.Provider}")
+            };
+
+            return _chatClient;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task<IChatClient> CreateFoundryLocalClientAsync(CancellationToken cancellationToken)
@@ -99,11 +112,13 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _chatClientDisposable?.Dispose();
+        (_chatClient as IDisposable)?.Dispose();
 
         if (_lifecycleManager is not null)
         {
             await _lifecycleManager.DisposeAsync();
         }
+
+        _initLock.Dispose();
     }
 }
