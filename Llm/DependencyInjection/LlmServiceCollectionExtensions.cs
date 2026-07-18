@@ -1,5 +1,9 @@
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Narratum.Llm.Azure;
 using Narratum.Llm.Clients;
 using Narratum.Llm.Configuration;
 using Narratum.Llm.Factory;
@@ -23,17 +27,29 @@ public static class LlmServiceCollectionExtensions
 
         services.AddSingleton(config);
         services.TryAddSingleton<ILlmClientFactory, LlmClientFactory>();
-        
-        // Register ILlmClient as SCOPED to avoid blocking DI startup with async init
-        // Foundry Local initialization is LAZY and happens on first usage
+
+        // Entra ID credential for Azure AI Foundry. ManagedIdentity is excluded because on
+        // machines with the Azure Arc agent it fails hard instead of falling through to az login.
+        services.TryAddSingleton<TokenCredential>(_ => new DefaultAzureCredential(
+            new DefaultAzureCredentialOptions { ExcludeManagedIdentityCredential = true }));
+
+        // Azure discovery (subscriptions + deployments) for the model picker / subscription switcher.
+        services.TryAddSingleton<IAzureFoundryDirectory>(sp => new AzureFoundryDirectory(
+            sp.GetRequiredService<TokenCredential>(),
+            sp.GetService<ILogger<AzureFoundryDirectory>>()));
+
+        // ILlmClient is the routing client: it dispatches each request to the local provider or to
+        // Azure (per the model id). Scoped + lazy so Foundry Local init never blocks startup and the
+        // DI container owns disposal.
         services.TryAddScoped<ILlmClient>(sp =>
         {
-            var factory = sp.GetRequiredService<ILlmClientFactory>();
-            // LAZY: CreateClientAsync will be called on first use
-            // DO NOT call .GetAwaiter().GetResult() here - it blocks app startup!
-            // The DI container owns the scoped instance and disposes it at scope end.
 #pragma warning disable IDISP005 // Disposal is handled by the DI container for scoped registrations
-            return new LazyLlmClient(factory);
+            var local = new LazyLlmClient(sp.GetRequiredService<ILlmClientFactory>());
+            return new RoutingLlmClient(
+                local,
+                sp.GetRequiredService<LlmClientConfig>(),
+                sp.GetRequiredService<TokenCredential>(),
+                sp.GetService<ILoggerFactory>());
 #pragma warning restore IDISP005
         });
 
