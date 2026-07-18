@@ -94,6 +94,16 @@ public interface IStoryRepository
     Task<string?> GetPageChoicesAsync(string slotName, int pageIndex, CancellationToken ct = default);
 
     /// <summary>
+    /// Stores the serialized character roster for a saved page.
+    /// </summary>
+    Task SavePageCharactersAsync(string slotName, int pageIndex, string charactersJson, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the serialized character roster for a page, or null if none was stored.
+    /// </summary>
+    Task<string?> GetPageCharactersAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns the concatenated narrative text of every page (in order) — the story so far.
     /// </summary>
     Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default);

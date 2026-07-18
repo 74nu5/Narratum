@@ -106,4 +106,12 @@ public interface IGenerationService
         string slotName,
         int pageIndex,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the character roster recorded for a page. Empty when none was stored.
+    /// </summary>
+    Task<IReadOnlyList<CharacterProfile>> GetPageCharactersAsync(
+        string slotName,
+        int pageIndex,
+        CancellationToken ct = default);
 }

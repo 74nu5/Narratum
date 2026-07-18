@@ -118,6 +118,38 @@
                     }
                 </FluentCard>
 
+                @* Cast: the characters present at this point of the story *@
+                @if (!_isGenerating && _characters.Count > 0)
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">👥 Personnages</FluentLabel>
+                            <div class="character-list">
+                                @foreach (var character in _characters)
+                                {
+                                    <div class="character-item">
+                                        <div class="character-head">
+                                            <span class="character-name">@character.Name</span>
+                                            @if (!string.IsNullOrWhiteSpace(character.Role))
+                                            {
+                                                <span class="character-role">@character.Role</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(character.Description))
+                                        {
+                                            <div class="character-desc">@character.Description</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(character.Evolution))
+                                        {
+                                            <div class="character-evo">↝ @character.Evolution</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </FluentStack>
+                    </FluentCard>
+                }
+
                 @* Next-step choices: pick one to drive the following page *@
                 @if (!_isGenerating && _choices.Count > 0)
                 {
@@ -180,6 +212,7 @@
     private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
     private IReadOnlyDictionary<int, string?> _pageModels = new Dictionary<int, string?>();
     private IReadOnlyList<StoryChoice> _choices = Array.Empty<StoryChoice>();
+    private IReadOnlyList<CharacterProfile> _characters = Array.Empty<CharacterProfile>();
     private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
     private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
@@ -254,6 +287,11 @@
         _choices = await GenService.GetPageChoicesAsync(SlotName, pageIndex);
     }
 
+    private async Task LoadCharacters(int pageIndex)
+    {
+        _characters = await GenService.GetPageCharactersAsync(SlotName, pageIndex);
+    }
+
     private async Task ChooseAndContinue(StoryChoice choice)
     {
         _userIntent = choice.Text;
@@ -285,6 +323,7 @@
 
         await LoadTraces(pageIndex);
         await LoadChoices(pageIndex);
+        await LoadCharacters(pageIndex);
     }
 
     private async Task GenerateNextPage()
@@ -292,7 +331,8 @@
         _isGenerating = true;
         _errorMessage = string.Empty;
         _currentNarrative = string.Empty;
-        _choices = Array.Empty<StoryChoice>(); // hide stale choices while the next page streams
+        _choices = Array.Empty<StoryChoice>();          // hide stale choices while the next page streams
+        _characters = Array.Empty<CharacterProfile>();  // and the previous roster
         var intent = _userIntent;
 
         try
@@ -317,8 +357,9 @@
             await LoadPageHistory();    // Refresh timeline
             if (_pageHistory.Any())
                 _currentPageIndex = _pageHistory.Max();
-            await LoadTraces(_currentPageIndex);  // Expert data for the new page
-            await LoadChoices(_currentPageIndex); // Next-step choices for the new page
+            await LoadTraces(_currentPageIndex);     // Expert data for the new page
+            await LoadChoices(_currentPageIndex);    // Next-step choices for the new page
+            await LoadCharacters(_currentPageIndex); // Character roster for the new page
         }
         catch (Exception ex)
         {

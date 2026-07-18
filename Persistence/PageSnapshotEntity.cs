@@ -62,6 +62,11 @@ public record PageSnapshotEntity
     public string? SerializedChoices { get; init; }
 
     /// <summary>
+    /// Casting structuré (JSON) à ce point de l'histoire : fiches des personnages présents.
+    /// </summary>
+    public string? SerializedCharacters { get; init; }
+
+    /// <summary>
     /// Prompts envoyés aux agents (mode expert).
     /// </summary>
     public string? PromptsSent { get; init; }

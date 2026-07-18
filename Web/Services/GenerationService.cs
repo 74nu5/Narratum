@@ -348,13 +348,26 @@ public class GenerationService : IGenerationService
             AgentType.Consistency, "Cohérence", "Vérifie le texte contre les faits établis",
             _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), chosenModel, ct));
 
-        // 4. Character agent — maintains an evolving roster (personality, arc, key facts per
-        // character), re-derived from the full story so it reflects their evolution (Expert-only).
+        // 4. Character agent — maintains an evolving roster (role, description, arc, key facts per
+        // character), re-derived from the full story as structured output and persisted for the UI.
         var knownNames = storyState.Characters.Values.Select(c => c.Name).ToList();
         var fullStory = string.IsNullOrWhiteSpace(storySoFar) ? fullText : storySoFar + "\n\n" + fullText;
-        traces.Add(await RunAgentAsync(
-            AgentType.Character, "Personnages", "Fiches : personnalité, évolution, faits marquants",
-            BuildCharacterRosterPrompt(fullStory, knownNames), chosenModel, ct));
+        var characterTimer = Stopwatch.StartNew();
+        var roster = await GenerateCharactersAsync(fullStory, knownNames, chosenModel, ct);
+        characterTimer.Stop();
+        try
+        {
+            await _storyRepository.SavePageCharactersAsync(
+                slotName, newPageIndex, JsonSerializer.Serialize(roster), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist characters for page {PageIndex}", newPageIndex);
+        }
+        traces.Add(new AgentTraceInfo(
+            "Personnages", "Casting structuré (rôle, évolution, faits)",
+            string.Join("\n", roster.Select(c => $"• {c.Name} — {c.Role}")),
+            characterTimer.Elapsed.TotalMilliseconds));
 
         // 5. Choice agent — proposes exactly 3 next-step options (structured output), persisted
         // for the UI. Best effort: the page is already saved, so a failure just yields fallbacks.
@@ -500,8 +513,45 @@ public class GenerationService : IGenerationService
     }
 
     /// <summary>
-    /// Builds the prompt asking the Character agent to maintain a roster: one fiche per
-    /// character with personality, evolution over the story, and key facts.
+    /// Generates the structured character roster (role, description, evolution, key facts per
+    /// character), re-derived from the whole story so it reflects their evolution.
+    /// </summary>
+    private async Task<IReadOnlyList<CharacterProfile>> GenerateCharactersAsync(
+        string fullStory, IReadOnlyList<string> knownNames, string model, CancellationToken ct)
+    {
+        var request = new LlmRequest(
+            AgentSystemPrompt(AgentType.Character),
+            BuildCharacterRosterPrompt(fullStory, knownNames) + "\n\n" + FrenchOnly,
+            LlmParameters.Default with { Temperature = _temperatures.GetTemperature(AgentType.Character) },
+            new Dictionary<string, object>
+            {
+                ["llm.agentType"] = AgentType.Character,
+                ["llm.model"] = model
+            });
+
+        try
+        {
+            var result = await _llmClient.GenerateStructuredAsync<CharacterRoster>(request, ct);
+            if (result is Result<CharacterRoster>.Success success)
+                return StoryCharacters.Clean(success.Value.Characters);
+
+            _logger.LogWarning("Character agent produced no valid structured output");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Character agent failed");
+        }
+
+        return [];
+    }
+
+    /// <summary>
+    /// Builds the prompt asking the Character agent to maintain a roster: one entry per character
+    /// with role, a short description, evolution over the story, and key facts.
     /// </summary>
     private static string BuildCharacterRosterPrompt(string storyText, IReadOnlyList<string> knownNames)
     {
@@ -511,14 +561,13 @@ public class GenerationService : IGenerationService
         return
             $"Voici l'histoire jusqu'ici :\n\n{story}\n\n" +
             $"Personnages connus au départ : {known}.\n\n" +
-            "Dresse la liste de TOUS les personnages présents dans l'histoire. " +
-            "Pour CHAQUE personnage, indique, dans cet ordre :\n" +
-            "- Nom\n" +
-            "- Personnalité\n" +
-            "- Évolution au fil de l'histoire\n" +
-            "- Faits marquants le concernant\n\n" +
-            "Reste strictement factuel : n'invente rien qui ne découle pas de l'histoire ci-dessus. " +
-            "Présente une section claire et distincte par personnage.";
+            "Recense TOUS les personnages présents dans l'histoire. Pour chacun :\n" +
+            "- « Name » : le nom ou un descripteur (ex. « Le Gardien ») ;\n" +
+            "- « Role » : sa fonction narrative (protagoniste, allié, adversaire, mentor…) ;\n" +
+            "- « Description » : une description concise (5 à 15 mots) ;\n" +
+            "- « Evolution » : comment il évolue au fil de l'histoire (vide si trop tôt) ;\n" +
+            "- « KeyFacts » : les faits marquants le concernant (liste courte).\n\n" +
+            "Reste strictement factuel : n'invente rien qui ne découle pas de l'histoire ci-dessus.";
     }
 
     /// <summary>
@@ -558,6 +607,26 @@ public class GenerationService : IGenerationService
         catch (JsonException)
         {
             return Array.Empty<StoryChoice>();
+        }
+    }
+
+    /// <summary>
+    /// Reads the character roster stored for a page.
+    /// </summary>
+    public async Task<IReadOnlyList<CharacterProfile>> GetPageCharactersAsync(
+        string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        var json = await _storyRepository.GetPageCharactersAsync(slotName, pageIndex, ct);
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<CharacterProfile>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<CharacterProfile>>(json) ?? (IReadOnlyList<CharacterProfile>)Array.Empty<CharacterProfile>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<CharacterProfile>();
         }
     }
 

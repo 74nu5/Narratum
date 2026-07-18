@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Narratum.Persistence;
 
@@ -10,9 +11,11 @@ using Narratum.Persistence;
 namespace Narratum.Persistence.Migrations
 {
     [DbContext(typeof(NarrativumDbContext))]
-    partial class NarrativumDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718195259_AddPageCharacters")]
+    partial class AddPageCharacters
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");

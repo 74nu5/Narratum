@@ -136,6 +136,54 @@
     border-color: transparent;
 }
 
+/* Character roster: a grid of compact cards. */
+.character-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.character-item {
+    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    background: var(--neutral-fill-rest, #fff);
+}
+
+.character-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.character-name {
+    font-weight: 600;
+}
+
+.character-role {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--accent-fill-rest, #6366f1);
+    color: var(--foreground-on-accent-rest, #fff);
+}
+
+.character-desc {
+    font-size: 0.88rem;
+    opacity: 0.85;
+    margin-top: 0.3rem;
+}
+
+.character-evo {
+    font-size: 0.82rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 /* Next-step choices: three stacked, full-width action buttons. */
 .choice-list {
     display: flex;
