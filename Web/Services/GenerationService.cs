@@ -356,6 +356,25 @@ public class GenerationService : IGenerationService
             AgentType.Character, "Personnages", "Fiches : personnalité, évolution, faits marquants",
             BuildCharacterRosterPrompt(fullStory, knownNames), chosenModel, ct));
 
+        // 5. Choice agent — proposes exactly 3 next-step options (structured output), persisted
+        // for the UI. Best effort: the page is already saved, so a failure just yields fallbacks.
+        var choiceTimer = Stopwatch.StartNew();
+        var choices = await GenerateChoicesAsync(fullText, chosenModel, ct);
+        choiceTimer.Stop();
+        try
+        {
+            await _storyRepository.SavePageChoicesAsync(
+                slotName, newPageIndex, JsonSerializer.Serialize(choices), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist choices for page {PageIndex}", newPageIndex);
+        }
+        traces.Add(new AgentTraceInfo(
+            "Choix", "Propose 3 suites possibles",
+            string.Join("\n", choices.Select(c => $"• {c.Text} — {c.Description}")),
+            choiceTimer.Elapsed.TotalMilliseconds));
+
         // Persist the Expert traces — best effort: the page is already saved.
         try
         {
@@ -422,8 +441,63 @@ public class GenerationService : IGenerationService
         AgentType.Summary => "Tu résumes les événements d'une histoire de façon concise et factuelle. " + FrenchOnly,
         AgentType.Consistency => "Tu vérifies la cohérence d'un texte narratif au regard des faits établis. Réponds brièvement. " + FrenchOnly,
         AgentType.Character => "Tu es l'archiviste des personnages. Tu tiens à jour, de façon factuelle, la fiche de chaque personnage d'une histoire. " + FrenchOnly,
+        AgentType.Choice => "Tu conçois des choix interactifs qui font avancer une histoire. " + FrenchOnly,
         _ => "Tu es un agent narratif. " + FrenchOnly
     };
+
+    /// <summary>
+    /// Proposes the next-step choices via structured output, always normalized to exactly three
+    /// so the UI is stable even when a small local model returns too few or malformed options.
+    /// </summary>
+    private async Task<IReadOnlyList<StoryChoice>> GenerateChoicesAsync(
+        string narrative, string model, CancellationToken ct)
+    {
+        var request = new LlmRequest(
+            AgentSystemPrompt(AgentType.Choice),
+            BuildChoicesPrompt(narrative) + "\n\n" + FrenchOnly,
+            LlmParameters.Default with { Temperature = _temperatures.GetTemperature(AgentType.Choice) },
+            new Dictionary<string, object>
+            {
+                ["llm.agentType"] = AgentType.Choice,
+                ["llm.model"] = model
+            });
+
+        try
+        {
+            var result = await _llmClient.GenerateStructuredAsync<ProposedChoices>(request, ct);
+            if (result is Result<ProposedChoices>.Success success)
+                return StoryChoices.NormalizeToThree(success.Value.Choices);
+
+            _logger.LogWarning("Choice agent produced no valid structured output; using fallback choices");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Choice agent failed; using fallback choices");
+        }
+
+        return StoryChoices.NormalizeToThree(null);
+    }
+
+    /// <summary>
+    /// Builds the prompt asking for exactly three distinct next-step options, each with a short
+    /// action and its consequence, adapted to the tone of the latest page.
+    /// </summary>
+    private static string BuildChoicesPrompt(string narrative)
+    {
+        var scene = string.IsNullOrWhiteSpace(narrative) ? "(scène à peine commencée)" : narrative;
+
+        return
+            $"Voici la dernière page de l'histoire :\n\n{scene}\n\n" +
+            "Propose EXACTEMENT 3 suites possibles, nettement différentes les unes des autres, " +
+            "sans qu'aucune ne soit évidemment meilleure. Pour chaque choix :\n" +
+            "- « Text » : l'action, à l'infinitif, 8 à 15 mots ;\n" +
+            "- « Description » : la conséquence pressentie, intrigante, 15 à 25 mots.\n" +
+            "Adapte le ton à celui du récit ci-dessus.";
+    }
 
     /// <summary>
     /// Builds the prompt asking the Character agent to maintain a roster: one fiche per
@@ -464,6 +538,26 @@ public class GenerationService : IGenerationService
         catch (JsonException)
         {
             return Array.Empty<AgentTraceInfo>();
+        }
+    }
+
+    /// <summary>
+    /// Reads the next-step choices stored for a page, normalized to exactly three.
+    /// </summary>
+    public async Task<IReadOnlyList<StoryChoice>> GetPageChoicesAsync(
+        string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        var json = await _storyRepository.GetPageChoicesAsync(slotName, pageIndex, ct);
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<StoryChoice>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<StoryChoice>>(json) ?? (IReadOnlyList<StoryChoice>)Array.Empty<StoryChoice>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<StoryChoice>();
         }
     }
 

@@ -33,6 +33,12 @@ public sealed record AgentTemperatureConfig
     public double ConsistencyTemperature { get; init; } = 0.1;
 
     /// <summary>
+    /// Temperature for Choice agent (proposing next-step options).
+    /// Moderately high for varied, distinct options while staying on-topic.
+    /// </summary>
+    public double ChoiceTemperature { get; init; } = 0.8;
+
+    /// <summary>
     /// Default configuration with balanced temperatures.
     /// </summary>
     public static AgentTemperatureConfig Default => new();
@@ -68,6 +74,7 @@ public sealed record AgentTemperatureConfig
         AgentType.Character => CharacterTemperature,
         AgentType.Summary => SummaryTemperature,
         AgentType.Consistency => ConsistencyTemperature,
+        AgentType.Choice => ChoiceTemperature,
         _ => 0.7 // Default fallback
     };
 
@@ -79,7 +86,8 @@ public sealed record AgentTemperatureConfig
         return IsValidTemperature(NarratorTemperature)
             && IsValidTemperature(CharacterTemperature)
             && IsValidTemperature(SummaryTemperature)
-            && IsValidTemperature(ConsistencyTemperature);
+            && IsValidTemperature(ConsistencyTemperature)
+            && IsValidTemperature(ChoiceTemperature);
     }
 
     private static bool IsValidTemperature(double temp)

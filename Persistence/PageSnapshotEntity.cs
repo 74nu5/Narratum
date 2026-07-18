@@ -57,6 +57,11 @@ public record PageSnapshotEntity
     public string? SerializedPipelineResult { get; init; }
 
     /// <summary>
+    /// Choix de suite proposés pour cette page (JSON), présentés au joueur.
+    /// </summary>
+    public string? SerializedChoices { get; init; }
+
+    /// <summary>
     /// Prompts envoyés aux agents (mode expert).
     /// </summary>
     public string? PromptsSent { get; init; }

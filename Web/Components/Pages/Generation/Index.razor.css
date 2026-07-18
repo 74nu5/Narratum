@@ -111,3 +111,56 @@
         transition: none;
     }
 }
+
+/* Next-step choices: three stacked, full-width action buttons. */
+.choice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.choice-button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
+    border-radius: 8px;
+    background: var(--neutral-fill-rest, #fff);
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.choice-button:hover:not(:disabled) {
+    border-color: var(--accent-fill-rest, #6366f1);
+    background: var(--neutral-fill-hover, #f5f5fa);
+}
+
+.choice-button:focus-visible {
+    outline: 2px solid var(--accent-fill-rest, #6366f1);
+    outline-offset: 2px;
+}
+
+.choice-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.choice-text {
+    font-weight: 600;
+}
+
+.choice-desc {
+    opacity: 0.7;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .choice-button {
+        transition: none;
+    }
+}

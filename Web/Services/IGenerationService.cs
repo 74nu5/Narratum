@@ -1,4 +1,5 @@
 using Narratum.Core;
+using Narratum.Orchestration.Models;
 using Narratum.Web.Models;
 
 namespace Narratum.Web.Services;
@@ -86,6 +87,15 @@ public interface IGenerationService
     /// was generated without multi-agent data (e.g. older pages).
     /// </summary>
     Task<IReadOnlyList<AgentTraceInfo>> GetAgentTraceAsync(
+        string slotName,
+        int pageIndex,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the next-step choices proposed for a page. Empty when none were stored
+    /// (e.g. older pages, or the page is still generating).
+    /// </summary>
+    Task<IReadOnlyList<StoryChoice>> GetPageChoicesAsync(
         string slotName,
         int pageIndex,
         CancellationToken ct = default);

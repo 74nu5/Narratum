@@ -383,6 +383,30 @@ public class StoryRepository : IStoryRepository
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task SavePageChoicesAsync(string slotName, int pageIndex, string choicesJson, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var page = await db.PageSnapshots
+            .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
+        if (page == null)
+            return;
+
+        db.Entry(page).CurrentValues.SetValues(page with { SerializedChoices = choicesJson });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<string?> GetPageChoicesAsync(string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName && p.PageIndex == pageIndex)
+            .Select(p => p.SerializedChoices)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

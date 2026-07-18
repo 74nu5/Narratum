@@ -5,6 +5,7 @@
 @inject ExpertModeService ExpertMode
 @inject ModelCatalogService ModelCatalog
 @inject Narratum.Orchestration.Llm.ILlmClient LlmClient
+@using Narratum.Orchestration.Models
 @implements IDisposable
 
 <PageTitle>Génération - Narratum</PageTitle>
@@ -90,6 +91,27 @@
                     }
                 </FluentCard>
 
+                @* Next-step choices: pick one to drive the following page *@
+                @if (!_isGenerating && _choices.Count > 0)
+                {
+                    <FluentCard>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                            <FluentLabel Typo="Typography.H4">Que faites-vous ?</FluentLabel>
+                            <div class="choice-list">
+                                @foreach (var choice in _choices)
+                                {
+                                    <button type="button" class="choice-button"
+                                            @onclick="() => ChooseAndContinue(choice)"
+                                            disabled="@_isGenerating">
+                                        <span class="choice-text">@choice.Text</span>
+                                        <span class="choice-desc">@choice.Description</span>
+                                    </button>
+                                }
+                            </div>
+                        </FluentStack>
+                    </FluentCard>
+                }
+
                 @* Expert mode: behind-the-scenes agent traces (hidden from normal readers) *@
                 @if (ExpertMode.IsExpertModeEnabled && _agentTraces.Count > 0)
                 {
@@ -129,6 +151,7 @@
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
     private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
+    private IReadOnlyList<StoryChoice> _choices = Array.Empty<StoryChoice>();
     private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
 
@@ -169,6 +192,17 @@
         _agentTraces = await GenService.GetAgentTraceAsync(SlotName, pageIndex);
     }
 
+    private async Task LoadChoices(int pageIndex)
+    {
+        _choices = await GenService.GetPageChoicesAsync(SlotName, pageIndex);
+    }
+
+    private async Task ChooseAndContinue(StoryChoice choice)
+    {
+        _userIntent = choice.Text;
+        await GenerateNextPage();
+    }
+
     private async Task LoadPageHistory()
     {
         _pageHistory = await GenService.GetPageHistoryAsync(SlotName);
@@ -191,6 +225,7 @@
             onFailure: error => _errorMessage = error);
 
         await LoadTraces(pageIndex);
+        await LoadChoices(pageIndex);
     }
 
     private async Task GenerateNextPage()
@@ -198,6 +233,7 @@
         _isGenerating = true;
         _errorMessage = string.Empty;
         _currentNarrative = string.Empty;
+        _choices = Array.Empty<StoryChoice>(); // hide stale choices while the next page streams
         var intent = _userIntent;
 
         try
@@ -221,7 +257,8 @@
             await LoadPageHistory();    // Refresh timeline
             if (_pageHistory.Any())
                 _currentPageIndex = _pageHistory.Max();
-            await LoadTraces(_currentPageIndex); // Expert data for the new page
+            await LoadTraces(_currentPageIndex);  // Expert data for the new page
+            await LoadChoices(_currentPageIndex); // Next-step choices for the new page
         }
         catch (Exception ex)
         {

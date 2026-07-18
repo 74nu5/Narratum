@@ -27,7 +27,12 @@ public enum AgentType
     /// <summary>
     /// Agent de cohérence - vérifie la cohérence logique.
     /// </summary>
-    Consistency
+    Consistency,
+
+    /// <summary>
+    /// Agent de choix - propose les suites possibles de l'histoire (sortie structurée).
+    /// </summary>
+    Choice
 }
 
 /// <summary>

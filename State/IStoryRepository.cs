@@ -79,6 +79,16 @@ public interface IStoryRepository
     Task<string?> GetPageExpertDataAsync(string slotName, int pageIndex, CancellationToken ct = default);
 
     /// <summary>
+    /// Stores the serialized next-step choices proposed for a saved page.
+    /// </summary>
+    Task SavePageChoicesAsync(string slotName, int pageIndex, string choicesJson, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the serialized next-step choices for a page, or null if none were stored.
+    /// </summary>
+    Task<string?> GetPageChoicesAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns the concatenated narrative text of every page (in order) — the story so far.
     /// </summary>
     Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default);

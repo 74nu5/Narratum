@@ -33,18 +33,29 @@ public static class DatabaseInitializer
 
     /// <summary>
     /// Vrai si une table cœur du schéma existe déjà (base créée hors migrations).
+    /// Ouvre puis restaure l'état de la connexion : la laisser épinglée ouverte perturberait
+    /// le <c>Migrate()</c> suivant (migrations partiellement appliquées).
     /// </summary>
     private static bool LegacySchemaExists(NarrativumDbContext db)
     {
         var connection = db.Database.GetDbConnection();
-        db.Database.OpenConnection();
+        var wasClosed = connection.State != System.Data.ConnectionState.Open;
+        if (wasClosed)
+            connection.Open();
 
-        using var command = connection.CreateCommand();
-        command.CommandText =
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'PageSnapshots';";
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'PageSnapshots';";
 
-        var count = Convert.ToInt64(command.ExecuteScalar() ?? 0L);
-        return count > 0;
+            return Convert.ToInt64(command.ExecuteScalar() ?? 0L) > 0;
+        }
+        finally
+        {
+            if (wasClosed)
+                connection.Close();
+        }
     }
 
     /// <summary>
