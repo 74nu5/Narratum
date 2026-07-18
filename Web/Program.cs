@@ -46,6 +46,7 @@ builder.Services.AddScoped<FullOrchestrationService>();
 builder.Services.AddScoped<StoryLibraryService>();
 builder.Services.AddScoped<ModelSelectionService>();
 builder.Services.AddSingleton<ModelCatalogService>();
+builder.Services.AddSingleton<AzureFoundryState>();
 builder.Services.AddScoped<IModelResolver>(sp => sp.GetRequiredService<ModelSelectionService>());
 builder.Services.AddScoped<IGenerationService, GenerationService>();
 builder.Services.AddScoped<ExpertModeService>();

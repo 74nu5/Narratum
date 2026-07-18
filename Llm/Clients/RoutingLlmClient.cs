@@ -6,6 +6,7 @@ using Azure.Core;
 using Microsoft.Extensions.Logging;
 
 using Narratum.Core;
+using Narratum.Llm.Azure;
 using Narratum.Llm.Configuration;
 using Narratum.Llm.Factory;
 using Narratum.Orchestration.Llm;
@@ -21,11 +22,6 @@ namespace Narratum.Llm.Clients;
 /// </summary>
 internal sealed class RoutingLlmClient : ILlmClient, IStreamingLlmClient, IModelCatalogProvider, IAsyncDisposable, IDisposable
 {
-    /// <summary>Préfixe marquant un modèle servi par Azure AI Foundry dans <c>llm.model</c>.</summary>
-    public const string AzurePrefix = "azure:";
-
-    private const string EndpointDeploymentSeparator = "::";
-
     private readonly ILlmClient _local;
     private readonly LlmClientConfig _config;
     private readonly TokenCredential? _credential;
@@ -49,24 +45,6 @@ internal sealed class RoutingLlmClient : ILlmClient, IStreamingLlmClient, IModel
     }
 
     public string ClientName => "Routing(local+azure)";
-
-    /// <summary>Vrai si l'identifiant de modèle désigne un déploiement Azure.</summary>
-    public static bool IsAzureModel(string? model)
-        => model is not null && model.StartsWith(AzurePrefix, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>Construit l'identifiant composite d'un déploiement Azure pour l'UI et les métadonnées.</summary>
-    public static string AzureModelId(string endpoint, string deployment)
-        => $"{AzurePrefix}{endpoint}{EndpointDeploymentSeparator}{deployment}";
-
-    private static (string Endpoint, string Deployment) ParseAzureModel(string model)
-    {
-        var body = model[AzurePrefix.Length..];
-        var separatorIndex = body.IndexOf(EndpointDeploymentSeparator, StringComparison.Ordinal);
-        if (separatorIndex < 0)
-            throw new InvalidOperationException($"Malformed Azure model id: '{model}'");
-
-        return (body[..separatorIndex], body[(separatorIndex + EndpointDeploymentSeparator.Length)..]);
-    }
 
     public async Task<Result<LlmResponse>> GenerateAsync(
         LlmRequest request, CancellationToken cancellationToken = default)
@@ -120,10 +98,10 @@ internal sealed class RoutingLlmClient : ILlmClient, IStreamingLlmClient, IModel
                 ? s
                 : null;
 
-        if (!IsAzureModel(model))
+        if (!AzureModelRef.IsAzureModel(model))
             return (this._local, request);
 
-        var (endpoint, deployment) = ParseAzureModel(model!);
+        var (endpoint, deployment) = AzureModelRef.Parse(model!);
         var client = await this.GetAzureClientAsync(endpoint, cancellationToken);
 
         var metadata = new Dictionary<string, object>(request.Metadata)

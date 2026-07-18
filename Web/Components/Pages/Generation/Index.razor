@@ -4,8 +4,10 @@
 @inject NavigationManager Navigation
 @inject ExpertModeService ExpertMode
 @inject ModelCatalogService ModelCatalog
+@inject AzureFoundryState AzureState
 @inject Narratum.Orchestration.Llm.ILlmClient LlmClient
 @using Narratum.Orchestration.Models
+@using Narratum.Llm.Azure
 @implements IDisposable
 
 <PageTitle>Génération - Narratum</PageTitle>
@@ -21,12 +23,25 @@
                 <div class="composer-body">
                     <FluentLabel Typo="Typography.H4">✍️ Composer la suite</FluentLabel>
 
+                    @if (_subscriptions.Count > 0)
+                    {
+                        <FluentSelect TOption="AzureSubscriptionInfo"
+                                      Items="_subscriptions"
+                                      OptionValue="@(s => s.SubscriptionId)"
+                                      OptionText="@(s => $"☁️ {s.DisplayName}")"
+                                      Value="_currentSubscription"
+                                      ValueChanged="OnSubscriptionChanged"
+                                      Disabled="@(_subscriptions.Count < 2)"
+                                      Label="Souscription Azure"
+                                      Style="width: 100%;" />
+                    }
+
                     <FluentSelect TOption="ModelOption"
                                   Items="_models"
                                   OptionValue="@(m => m.Id)"
                                   OptionText="@(m => m.Label)"
                                   @bind-Value="_selectedModel"
-                                  Label="Modèle (pour cette page)"
+                                  Label="Modèle (local ou cloud)"
                                   Style="width: 100%;" />
 
                     <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?"
@@ -153,7 +168,10 @@
     private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
     private IReadOnlyList<StoryChoice> _choices = Array.Empty<StoryChoice>();
     private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
+    private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
+    private IReadOnlyList<AzureSubscriptionInfo> _subscriptions = Array.Empty<AzureSubscriptionInfo>();
+    private string? _currentSubscription;
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,7 +179,10 @@
         ExpertMode.OnExpertModeToggled += HandleExpertToggled;
 
         _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
-        _models = await ModelCatalog.GetModelsAsync(LlmClient);
+        _localModels = await ModelCatalog.GetModelsAsync(LlmClient);
+        _subscriptions = await AzureState.GetSubscriptionsAsync();
+        _currentSubscription = AzureState.CurrentSubscriptionId;
+        await RebuildModelListAsync();
         _selectedModel = _models.FirstOrDefault()?.Id ?? _selectedModel;
 
         await LoadPageHistory();
@@ -181,6 +202,23 @@
         if (_models.Any(m => m.Id == stored)) return stored;
         var byAlias = _models.FirstOrDefault(m => m.Id.StartsWith(stored, StringComparison.OrdinalIgnoreCase));
         return byAlias?.Id ?? _models.FirstOrDefault()?.Id ?? stored;
+    }
+
+    // Merge local Foundry models with the current Azure subscription's chat deployments.
+    private async Task RebuildModelListAsync()
+    {
+        var azureModels = await AzureState.GetAzureModelsAsync();
+        _models = [.. _localModels, .. azureModels];
+    }
+
+    private async Task OnSubscriptionChanged(string? subscriptionId)
+    {
+        if (string.IsNullOrEmpty(subscriptionId))
+            return;
+
+        _currentSubscription = subscriptionId;
+        AzureState.SetCurrentSubscription(subscriptionId);
+        await RebuildModelListAsync();
     }
 
     private void HandleExpertToggled() => InvokeAsync(StateHasChanged);
