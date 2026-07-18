@@ -44,6 +44,8 @@
                                   Label="Modèle (local ou cloud)"
                                   Style="width: 100%;" />
 
+                    <div class="model-inuse">▶ Prochaine page : <strong>@ModelBadge(_selectedModel)</strong></div>
+
                     <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?"
                                   Class="composer-intent"
                                   Style="width: 100%;"
@@ -87,6 +89,15 @@
 
                 @* Current page content *@
                 <FluentCard Style="min-height: 300px;">
+                    @if (_isGenerating)
+                    {
+                        <div class="model-badge model-badge--live">⏳ Génération avec <strong>@ModelBadge(_selectedModel)</strong></div>
+                    }
+                    else if (!string.IsNullOrEmpty(_currentNarrative) && !string.IsNullOrEmpty(_currentPageModel))
+                    {
+                        <div class="model-badge">Généré avec <strong>@ModelBadge(_currentPageModel)</strong></div>
+                    }
+
                     @if (_isGenerating && string.IsNullOrEmpty(_currentNarrative))
                     {
                         @* Waiting for the first token *@
@@ -170,8 +181,25 @@
     private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
     private IReadOnlyList<ModelOption> _localModels = Array.Empty<ModelOption>();
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
+    private string? _currentPageModel;
     private IReadOnlyList<AzureSubscriptionInfo> _subscriptions = Array.Empty<AzureSubscriptionInfo>();
     private string? _currentSubscription;
+
+    // Human-readable "provider · model" for a stored model id (local Foundry or azure:*).
+    private string ModelBadge(string? modelId)
+    {
+        if (string.IsNullOrWhiteSpace(modelId) || modelId == "N/A")
+            return "modèle inconnu";
+
+        if (AzureModelRef.IsAzureModel(modelId))
+        {
+            var (_, deployment) = AzureModelRef.Parse(modelId);
+            return $"☁️ {deployment} · Azure (cloud)";
+        }
+
+        var label = _models.FirstOrDefault(m => m.Id == modelId)?.Label ?? modelId;
+        return $"💻 {label} · local";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -255,6 +283,7 @@
             onSuccess: page =>
             {
                 _currentNarrative = page.NarrativeText;
+                _currentPageModel = page.ModelUsed;
                 // Default the model selector to the model this page was generated with.
                 if (!string.IsNullOrWhiteSpace(page.ModelUsed) && page.ModelUsed != "N/A")
                     _selectedModel = ResolveSelectedModel(page.ModelUsed);
@@ -291,6 +320,7 @@
             }
 
             // Generation + save completed successfully.
+            _currentPageModel = _selectedModel; // the page just generated used this model
             _userIntent = string.Empty; // Clear input
             await LoadPageHistory();    // Refresh timeline
             if (_pageHistory.Any())

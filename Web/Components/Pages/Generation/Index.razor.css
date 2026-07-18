@@ -112,6 +112,30 @@
     }
 }
 
+/* "What model is in use" indicators — always visible so the provider (local vs cloud)
+   is never ambiguous. */
+.model-inuse {
+    font-size: 0.82rem;
+    opacity: 0.75;
+    margin-top: -6px;
+}
+
+.model-badge {
+    display: inline-block;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.7rem;
+    margin-bottom: 0.9rem;
+    border-radius: 999px;
+    background: var(--neutral-fill-secondary-rest, #f0f0f4);
+    border: 1px solid var(--neutral-stroke-rest, #e0e0e6);
+}
+
+.model-badge--live {
+    background: var(--accent-fill-rest, #6366f1);
+    color: var(--foreground-on-accent-rest, #fff);
+    border-color: transparent;
+}
+
 /* Next-step choices: three stacked, full-width action buttons. */
 .choice-list {
     display: flex;
