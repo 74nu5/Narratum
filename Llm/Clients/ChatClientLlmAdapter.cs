@@ -185,6 +185,61 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IMod
     }
 
     /// <summary>
+    /// Structured output with a native strict JSON schema (via <c>ChatOptions.ResponseFormat</c>,
+    /// derived from <typeparamref name="T"/>). Small local models often ignore the schema, so on
+    /// any failure we fall back to the shared tolerant prompt-based path.
+    /// </summary>
+    public async Task<Result<T>> GenerateStructuredAsync<T>(
+        LlmRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var modelName = ResolveModelName(request);
+
+        try
+        {
+            var servedModelId = await ResolveServedModelIdAsync(modelName, cancellationToken);
+
+            var messages = new List<ChatMessage>
+            {
+                new(ChatRole.System, request.SystemPrompt),
+                new(ChatRole.User, request.UserPrompt)
+            };
+
+            var options = new ChatOptions
+            {
+                ModelId = servedModelId,
+                Temperature = (float)request.Parameters.Temperature,
+                MaxOutputTokens = request.Parameters.MaxTokens,
+                TopP = (float)request.Parameters.TopP
+            };
+
+            try
+            {
+                var typed = await _chatClient.GetResponseAsync<T>(messages, options, cancellationToken: cancellationToken);
+                if (typed.TryGetResult(out var value))
+                    return Result<T>.Ok(value);
+
+                // Native call succeeded but the payload wasn't parseable as T — try tolerant parse.
+                if (StructuredLlm.TryDeserialize<T>(typed.Text, out var parsed))
+                    return Result<T>.Ok(parsed!);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogDebug(ex, "Native structured output failed; falling back to tolerant prompt path");
+            }
+
+            // Fallback: schema-in-prompt + tolerant parse + retry, over this adapter's GenerateAsync.
+            return await StructuredLlm.GenerateViaPromptAsync<T>(this, request, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Result<T>.Fail("Request cancelled");
+        }
+    }
+
+    /// <summary>
     /// Streams the response incrementally, yielding text fragments as the model produces them.
     /// Exceptions (network, timeout, cancellation) propagate to the consumer.
     /// </summary>

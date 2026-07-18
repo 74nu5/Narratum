@@ -33,6 +33,17 @@ internal sealed class LazyLlmClient : ILlmClient, IStreamingLlmClient, IModelCat
         return await _client!.GenerateAsync(request, cancellationToken);
     }
 
+    public async Task<Result<T>> GenerateStructuredAsync<T>(
+        LlmRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        await EnsureInitializedAsync(cancellationToken);
+        // Forward to the concrete client so its native strict-schema path is used,
+        // not the interface default.
+        return await _client!.GenerateStructuredAsync<T>(request, cancellationToken);
+    }
+
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();

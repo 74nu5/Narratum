@@ -24,6 +24,21 @@ public interface ILlmClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Génère une réponse structurée désérialisée en <typeparamref name="T"/>.
+    /// L'implémentation par défaut injecte un JSON Schema dans le prompt puis parse de façon
+    /// tolérante (avec une nouvelle tentative). Un adaptateur disposant d'un support natif du
+    /// schéma peut surcharger cette méthode pour un mode strict, en conservant ce filet tolérant.
+    /// </summary>
+    /// <typeparam name="T">Type cible de la désérialisation.</typeparam>
+    /// <param name="request">Requête LLM.</param>
+    /// <param name="cancellationToken">Token d'annulation.</param>
+    /// <returns>Résultat contenant l'objet désérialisé ou une erreur.</returns>
+    Task<Result<T>> GenerateStructuredAsync<T>(
+        LlmRequest request,
+        CancellationToken cancellationToken = default)
+        => StructuredLlm.GenerateViaPromptAsync<T>(this, request, cancellationToken);
+
+    /// <summary>
     /// Vérifie si le client est disponible et opérationnel.
     /// </summary>
     /// <param name="cancellationToken">Token d'annulation.</param>
