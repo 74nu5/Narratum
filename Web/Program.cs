@@ -52,11 +52,11 @@ builder.Services.AddScoped<ExpertModeService>();
 
 var app = builder.Build();
 
-// Ensure database is created
+// Apply EF Core migrations (baselines a legacy EnsureCreated database if needed).
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<NarrativumDbContext>();
-    db.Database.EnsureCreated();
+    db.InitializeNarratumDatabase();
 }
 
 // Configure the HTTP request pipeline.
