@@ -24,9 +24,10 @@ public sealed record LlmClientConfig
     public string DefaultModel { get; init; } = "phi-4-mini";
 
     /// <summary>
-    /// Timeout pour chaque requête HTTP (secondes).
+    /// Timeout réseau pour chaque requête (secondes). Généreux par défaut : la génération
+    /// locale (gros modèle, longue histoire, agents en série) peut dépasser 100 s.
     /// </summary>
-    public int TimeoutSeconds { get; init; } = 120;
+    public int TimeoutSeconds { get; init; } = 300;
 
     /// <summary>
     /// Mapping optionnel agent → modèle. Permet à chaque agent d'utiliser un modèle différent.

@@ -326,27 +326,9 @@ public class GenerationService : IGenerationService
 
         traces.Add(new AgentTraceInfo("Narrateur", "Écrit la prose (texte affiché)", fullText, narratorTimer.Elapsed.TotalMilliseconds));
 
-        // 3. Consistency agent — checks the freshly generated text against established facts.
-        var establishedFacts = storyState.Characters.Values
-            .SelectMany(c => c.KnownFacts)
-            .Distinct()
-            .ToList();
-        var consistency = await RunAgentAsync(
-            AgentType.Consistency, "Cohérence", "Vérifie le texte contre les faits établis",
-            _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), chosenModel, ct);
-        traces.Add(consistency);
-
-        // 4. Character agent — maintains an evolving roster: for each character, their
-        // personality, arc and key facts. Re-derived from the full story (incl. this page)
-        // so it naturally reflects how characters change over time.
-        var knownNames = storyState.Characters.Values.Select(c => c.Name).ToList();
-        var fullStory = string.IsNullOrWhiteSpace(storySoFar) ? fullText : storySoFar + "\n\n" + fullText;
-        var roster = await RunAgentAsync(
-            AgentType.Character, "Personnages", "Fiches : personnalité, évolution, faits marquants",
-            BuildCharacterRosterPrompt(fullStory, knownNames), chosenModel, ct);
-        traces.Add(roster);
-
-        // Persist the page (user-visible text) and the agent traces (Expert data).
+        // Save the page NOW. The narrative is the only user-visible output, and the user
+        // just watched it stream in — the post-generation agents below must never cost them
+        // that page (a slow/failing agent used to abort before the save ran).
         var newPageIndex = latestPage.PageIndex + 1;
         var saveResult = await _storyRepository.SavePageAsync(
             slotName, newPageIndex, fullText, intentDescription, chosenModel, storyState, ct);
@@ -357,8 +339,33 @@ public class GenerationService : IGenerationService
             throw new InvalidOperationException(saveFailure.Message);
         }
 
-        var expertJson = JsonSerializer.Serialize(traces);
-        await _storyRepository.SavePageExpertDataAsync(slotName, newPageIndex, expertJson, ct);
+        // 3. Consistency agent — checks the generated text against established facts (Expert-only).
+        var establishedFacts = storyState.Characters.Values
+            .SelectMany(c => c.KnownFacts)
+            .Distinct()
+            .ToList();
+        traces.Add(await RunAgentAsync(
+            AgentType.Consistency, "Cohérence", "Vérifie le texte contre les faits établis",
+            _promptOptimizer.BuildOptimizedConsistencyPrompt(storyState, fullText, establishedFacts), chosenModel, ct));
+
+        // 4. Character agent — maintains an evolving roster (personality, arc, key facts per
+        // character), re-derived from the full story so it reflects their evolution (Expert-only).
+        var knownNames = storyState.Characters.Values.Select(c => c.Name).ToList();
+        var fullStory = string.IsNullOrWhiteSpace(storySoFar) ? fullText : storySoFar + "\n\n" + fullText;
+        traces.Add(await RunAgentAsync(
+            AgentType.Character, "Personnages", "Fiches : personnalité, évolution, faits marquants",
+            BuildCharacterRosterPrompt(fullStory, knownNames), chosenModel, ct));
+
+        // Persist the Expert traces — best effort: the page is already saved.
+        try
+        {
+            var expertJson = JsonSerializer.Serialize(traces);
+            await _storyRepository.SavePageExpertDataAsync(slotName, newPageIndex, expertJson, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist expert data for page {PageIndex}", newPageIndex);
+        }
 
         _logger.LogInformation(
             "Multi-agent page saved. SlotName: {SlotName}, PageIndex: {PageIndex}, Agents: {AgentCount}",
@@ -384,16 +391,29 @@ public class GenerationService : IGenerationService
                 ["llm.model"] = model
             });
 
-        var result = await _llmClient.GenerateAsync(request, ct);
-        timer.Stop();
-
-        var output = result switch
+        string output;
+        try
         {
-            Result<LlmResponse>.Success s => s.Value.Content,
-            Result<LlmResponse>.Failure f => $"(agent indisponible : {f.Message})",
-            _ => "(aucune sortie)"
-        };
+            var result = await _llmClient.GenerateAsync(request, ct);
+            output = result switch
+            {
+                Result<LlmResponse>.Success s => s.Value.Content,
+                Result<LlmResponse>.Failure f => $"(agent indisponible : {f.Message})",
+                _ => "(aucune sortie)"
+            };
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // genuine user cancellation
+        }
+        catch (Exception ex)
+        {
+            // A weak/slow agent (timeout, retries exhausted, …) must never abort the page.
+            _logger.LogWarning(ex, "Agent {Agent} failed: {Message}", agent, ex.Message);
+            output = $"(agent en échec : {ex.Message})";
+        }
 
+        timer.Stop();
         return new AgentTraceInfo(displayName, role, output, timer.Elapsed.TotalMilliseconds);
     }
 

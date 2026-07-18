@@ -398,6 +398,66 @@ public class GenerationServiceTests
         traces.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GenerateNextPageStreamingAsync_WhenPostAgentsFail_StillSavesThePage()
+    {
+        // Arrange — the non-streaming agent calls all throw (e.g. a timeout / exhausted retries)
+        var slotName = "test-slot";
+        var state = StoryState.Create(Id.New(), "Test World")
+            .WithCharacters(new CharacterState(Id.New(), "Alice"));
+
+        _mockRepository
+            .Setup(r => r.LoadLatestPageAsync(slotName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Narratum.Core.PageSnapshot>.Ok(new Narratum.Core.PageSnapshot(
+                slotName, 0, "Previous page", "intent", "phi-4-mini", DateTime.UtcNow, state)));
+
+        _mockRepository
+            .Setup(r => r.SavePageAsync(slotName, 1, It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<StoryState>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Narratum.Core.PageSnapshot>.Ok(new Narratum.Core.PageSnapshot(
+                slotName, 1, "saved", "intent", "phi-4-mini", DateTime.UtcNow, state)));
+
+        var service = new GenerationService(
+            new FullOrchestrationService(new Mock<ILlmClient>().Object),
+            _mockRepository.Object,
+            new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini" }),
+            new ThrowingAgentsStreamingClient("Il ", "était ", "une fois."),
+            NullLogger<GenerationService>.Instance);
+
+        // Act
+        var received = new List<string>();
+        await foreach (var chunk in service.GenerateNextPageStreamingAsync(slotName, "Continue"))
+            received.Add(chunk);
+
+        // Assert — the streamed narrative reached the user AND was persisted, despite the
+        // Summary/Consistency/Character agents all failing.
+        string.Concat(received).Should().Be("Il était une fois.");
+        _mockRepository.Verify(r => r.SavePageAsync(slotName, 1, "Il était une fois.",
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<StoryState>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>Streams the narrator fine, but every non-streaming agent call throws.</summary>
+    private sealed class ThrowingAgentsStreamingClient(params string[] chunks) : ILlmClient, IStreamingLlmClient
+    {
+        public string ClientName => "Throwing";
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<Result<LlmResponse>> GenerateAsync(LlmRequest request, CancellationToken cancellationToken = default)
+            => throw new TimeoutException("simulated agent timeout");
+
+        public async IAsyncEnumerable<string> GenerateStreamingAsync(
+            LlmRequest request,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var chunk in chunks)
+            {
+                await Task.Yield();
+                yield return chunk;
+            }
+        }
+    }
+
     /// <summary>Fake client that streams a fixed set of fragments and records the requests it receives.</summary>
     private sealed class FakeStreamingLlmClient(params string[] chunks) : ILlmClient, IStreamingLlmClient
     {

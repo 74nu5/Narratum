@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -72,10 +73,18 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
         // on demand. This avoids always loading the default model even when the user
         // picks a different one.
 
-        // OpenAI SDK pointe vers le endpoint local Foundry
+        // OpenAI SDK pointe vers le endpoint local Foundry.
+        // Le NetworkTimeout par défaut (100 s) est trop court pour de la génération locale
+        // avec un gros modèle ; on l'aligne sur la config. Sur localhost, insister avec des
+        // retries sur un timeout ne sert à rien — on les réduit.
         var openAiClient = new OpenAIClient(
             new ApiKeyCredential("notneeded"),
-            new OpenAIClientOptions { Endpoint = new Uri(baseUrl) });
+            new OpenAIClientOptions
+            {
+                Endpoint = new Uri(baseUrl),
+                NetworkTimeout = TimeSpan.FromSeconds(Config.TimeoutSeconds),
+                RetryPolicy = new ClientRetryPolicy(maxRetries: 1)
+            });
 
         return openAiClient
             .GetChatClient(Config.DefaultModel)
