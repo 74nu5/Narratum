@@ -2,6 +2,7 @@ using Microsoft.AI.Foundry.Local;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Narratum.Llm.Configuration;
+using Narratum.Orchestration.Llm;
 
 namespace Narratum.Llm.Lifecycle;
 
@@ -56,6 +57,33 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         _initialized = true;
 
         _logger.LogInformation("Foundry Local initialized successfully at {BaseUrl}", _baseUrl);
+    }
+
+    public async Task<IReadOnlyList<LlmModelInfo>> ListModelsAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_initialized)
+            await InitializeAsync(cancellationToken);
+
+        var catalog = await FoundryLocalManager.Instance.GetCatalogAsync();
+        var models = await catalog.ListModelsAsync();
+
+        return models
+            .Select(m => new LlmModelInfo(
+                Id: m.Id,
+                Alias: m.Alias ?? m.Id,
+                DisplayName: m.Info?.DisplayName ?? m.Alias ?? m.Id,
+                Cached: m.Info?.Cached ?? false,
+                Task: m.Info?.Task,
+                Device: DeriveDevice(m.Id)))
+            .ToList();
+    }
+
+    private static string? DeriveDevice(string id)
+    {
+        if (id.Contains("gpu", StringComparison.OrdinalIgnoreCase)) return "GPU";
+        if (id.Contains("npu", StringComparison.OrdinalIgnoreCase)) return "NPU";
+        if (id.Contains("cpu", StringComparison.OrdinalIgnoreCase)) return "CPU";
+        return null;
     }
 
     public async Task<bool> IsRunningAsync(CancellationToken cancellationToken = default)

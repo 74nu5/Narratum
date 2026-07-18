@@ -9,7 +9,7 @@ namespace Narratum.Llm.Clients;
 /// Lazy wrapper for ILlmClient that defers async initialization until first use.
 /// Prevents blocking application startup with Foundry Local initialization.
 /// </summary>
-internal sealed class LazyLlmClient : ILlmClient, IStreamingLlmClient, IDisposable
+internal sealed class LazyLlmClient : ILlmClient, IStreamingLlmClient, IModelCatalogProvider, IDisposable
 {
     private readonly ILlmClientFactory _factory;
     private ILlmClient? _client;
@@ -81,6 +81,16 @@ internal sealed class LazyLlmClient : ILlmClient, IStreamingLlmClient, IDisposab
         {
             _initLock.Release();
         }
+    }
+
+    public async Task<IReadOnlyList<LlmModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        await EnsureInitializedAsync(cancellationToken);
+
+        return _client is IModelCatalogProvider provider
+            ? await provider.GetModelsAsync(cancellationToken)
+            : Array.Empty<LlmModelInfo>();
     }
 
     private void ThrowIfDisposed()

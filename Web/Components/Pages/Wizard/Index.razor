@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject NavigationManager Navigation
 @inject IGenerationService GenService
+@inject ModelCatalogService ModelCatalog
+@inject Narratum.Orchestration.Llm.ILlmClient LlmClient
 
 <PageTitle>Créer une histoire - Narratum</PageTitle>
 
@@ -44,7 +46,7 @@
                         <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3"
                                       Placeholder="Ex: Épique, sombre, humoristique..." />
                         <FluentSelect TOption="string" Label="Modèle de génération" @bind-Value="this.model">
-                            @foreach (var m in ModelSelectionService.AvailableModels)
+                            @foreach (var m in this.models)
                             {
                                 <FluentOption TOption="string" Value="@m.Id">@m.Label</FluentOption>
                             }

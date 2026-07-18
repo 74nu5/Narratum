@@ -1,3 +1,5 @@
+using Narratum.Orchestration.Llm;
+
 namespace Narratum.Llm.Lifecycle;
 
 /// <summary>
@@ -5,6 +7,11 @@ namespace Narratum.Llm.Lifecycle;
 /// </summary>
 public interface ILlmLifecycleManager : IAsyncDisposable
 {
+    /// <summary>
+    /// Liste les modèles connus du fournisseur (ids concrets, variantes incluses).
+    /// </summary>
+    Task<IReadOnlyList<LlmModelInfo>> ListModelsAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Vérifie si le service LLM est en cours d'exécution.
     /// </summary>

@@ -3,6 +3,8 @@
 @inject IGenerationService GenService
 @inject NavigationManager Navigation
 @inject ExpertModeService ExpertMode
+@inject ModelCatalogService ModelCatalog
+@inject Narratum.Orchestration.Llm.ILlmClient LlmClient
 @implements IDisposable
 
 <PageTitle>Génération - Narratum</PageTitle>
@@ -75,8 +77,8 @@
             <FluentTextArea @bind-Value="_userIntent" Label="Que doit-il se passer ensuite ?" Rows="3"
                           Placeholder="Ex: Les personnages découvrent une porte secrète..." />
             <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle (pour cette page)"
-                          Style="max-width: 360px;">
-                @foreach (var m in ModelSelectionService.AvailableModels)
+                          Style="max-width: 420px;">
+                @foreach (var m in _models)
                 {
                     <FluentOption Value="@m.Id">@m.Label</FluentOption>
                 }
@@ -112,6 +114,7 @@
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
     private IReadOnlyList<AgentTraceInfo> _agentTraces = Array.Empty<AgentTraceInfo>();
+    private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
     private string _selectedModel = ModelSelectionService.AvailableModels[0].Id;
 
     protected override async Task OnInitializedAsync()
@@ -120,6 +123,9 @@
         ExpertMode.OnExpertModeToggled += HandleExpertToggled;
 
         _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
+        _models = await ModelCatalog.GetModelsAsync(LlmClient);
+        _selectedModel = _models.FirstOrDefault()?.Id ?? _selectedModel;
+
         await LoadPageHistory();
 
         // Load latest page if exists
@@ -128,6 +134,15 @@
             _currentPageIndex = _pageHistory.Max();
             await LoadPage(_currentPageIndex);
         }
+    }
+
+    // The stored model may be an alias (older story) while the catalogue uses concrete
+    // variant ids — map it to a real option, else keep the first available model.
+    private string ResolveSelectedModel(string stored)
+    {
+        if (_models.Any(m => m.Id == stored)) return stored;
+        var byAlias = _models.FirstOrDefault(m => m.Id.StartsWith(stored, StringComparison.OrdinalIgnoreCase));
+        return byAlias?.Id ?? _models.FirstOrDefault()?.Id ?? stored;
     }
 
     private void HandleExpertToggled() => InvokeAsync(StateHasChanged);
@@ -155,7 +170,7 @@
                 _currentNarrative = page.NarrativeText;
                 // Default the model selector to the model this page was generated with.
                 if (!string.IsNullOrWhiteSpace(page.ModelUsed) && page.ModelUsed != "N/A")
-                    _selectedModel = page.ModelUsed;
+                    _selectedModel = ResolveSelectedModel(page.ModelUsed);
                 return string.Empty;
             },
             onFailure: error => _errorMessage = error);

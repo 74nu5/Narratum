@@ -1,6 +1,7 @@
 namespace Narratum.Web.Components.Pages.Wizard;
 
 using Narratum.Web.Models;
+using Narratum.Web.Services;
 
 using static Shared.CharactersEditor;
 using static Shared.LocationsEditor;
@@ -14,9 +15,16 @@ public partial class Index
     private string worldDescription = string.Empty;
     private string genre = "Fantasy";
     private string narrativeStyle = string.Empty;
-    private string model = Services.ModelSelectionService.AvailableModels[0].Id;
+    private string model = ModelSelectionService.AvailableModels[0].Id;
+    private IReadOnlyList<ModelOption> models = ModelSelectionService.AvailableModels;
     private List<CharacterInput> characters = [];
     private List<LocationInput> locations = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        this.models = await this.ModelCatalog.GetModelsAsync(this.LlmClient);
+        this.model = this.models.FirstOrDefault()?.Id ?? this.model;
+    }
 
     private bool CanProceed => this.currentStep switch
     {

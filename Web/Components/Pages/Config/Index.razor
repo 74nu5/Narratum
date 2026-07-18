@@ -1,6 +1,7 @@
 @page "/config"
 @rendermode InteractiveServer
 @inject ModelSelectionService ModelService
+@inject ModelCatalogService ModelCatalog
 @inject Narratum.Orchestration.Llm.ILlmClient LlmClient
 @inject NavigationManager Navigation
 
@@ -20,7 +21,7 @@
                 et chaque page peut le changer depuis l'écran de génération.
             </FluentLabel>
             <FluentSelect TOption="string" @bind-SelectedOption="_selectedModel" Label="Modèle" Style="max-width: 400px;">
-                @foreach (var m in ModelSelectionService.AvailableModels)
+                @foreach (var m in _models)
                 {
                     <FluentOption Value="@m.Id">@m.Label</FluentOption>
                 }
@@ -81,10 +82,17 @@
     private bool _testing = false;
     private string? _testResult;
     private bool _testSuccess;
+    private IReadOnlyList<ModelOption> _models = ModelSelectionService.AvailableModels;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _selectedModel = ModelService.CurrentNarratorModel ?? "phi-4-mini";
+        _models = await ModelCatalog.GetModelsAsync(LlmClient);
+
+        var current = ModelService.CurrentNarratorModel;
+        // Keep the saved model selected if it's a known option; otherwise default to the first.
+        _selectedModel = !string.IsNullOrWhiteSpace(current) && _models.Any(m => m.Id == current)
+            ? current
+            : _models.FirstOrDefault()?.Id ?? "phi-4-mini";
     }
 
     private void SaveConfig()

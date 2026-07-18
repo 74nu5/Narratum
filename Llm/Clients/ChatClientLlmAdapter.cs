@@ -16,7 +16,7 @@ namespace Narratum.Llm.Clients;
 /// à l'interface ILlmClient de Narratum.
 /// Supporte le routing par agent via les métadonnées de LlmRequest.
 /// </summary>
-public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDisposable
+public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IModelCatalogProvider, IDisposable
 {
     private readonly IChatClient _chatClient;
     private readonly LlmClientConfig _config;
@@ -285,6 +285,14 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDis
         }
 
         return _config.DefaultModel;
+    }
+
+    public async Task<IReadOnlyList<LlmModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_lifecycleManager is null)
+            return Array.Empty<LlmModelInfo>();
+
+        return await _lifecycleManager.ListModelsAsync(cancellationToken);
     }
 
     public void Dispose()
