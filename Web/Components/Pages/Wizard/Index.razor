@@ -3,7 +3,9 @@
 @inject NavigationManager Navigation
 @inject IGenerationService GenService
 @inject ModelCatalogService ModelCatalog
+@inject AzureFoundryState AzureState
 @inject Narratum.Orchestration.Llm.ILlmClient LlmClient
+@using Narratum.Llm.Azure
 
 <PageTitle>Créer une histoire - Narratum</PageTitle>
 
@@ -45,12 +47,24 @@
                         </FluentSelect>
                         <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3"
                                       Placeholder="Ex: Épique, sombre, humoristique..." />
+                        @if (this.subscriptions.Count > 0)
+                        {
+                            <FluentSelect TOption="AzureSubscriptionInfo"
+                                          Items="this.subscriptions"
+                                          OptionValue="@(s => s.SubscriptionId)"
+                                          OptionText="@(s => $"☁️ {s.DisplayName}")"
+                                          Value="this.currentSubscription"
+                                          ValueChanged="this.OnSubscriptionChanged"
+                                          Disabled="@(this.subscriptions.Count < 2)"
+                                          Label="Souscription Azure"
+                                          Style="width: 100%; max-width: 480px;" />
+                        }
                         <FluentSelect TOption="ModelOption"
                                       Items="this.models"
                                       OptionValue="@(m => m.Id)"
                                       OptionText="@(m => m.Label)"
                                       @bind-Value="this.model"
-                                      Label="Modèle de génération"
+                                      Label="Modèle de génération (local ou cloud)"
                                       Style="width: 100%; max-width: 480px;" />
                     </FluentStack>
                 </FluentCard>

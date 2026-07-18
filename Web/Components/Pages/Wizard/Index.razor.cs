@@ -1,5 +1,6 @@
 namespace Narratum.Web.Components.Pages.Wizard;
 
+using Narratum.Llm.Azure;
 using Narratum.Web.Models;
 using Narratum.Web.Services;
 
@@ -17,13 +18,36 @@ public partial class Index
     private string narrativeStyle = string.Empty;
     private string model = ModelSelectionService.AvailableModels[0].Id;
     private IReadOnlyList<ModelOption> models = ModelSelectionService.AvailableModels;
+    private IReadOnlyList<ModelOption> localModels = [];
+    private IReadOnlyList<AzureSubscriptionInfo> subscriptions = [];
+    private string? currentSubscription;
     private List<CharacterInput> characters = [];
     private List<LocationInput> locations = [];
 
     protected override async Task OnInitializedAsync()
     {
-        this.models = await this.ModelCatalog.GetModelsAsync(this.LlmClient);
+        this.localModels = await this.ModelCatalog.GetModelsAsync(this.LlmClient);
+        this.subscriptions = await this.AzureState.GetSubscriptionsAsync();
+        this.currentSubscription = this.AzureState.CurrentSubscriptionId;
+        await this.RebuildModelListAsync();
         this.model = this.models.FirstOrDefault()?.Id ?? this.model;
+    }
+
+    // Merge local Foundry models with the current Azure subscription's chat deployments.
+    private async Task RebuildModelListAsync()
+    {
+        var azureModels = await this.AzureState.GetAzureModelsAsync();
+        this.models = [.. this.localModels, .. azureModels];
+    }
+
+    private async Task OnSubscriptionChanged(string? subscriptionId)
+    {
+        if (string.IsNullOrEmpty(subscriptionId))
+            return;
+
+        this.currentSubscription = subscriptionId;
+        this.AzureState.SetCurrentSubscription(subscriptionId);
+        await this.RebuildModelListAsync();
     }
 
     private bool CanProceed => this.currentStep switch
