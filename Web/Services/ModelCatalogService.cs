@@ -41,12 +41,14 @@ public class ModelCatalogService
             try
             {
                 var models = await provider.GetModelsAsync(ct);
+                // Offer EVERY device variant (GPU / NPU / CPU) so the user can pick a specific
+                // one — useful when a variant misbehaves (e.g. a broken WebGPU build) and they
+                // want to fall back to CPU/NPU. Variants of the same model stay adjacent, in
+                // GPU → NPU → CPU order.
                 var options = models
                     .Where(IsNarrativeModel)
-                    .GroupBy(m => m.Alias, StringComparer.OrdinalIgnoreCase)
-                    .Select(PickBestVariant)
-                    .OrderByDescending(m => m.Cached)
-                    .ThenBy(m => m.Alias, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(m => m.Alias, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(m => DeviceRank(m.Device))
                     .Select(m => new ModelOption(m.Id, BuildLabel(m)))
                     .ToList();
 
@@ -70,19 +72,14 @@ public class ModelCatalogService
         return !excluded.Any(x => probe.Contains(x));
     }
 
-    /// <summary>Among a model's variants, prefer GPU, then NPU, then CPU.</summary>
-    private static LlmModelInfo PickBestVariant(IGrouping<string, LlmModelInfo> group)
+    /// <summary>Ordering weight so variants list GPU, then NPU, then CPU.</summary>
+    private static int DeviceRank(string? device) => device?.ToUpperInvariant() switch
     {
-        static int Rank(string? device) => device?.ToUpperInvariant() switch
-        {
-            "GPU" => 0,
-            "NPU" => 1,
-            "CPU" => 2,
-            _ => 3
-        };
-
-        return group.OrderBy(m => Rank(m.Device)).First();
-    }
+        "GPU" => 0,
+        "NPU" => 1,
+        "CPU" => 2,
+        _ => 3
+    };
 
     private static string BuildLabel(LlmModelInfo m)
     {
