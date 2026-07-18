@@ -45,12 +45,13 @@
                         </FluentSelect>
                         <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3"
                                       Placeholder="Ex: Épique, sombre, humoristique..." />
-                        <FluentSelect TOption="string" Label="Modèle de génération" @bind-Value="this.model">
-                            @foreach (var m in this.models)
-                            {
-                                <FluentOption TOption="string" Value="@m.Id">@m.Label</FluentOption>
-                            }
-                        </FluentSelect>
+                        <FluentSelect TOption="ModelOption"
+                                      Items="this.models"
+                                      OptionValue="@(m => m.Id)"
+                                      OptionText="@(m => m.Label)"
+                                      @bind-Value="this.model"
+                                      Label="Modèle de génération"
+                                      Style="width: 100%; max-width: 480px;" />
                     </FluentStack>
                 </FluentCard>
                 break;

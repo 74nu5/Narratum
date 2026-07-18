@@ -65,21 +65,58 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
             await InitializeAsync(cancellationToken);
 
         var catalog = await FoundryLocalManager.Instance.GetCatalogAsync();
-        var models = await catalog.ListModelsAsync();
+        var models = await ExpandVariantsAsync(catalog);
 
         return models
             .Select(m => new LlmModelInfo(
                 Id: m.Id,
-                Alias: m.Alias ?? m.Id,
+                Alias: m.Alias ?? m.Info?.Alias ?? m.Id,
                 DisplayName: m.Info?.DisplayName ?? m.Alias ?? m.Id,
                 Cached: m.Info?.Cached ?? false,
                 Task: m.Info?.Task,
-                Device: DeriveDevice(m.Id)))
+                Device: DeriveDevice(m)))
             .ToList();
     }
 
-    private static string? DeriveDevice(string id)
+    /// <summary>
+    /// Flattens the catalogue into every concrete, device-specific variant. A model exposes
+    /// several variants (generic-gpu, openvino-npu, generic-cpu, …), each an IModel with its
+    /// own id and Runtime. ListModelsAsync returns only the default (usually CPU) entry, so we
+    /// expand .Variants to surface the GPU/NPU options, de-duplicated by concrete id.
+    /// </summary>
+    private static async Task<List<IModel>> ExpandVariantsAsync(ICatalog catalog)
     {
+        var models = await catalog.ListModelsAsync();
+        var byId = new Dictionary<string, IModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in models)
+        {
+            byId[m.Id] = m;
+            foreach (var v in m.Variants ?? Array.Empty<IModel>())
+                byId[v.Id] = v;
+        }
+
+        return byId.Values.ToList();
+    }
+
+    private static int DeviceRank(IModel m) => DeriveDevice(m) switch
+    {
+        "GPU" => 0,
+        "NPU" => 1,
+        "CPU" => 2,
+        _ => 3
+    };
+
+    /// <summary>Real device from the variant's Runtime; falls back to parsing the id.</summary>
+    private static string? DeriveDevice(IModel m)
+    {
+        switch (m.Info?.Runtime?.DeviceType)
+        {
+            case DeviceType.GPU: return "GPU";
+            case DeviceType.NPU: return "NPU";
+            case DeviceType.CPU: return "CPU";
+        }
+
+        var id = m.Id;
         if (id.Contains("gpu", StringComparison.OrdinalIgnoreCase)) return "GPU";
         if (id.Contains("npu", StringComparison.OrdinalIgnoreCase)) return "NPU";
         if (id.Contains("cpu", StringComparison.OrdinalIgnoreCase)) return "CPU";
@@ -113,14 +150,17 @@ public sealed class FoundryLocalLifecycleManager : ILlmLifecycleManager
         var mgr = FoundryLocalManager.Instance;
         var catalog = await mgr.GetCatalogAsync();
 
-        // Match the catalogue EXACTLY by alias (Model Name) or concrete id.
-        // catalog.GetModelAsync() does fuzzy matching and can return the wrong model
-        // (e.g. "mistral-nemo-12b-instruct" resolved to a "ministral-..." model), so we
-        // don't use it.
-        var models = await catalog.ListModelsAsync();
-        var model = models.FirstOrDefault(m =>
-                        string.Equals(m.Alias, modelName, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(m.Id, modelName, StringComparison.OrdinalIgnoreCase))
+        // Match the catalogue EXACTLY, across every device variant. catalog.GetModelAsync()
+        // does fuzzy matching and can return the wrong model (e.g. "mistral-nemo-12b-instruct"
+        // resolved to a "ministral-..." model), so we don't use it.
+        // The dropdown sends a concrete variant id (…-generic-gpu:1) — match that first so the
+        // requested device is honoured. A bare alias (legacy stories / agent config) falls back
+        // to the best available variant (GPU > NPU > CPU).
+        var models = await ExpandVariantsAsync(catalog);
+        var model = models.FirstOrDefault(m => string.Equals(m.Id, modelName, StringComparison.OrdinalIgnoreCase))
+                    ?? models.Where(m => string.Equals(m.Alias, modelName, StringComparison.OrdinalIgnoreCase))
+                             .OrderBy(DeviceRank)
+                             .FirstOrDefault()
                     ?? throw new InvalidOperationException(
                         $"Model '{modelName}' not found in Foundry Local catalog (exact match on alias/id)");
 
