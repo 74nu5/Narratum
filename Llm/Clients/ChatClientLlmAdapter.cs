@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Narratum.Core;
 using Narratum.Llm.Configuration;
+using Narratum.Llm.Lifecycle;
 using Narratum.Orchestration.Llm;
 using Narratum.Orchestration.Stages;
 
@@ -15,11 +16,19 @@ namespace Narratum.Llm.Clients;
 /// à l'interface ILlmClient de Narratum.
 /// Supporte le routing par agent via les métadonnées de LlmRequest.
 /// </summary>
-public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient
+public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient, IDisposable
 {
     private readonly IChatClient _chatClient;
     private readonly LlmClientConfig _config;
     private readonly ILogger _logger;
+
+    // Ensures a requested model is actually loaded in the local provider before use.
+    // Foundry Local rejects requests for models it hasn't loaded, so switching models
+    // per request requires loading them on demand.
+    private readonly ILlmLifecycleManager? _lifecycleManager;
+    private readonly HashSet<string> _loadedModels = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private bool _disposed;
 
     /// <summary>
     /// Clé de métadonnée pour spécifier le modèle dans une LlmRequest.
@@ -41,11 +50,47 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient
     public ChatClientLlmAdapter(
         IChatClient chatClient,
         LlmClientConfig config,
-        ILogger<ChatClientLlmAdapter>? logger = null)
+        ILogger<ChatClientLlmAdapter>? logger = null,
+        ILlmLifecycleManager? lifecycleManager = null)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? NullLogger<ChatClientLlmAdapter>.Instance;
+        _lifecycleManager = lifecycleManager;
+
+        // The factory already loaded these at startup — don't reload them.
+        if (!string.IsNullOrWhiteSpace(_config.FoundryLocal.ModelAlias))
+            _loadedModels.Add(_config.FoundryLocal.ModelAlias);
+        if (!string.IsNullOrWhiteSpace(_config.DefaultModel))
+            _loadedModels.Add(_config.DefaultModel);
+    }
+
+    /// <summary>
+    /// Ensures the given model is downloaded and loaded in the local provider before a
+    /// request uses it. Cached per adapter so each model loads at most once.
+    /// </summary>
+    private async Task EnsureModelLoadedAsync(string modelName, CancellationToken cancellationToken)
+    {
+        if (_lifecycleManager is null || string.IsNullOrWhiteSpace(modelName))
+            return;
+
+        if (_loadedModels.Contains(modelName))
+            return;
+
+        await _loadLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_loadedModels.Contains(modelName))
+                return;
+
+            _logger.LogInformation("Model {Model} not loaded yet — loading it in {Provider}...", modelName, _config.Provider);
+            await _lifecycleManager.EnsureModelAvailableAsync(modelName, cancellationToken);
+            _loadedModels.Add(modelName);
+        }
+        finally
+        {
+            _loadLock.Release();
+        }
     }
 
     public async Task<Result<LlmResponse>> GenerateAsync(
@@ -59,6 +104,8 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient
 
         try
         {
+            await EnsureModelLoadedAsync(modelName, cancellationToken);
+
             var messages = new List<ChatMessage>
             {
                 new(ChatRole.System, request.SystemPrompt),
@@ -154,6 +201,8 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient
         var modelName = ResolveModelName(request);
         _logger.LogDebug("Streaming with model {Model} via {Provider}", modelName, _config.Provider);
 
+        await EnsureModelLoadedAsync(modelName, cancellationToken);
+
         var messages = new List<ChatMessage>
         {
             new(ChatRole.System, request.SystemPrompt),
@@ -235,5 +284,12 @@ public sealed class ChatClientLlmAdapter : ILlmClient, IStreamingLlmClient
         }
 
         return _config.DefaultModel;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _loadLock.Dispose();
     }
 }

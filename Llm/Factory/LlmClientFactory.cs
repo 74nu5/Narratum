@@ -56,7 +56,8 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
         return new ChatClientLlmAdapter(
             chatClient,
             Config,
-            _loggerFactory.CreateLogger<ChatClientLlmAdapter>());
+            _loggerFactory.CreateLogger<ChatClientLlmAdapter>(),
+            _lifecycleManager);
     }
 
     private async Task<IChatClient> CreateFoundryLocalClientAsync(CancellationToken cancellationToken)
