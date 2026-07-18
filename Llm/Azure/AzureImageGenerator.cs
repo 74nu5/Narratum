@@ -1,6 +1,6 @@
-using System.ClientModel;
-using System.ClientModel.Primitives;
-using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 using Azure.Core;
 
@@ -10,34 +10,36 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Narratum.Core;
 using Narratum.Orchestration.Llm;
 
-using OpenAI;
-using OpenAI.Images;
-
 namespace Narratum.Llm.Azure;
 
 /// <summary>
-/// Génère des images via Azure AI Foundry : l'API images OpenAI-compatible de l'endpoint
-/// <c>/openai/v1</c>, authentifiée par Entra ID (aucune clé). Le modèle est encodé comme pour le
-/// texte : <c>azure:{endpoint}::{deployment}</c>.
+/// Génère des images sur Azure AI Foundry via HTTP brut, avec un routage PAR MODÈLE — les modèles
+/// image d'une ressource Foundry sont servis sur l'host <c>services.ai.azure.com</c> (pas
+/// <c>cognitiveservices.azure.com</c> que renvoie la découverte), chacun sur sa propre route :
+///  - MAI-Image → <c>/mai/v1/images/generations</c> (width/height)
+///  - FLUX.2 (pro/flex) → <c>/providers/blackforestlabs/v1/{flux-2-pro|flux-2-flex}?api-version=preview</c>
+///  - reste (dall-e, gpt-image, FLUX.1) → <c>/openai/v1/images/generations?api-version=preview</c>
+/// Le nom de déploiement est envoyé comme <c>model</c>. Auth : Entra ID (bearer, scope
+/// cognitiveservices). Toutes renvoient l'image en <c>data[0].b64_json</c> ou <c>data[0].url</c>.
+/// Mécanisme repris du projet GenerateMultiImage (vérifié contre des déploiements réels).
 /// </summary>
-public sealed class AzureImageGenerator : IImageGenerator
+public sealed class AzureImageGenerator : IImageGenerator, IDisposable
 {
+    private const string TokenScope = "https://cognitiveservices.azure.com/.default";
+
     private readonly TokenCredential _credential;
-    private readonly string _scope;
-    private readonly int _timeoutSeconds;
     private readonly ILogger _logger;
-    private readonly ConcurrentDictionary<string, ImageClient> _clients = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HttpClient _http;
+    private bool _disposed;
 
     public AzureImageGenerator(
         TokenCredential credential,
-        string scope = "https://ai.azure.com/.default",
         int timeoutSeconds = 300,
         ILogger<AzureImageGenerator>? logger = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
-        _scope = scope;
-        _timeoutSeconds = timeoutSeconds;
         _logger = logger ?? NullLogger<AzureImageGenerator>.Instance;
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
     }
 
     public bool CanHandle(string? modelId) => AzureModelRef.IsAzureModel(modelId);
@@ -49,67 +51,130 @@ public sealed class AzureImageGenerator : IImageGenerator
             return Result<ImageResult>.Fail("Image generation is only available for Azure (cloud) models.");
 
         var (endpoint, deployment) = AzureModelRef.Parse(modelId);
-        var client = GetImageClient(endpoint, deployment);
+        var baseUrl = BuildFoundryBaseUrl(endpoint);
 
         try
         {
-            var value = await GenerateWithOptionFallbackAsync(client, prompt, deployment, cancellationToken);
-            var bytes = value.ImageBytes.ToArray();
-            return Result<ImageResult>.Ok(new ImageResult(bytes, DetectExtension(bytes)));
+            var token = await _credential.GetTokenAsync(new TokenRequestContext([TokenScope]), cancellationToken);
+
+            var (url, body) = BuildRequest(deployment, prompt, baseUrl);
+            _logger.LogDebug("Azure image POST {Url} (model {Model})", url, deployment);
+
+            var bytes = await SendAndReadImageAsync(url, body, token.Token, cancellationToken);
+            return bytes is null
+                ? Result<ImageResult>.Fail($"Image generation returned no image for {deployment}")
+                : Result<ImageResult>.Ok(new ImageResult(bytes, DetectExtension(bytes)));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return Result<ImageResult>.Fail("Image generation cancelled");
         }
-        catch (ClientResultException ex)
+        catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "Image generation failed for {Model}: {Message}", deployment, ex.Message);
-            return Result<ImageResult>.Fail($"Image generation failed ({ex.Status}): {ex.Message}");
+            _logger.LogWarning(ex, "Azure image network error for {Model}: {Message}", deployment, ex.Message);
+            return Result<ImageResult>.Fail($"Image network error: {ex.Message}");
         }
     }
 
-    // Some image models reject Size/ResponseFormat; on a 400/422 retry with just the prompt.
-    private static async Task<GeneratedImage> GenerateWithOptionFallbackAsync(
-        ImageClient client, string prompt, string deployment, CancellationToken ct)
+    /// <summary>Chooses the route and body for a model family (matched on the deployment name).</summary>
+    private static (string Url, Dictionary<string, object> Body) BuildRequest(string model, string prompt, string baseUrl)
     {
-        var options = new ImageGenerationOptions
-        {
-            Size = GeneratedImageSize.W1024xH1024,
-            ResponseFormat = GeneratedImageFormat.Bytes,
-        };
+        var norm = Normalize(model);
 
-        try
+        if (norm.StartsWith("maiimage", StringComparison.Ordinal))
         {
-            return await client.GenerateImageAsync(prompt, options, ct);
+            return (
+                $"{baseUrl}/mai/v1/images/generations",
+                new() { ["model"] = model, ["prompt"] = prompt, ["width"] = 1024, ["height"] = 1024 });
         }
-        catch (ClientResultException ex) when (ex.Status is 400 or 422)
-        {
-            // Retry with defaults, but still ask for bytes so we can persist the result.
-            var minimal = new ImageGenerationOptions { ResponseFormat = GeneratedImageFormat.Bytes };
-            return await client.GenerateImageAsync(prompt, minimal, ct);
-        }
-    }
 
-    private ImageClient GetImageClient(string endpoint, string deployment)
-    {
-        return _clients.GetOrAdd($"{endpoint}|{deployment}", _ =>
+        if (TryGetBflModelPath(norm, out var bflPath))
         {
-            var v1Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/");
-#pragma warning disable OPENAI001 // BearerTokenPolicy auth on OpenAIClient is an evaluation API.
-            var tokenPolicy = new BearerTokenPolicy(_credential, _scope);
-            var openAiClient = new OpenAIClient(
-                authenticationPolicy: tokenPolicy,
-                options: new OpenAIClientOptions
+            return (
+                $"{baseUrl}/providers/blackforestlabs/v1/{bflPath}?api-version=preview",
+                new()
                 {
-                    Endpoint = v1Endpoint,
-                    NetworkTimeout = TimeSpan.FromSeconds(_timeoutSeconds),
+                    ["model"] = model,
+                    ["prompt"] = prompt,
+                    ["width"] = 1024,
+                    ["height"] = 1024,
+                    ["output_format"] = "png",
+                    ["num_images"] = 1,
                 });
-#pragma warning restore OPENAI001
-            return openAiClient.GetImageClient(deployment);
-        });
+        }
+
+        // dall-e, gpt-image, FLUX.1 — the OpenAI-compatible v1 image API.
+        return (
+            $"{baseUrl}/openai/v1/images/generations?api-version=preview",
+            new() { ["model"] = model, ["prompt"] = prompt, ["n"] = 1 });
     }
 
-    /// <summary>Détecte le format d'image d'après les octets magiques (les modèles varient : PNG, JPEG…).</summary>
+    private async Task<byte[]?> SendAndReadImageAsync(
+        string url, Dictionary<string, object> body, string entraToken, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", entraToken);
+        // Pre-serialise to StringContent so the request carries a Content-Length header; JsonContent
+        // streams chunked (no Content-Length), which the Foundry endpoints reject with 400.
+        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+        using var response = await _http.SendAsync(request, ct);
+        var json = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var snippet = json.Length > 400 ? json[..400] : json;
+            _logger.LogWarning("Azure image HTTP {Status}: {Body}", (int)response.StatusCode, snippet);
+            throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {snippet}");
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("data", out var data)
+            || data.ValueKind != JsonValueKind.Array || data.GetArrayLength() == 0)
+            return null;
+
+        var first = data[0];
+
+        foreach (var key in (string[])["b64_json", "image", "image_base64"])
+            if (first.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String
+                && v.GetString() is { Length: > 0 } b64)
+                return Convert.FromBase64String(b64);
+
+        foreach (var key in (string[])["url", "sample"])
+            if (first.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String
+                && v.GetString() is { Length: > 0 } imageUrl)
+                return await _http.GetByteArrayAsync(imageUrl, ct);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Image models live on the resource's <c>services.ai.azure.com</c> host. Discovery stores the
+    /// <c>cognitiveservices.azure.com</c> endpoint, so rewrite that host; other hosts pass through.
+    /// </summary>
+    private static string BuildFoundryBaseUrl(string endpoint)
+    {
+        var host = new Uri(endpoint).Host;
+        if (host.EndsWith(".cognitiveservices.azure.com", StringComparison.OrdinalIgnoreCase))
+            host = $"{host.Split('.')[0]}.services.ai.azure.com";
+        return $"https://{host}";
+    }
+
+    private static string Normalize(string model)
+        => new(model.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+    private static bool TryGetBflModelPath(string normalizedModel, out string modelPath)
+    {
+        (modelPath, var isBfl) = normalizedModel switch
+        {
+            "flux2pro" => ("flux-2-pro", true),
+            "flux2flex" => ("flux-2-flex", true),
+            _ => (string.Empty, false),
+        };
+        return isBfl;
+    }
+
+    /// <summary>Détecte le format d'après les octets magiques (les modèles varient : PNG, JPEG, WebP).</summary>
     private static string DetectExtension(byte[] bytes)
     {
         if (bytes.Length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
@@ -119,5 +184,14 @@ public sealed class AzureImageGenerator : IImageGenerator
         if (bytes.Length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[8] == 0x57 && bytes[9] == 0x45)
             return "webp";
         return "png";
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        _http.Dispose();
     }
 }
