@@ -424,3 +424,6 @@ generated-images/
 Web/narratum.db
 Web/narratum.db-shm
 Web/narratum.db-wal
+
+# Sauvegardes locales de la base de dev
+Web/db-backups/

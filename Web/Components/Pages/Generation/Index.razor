@@ -234,7 +234,7 @@
             </section>
 
             @* Expert: backstage trigger *@
-            @if (ExpertMode.IsExpertModeEnabled && _agentTraces.Count > 0)
+            @if (ExpertMode.IsExpertModeEnabled && BackstageTraces.Count > 0)
             {
                 <div style="display:flex;justify-content:center;margin-top:48px">
                     <button class="btn btn-dashed" style="border-radius:999px" @onclick="() => _backstageOpen = true">🔍 Voir les coulisses des agents</button>
@@ -257,7 +257,7 @@
                 <button class="icon-btn" @onclick="() => _backstageOpen = false" style="font-size:19px">×</button>
             </div>
             <div style="padding:16px 28px 28px;max-height:68vh;overflow:auto;display:flex;flex-direction:column;gap:9px">
-                @foreach (var trace in _agentTraces)
+                @foreach (var trace in BackstageTraces)
                 {
                     <details class="trace">
                         <summary>
@@ -304,6 +304,11 @@
     private IReadOnlyList<ModelOption> _imageModelOptions => [new ModelOption(string.Empty, "🚫 Sans image"), .. _imageModels];
     private IReadOnlyList<AzureSubscriptionInfo> _subscriptions = Array.Empty<AzureSubscriptionInfo>();
     private string? _currentSubscription;
+
+    // The Narrator's trace is the prose already on screen — redundant backstage.
+    private const string NarratorAgent = "Narrateur";
+    private IReadOnlyList<AgentTraceInfo> BackstageTraces =>
+        [.. _agentTraces.Where(t => !string.Equals(t.Agent, NarratorAgent, StringComparison.OrdinalIgnoreCase))];
 
     // Timeline navigation over the sorted page history.
     private int CurrentPos => _pageHistory.IndexOf(_currentPageIndex);
