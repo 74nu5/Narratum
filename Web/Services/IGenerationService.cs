@@ -202,4 +202,12 @@ public interface IGenerationService
     Task<Result<StoryRun>> StartRunAsync(
         string universeId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// The setting this run started from — the snapshot frozen at its creation, which is also what
+    /// its prompts are built on. Null when the story predates the world bible.
+    /// </summary>
+    Task<StoryWorld?> GetRunWorldAsync(
+        string slotName,
+        CancellationToken ct = default);
 }

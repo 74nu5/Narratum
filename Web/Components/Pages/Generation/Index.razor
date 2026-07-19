@@ -326,13 +326,23 @@
                 </div>
             </section>
 
-            @* Expert: backstage trigger *@
-            @if (ExpertMode.IsExpertModeEnabled && BackstageTraces.Count > 0)
-            {
-                <div style="display:flex;justify-content:center;margin-top:48px">
+            <div style="display:flex;justify-content:center;gap:10px;margin-top:48px;flex-wrap:wrap">
+                @if (_runWorld is not null)
+                {
+                    <button class="btn btn-dashed" style="border-radius:999px" @onclick="() => _universeOpen = true">
+                        ✦ L'univers de cette partie@(_universeDiverged ? " ·" : "")
+                        @if (_universeDiverged)
+                        {
+                            <span style="color:var(--accent)">modifié depuis</span>
+                        }
+                    </button>
+                }
+                @* Expert: backstage trigger *@
+                @if (ExpertMode.IsExpertModeEnabled && BackstageTraces.Count > 0)
+                {
                     <button class="btn btn-dashed" style="border-radius:999px" @onclick="() => _backstageOpen = true">🔍 Voir les coulisses des agents</button>
-                </div>
-            }
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -347,6 +357,77 @@
             <div style="display:flex;gap:10px;justify-content:flex-end">
                 <button class="btn btn-soft" @onclick="() => _confirm = null">Annuler</button>
                 <button class="btn btn-danger" @onclick="RunConfirmAsync">@_confirm.ConfirmLabel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* The setting this run started from — its own frozen snapshot, not the live universe. *@
+@if (_universeOpen && _runWorld is not null)
+{
+    <div class="overlay overlay-top" @onclick="() => _universeOpen = false">
+        <div class="modal" style="max-width:720px;overflow:hidden" @onclick:stopPropagation="true">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 28px 18px;border-bottom:1px solid var(--border)">
+                <div>
+                    <div class="modal-title">@_runWorld.WorldName</div>
+                    <div style="font-size:13px;color:var(--text-2);margin-top:5px;max-width:520px;line-height:1.5">
+                        L'univers tel qu'il était au démarrage de cette partie. C'est lui qui nourrit les prompts,
+                        page après page.
+                    </div>
+                </div>
+                <button class="icon-btn" @onclick="() => _universeOpen = false" style="font-size:19px">×</button>
+            </div>
+
+            <div style="padding:20px 28px 28px;max-height:68vh;overflow:auto">
+
+                @if (_universeDiverged)
+                {
+                    <div class="callout-soft" style="margin-bottom:20px">
+                        ▸ L'univers « @_liveUniverse!.Name » a été modifié depuis. Cette partie continue sur sa
+                        version d'origine ; les <strong>nouvelles parties</strong> partiront de la version à jour.
+                        <a href="@($"/universe/{_liveUniverse.UniverseId}")" style="color:var(--accent)">Voir l'univers actuel →</a>
+                    </div>
+                }
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+                    <span class="chip">@_runWorld.GenreStyle</span>
+                    @if (!string.IsNullOrWhiteSpace(_runWorld.NarrativeStyle))
+                    {
+                        <span class="chip" style="text-transform:none;letter-spacing:0">@_runWorld.NarrativeStyle</span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_runWorld.WorldDescription))
+                {
+                    <div class="eyebrow" style="margin-bottom:7px">Le monde</div>
+                    <p style="font-family:var(--serif);font-size:16px;line-height:1.6;color:var(--text-2);margin:0 0 24px">@_runWorld.WorldDescription</p>
+                }
+
+                @if (_runWorld.Characters is { Count: > 0 })
+                {
+                    <div class="eyebrow" style="margin-bottom:9px">Personnages</div>
+                    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:24px">
+                        @foreach (var c in _runWorld.Characters)
+                        {
+                            <div style="font-family:var(--serif);font-size:15.5px;color:var(--text-2);line-height:1.5">
+                                <strong style="color:var(--text)">@c.Name</strong>@(string.IsNullOrWhiteSpace(c.Description) ? "" : $" — {c.Description}")
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (_runWorld.Locations is { Count: > 0 })
+                {
+                    <div class="eyebrow" style="margin-bottom:9px">Lieux</div>
+                    <div style="display:flex;flex-direction:column;gap:7px">
+                        @foreach (var l in _runWorld.Locations)
+                        {
+                            <div style="font-family:var(--serif);font-size:15.5px;color:var(--text-2);line-height:1.5">
+                                <strong style="color:var(--text)">@l.Name</strong>@(string.IsNullOrWhiteSpace(l.Description) ? "" : $" — {l.Description}")
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -384,6 +465,22 @@
 @code {
     [Parameter] public string SlotName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Loads the setting this run started from, and compares it to the universe as it stands now.
+    /// The comparison goes through JSON because the records hold lists, which don't compare
+    /// structurally — and this only has to answer « identical or not ».
+    /// </summary>
+    private async Task LoadRunWorldAsync(string? universeId)
+    {
+        _runWorld = await GenService.GetRunWorldAsync(SlotName);
+        _liveUniverse = string.IsNullOrWhiteSpace(universeId) ? null : await Universes.GetAsync(universeId);
+
+        _universeDiverged = _runWorld is not null
+            && _liveUniverse is not null
+            && System.Text.Json.JsonSerializer.Serialize(_runWorld)
+                != System.Text.Json.JsonSerializer.Serialize(_liveUniverse.ToWorld());
+    }
+
     /// Sidebar level 1 — runs grouped under their universe's name, unattached stories last.
     private IEnumerable<IGrouping<string, StoryEntry>> LibraryGroups
     {
@@ -410,6 +507,12 @@
     private string? _autoStartedFor;
     private string? _genre;
     private bool _backstageOpen;
+
+    // The setting this run started from, and whether its universe has moved on since.
+    private StoryWorld? _runWorld;
+    private UniverseInfo? _liveUniverse;
+    private bool _universeDiverged;
+    private bool _universeOpen;
     private ConfirmPrompt? _confirm;
     private bool _regeneratingImage;
     private bool _regeneratingChoices;
@@ -525,6 +628,7 @@
         _imageError = null;
         _userIntent = string.Empty;
         _backstageOpen = false;
+        _universeOpen = false;
         _confirm = null;
         _editing = false;
         _currentPageIntent = string.Empty;
@@ -533,7 +637,10 @@
 
         _library = await LibraryService.ListStoriesAsync();
         _universes = await Universes.ListAsync();
-        _genre = _library.FirstOrDefault(s => s.SlotName == SlotName)?.GenreStyle;
+
+        var entry = _library.FirstOrDefault(s => s.SlotName == SlotName);
+        _genre = entry?.GenreStyle;
+        await LoadRunWorldAsync(entry?.UniverseId);
         _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
         _localModels = await ModelCatalog.GetModelsAsync(LlmClient);
         _subscriptions = await AzureState.GetSubscriptionsAsync();

@@ -151,6 +151,14 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em
 .uni-head:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .uni-caret { flex: none; font-size: 13px; color: var(--text-3); transition: transform .16s; }
 
+/* A quiet aside: explains a consequence without shouting like a warning. */
+.callout-soft {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 13px 16px;
+    font-size: 13px; line-height: 1.6; color: var(--text-2);
+}
+
 /* Sidebar grouping: the universe a run belongs to, above its stories. */
 .side-uni {
     font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;

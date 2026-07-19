@@ -820,29 +820,27 @@ public class GenerationService : IGenerationService
     }
 
     /// <summary>
-    /// Reads the story's world bible. Returns null for stories created before it was persisted
-    /// (or when the blob can't be read) — every caller degrades to the previous behaviour.
+    /// Reads the world bible a run writes against. Returns null for stories created before it was
+    /// persisted (or when the blob can't be read) — every caller degrades to the previous behaviour.
     /// </summary>
     private async Task<StoryWorld?> GetStoryWorldAsync(string slotName, CancellationToken ct)
     {
         try
         {
-            // When the run belongs to a universe, that universe is the single source of truth —
-            // editing it in one place is what makes the entity worth having. The per-slot
-            // snapshot remains the fallback for unattached and legacy stories.
-            var universeId = await _storyRepository.GetStoryUniverseAsync(slotName, ct);
-            if (!string.IsNullOrWhiteSpace(universeId))
-            {
-                var universe = await _universes.GetAsync(universeId, ct);
-                if (universe is not null)
-                    return ToWorld(universe);
-            }
-
+            // The snapshot taken when the run started wins. A story must keep writing against the
+            // setting it began with: retouching a universe is meant to shape the *next* run, not to
+            // rewrite what an existing one was built on. The live universe is only the fallback,
+            // for runs whose snapshot is missing.
             var json = await _storyRepository.GetStoryWorldAsync(slotName, ct);
+            if (!string.IsNullOrWhiteSpace(json))
+                return JsonSerializer.Deserialize<StoryWorld>(json);
 
-            return string.IsNullOrWhiteSpace(json)
-                ? null
-                : JsonSerializer.Deserialize<StoryWorld>(json);
+            var universeId = await _storyRepository.GetStoryUniverseAsync(slotName, ct);
+            if (string.IsNullOrWhiteSpace(universeId))
+                return null;
+
+            var universe = await _universes.GetAsync(universeId, ct);
+            return universe is null ? null : ToWorld(universe);
         }
         catch (Exception ex)
         {
@@ -850,6 +848,13 @@ public class GenerationService : IGenerationService
             return null;
         }
     }
+
+    /// <summary>
+    /// The setting a run started from, for display: its own frozen snapshot, or the universe it
+    /// points at when it has none.
+    /// </summary>
+    public Task<StoryWorld?> GetRunWorldAsync(string slotName, CancellationToken ct = default)
+        => GetStoryWorldAsync(slotName, ct);
 
     /// <summary>
     /// Runs the ImagePrompt agent to turn a page into a visual prompt, falling back to the
