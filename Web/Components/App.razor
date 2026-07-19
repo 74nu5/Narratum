@@ -5,10 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <base href="/"/>
     <title>Narratum - Générateur d'Histoires IA</title>
+    @* Apply the saved day/night theme before first paint to avoid a flash. *@
+    <script>(function(){try{if(localStorage.getItem('narratum-theme')==='night')document.documentElement.classList.add('night');}catch(e){}})();</script>
     <ResourcePreloader/>
-    <link rel="stylesheet" href="@(this.Assets["lib/bootstrap/dist/css/bootstrap.min.css"])"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="@(this.Assets["_content/Microsoft.FluentUI.AspNetCore.Components/Microsoft.FluentUI.AspNetCore.Components.bundle.scp.css"])"/>
     <link rel="stylesheet" href="@(this.Assets["app.css"])"/>
+    <link rel="stylesheet" href="@(this.Assets["css/theme.css"])"/>
     <link rel="stylesheet" href="@(this.Assets["Narratum.Web.styles.css"])"/>
     <ImportMap/>
     <link rel="icon" type="image/png" href="favicon.png"/>
@@ -16,6 +21,7 @@
 </head>
 <body>
 <Routes @rendermode="InteractiveServer"/>
+<script src="@(this.Assets["js/theme.js"])"></script>
 <script src="@(this.Assets["_framework/blazor.web.js"])"></script>
 </body>
 </html>

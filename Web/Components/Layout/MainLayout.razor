@@ -1,44 +1,31 @@
 @inherits LayoutComponentBase
 @inject ExpertModeService ExpertMode
+@inject NavigationManager Navigation
 
-<FluentLayout>
-    <FluentLayoutItem Area="LayoutArea.Header" Style="padding: 0.5rem 1rem;">
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Start" VerticalAlignment="VerticalAlignment.Center">
-            <FluentText Size="TextSize.Size600" Weight="TextWeight.Bold" Style="cursor: pointer;" @onclick="@(() => NavigationManager.NavigateTo("/"))">
-                ✨ Narratum
-            </FluentText>
-            <FluentSpacer />
-            <StorySwitcher />
-            <FluentSpacer />
-            <FluentSwitch Label="🔧 Expert" @bind-Value="@ExpertMode.IsExpertModeEnabled" />
-            <FluentButton Appearance="ButtonAppearance.Outline" @onclick='() => NavigationManager.NavigateTo("/config")'>
-                ⚙️ Config
-            </FluentButton>
-        </FluentStack>
-    </FluentLayoutItem>
+<div class="app-root">
+    <header class="appbar">
+        <a class="brand" href="/" style="cursor:pointer">
+            <span class="brand-mark">N</span>
+            <span class="brand-name">Narratum</span>
+        </a>
+        <div class="spacer"></div>
+        <button class="pill @(ExpertMode.IsExpertModeEnabled ? "is-on" : null)" @onclick="ToggleExpert" title="Mode expert">✦ Expert</button>
+        <button class="icon-btn" onclick="window.narratumTheme.toggle()" title="Jour / Nuit" type="button">
+            <span class="theme-moon">☾</span><span class="theme-sun">☀</span>
+        </button>
+        <a class="icon-btn" href="/config" title="Réglages">⚙</a>
+    </header>
 
-    <FluentLayoutItem Area="LayoutArea.Content" Style="padding: 2rem;">
-        <div class="page">
-            <main>
-                @Body
-            </main>
-        </div>
-    </FluentLayoutItem>
+    <main class="appmain">
+        @Body
+    </main>
 
-    <FluentLayoutItem Area="LayoutArea.Footer" Style="padding: 1rem; border-top: 1px solid var(--colorNeutralStroke2, #e0e0e6);">
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-            <FluentText Size="TextSize.Size300">Narratum - Générateur d'histoires déterministe</FluentText>
-            <SaveIndicator IsSaving="@_isSaving" SaveError="@_saveError" LastSaveTime="@_lastSaveTime" />
-        </FluentStack>
-    </FluentLayoutItem>
-</FluentLayout>
+    <footer class="appfoot">Narratum — générateur d'histoires déterministe</footer>
+</div>
 
+@* Fluent providers kept until the last Fluent component is migrated. *@
 <FluentProviders />
 
 @code {
-    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
-
-    private bool _isSaving = false;
-    private bool _saveError = false;
-    private DateTime? _lastSaveTime = null;
+    private void ToggleExpert() => ExpertMode.IsExpertModeEnabled = !ExpertMode.IsExpertModeEnabled;
 }

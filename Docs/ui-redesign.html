@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Narratum — Guide de refonte IHM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   NARRATUM — DESIGN TOKENS
+   Source of truth for the migration. In the Blazor app these belong in a
+   single theme stylesheet (e.g. wwwroot/css/theme.css) applied app-wide.
+   Day = :root, Night = .night on <html> (or the app root element).
+   ========================================================================== */
+:root{
+  --bg:#f3ede2;--bg-glow:rgba(180,120,40,.10);
+  --surface:#fbf7ef;--surface-2:#f1e9da;--border:#e2d7c4;--border-strong:#d3c4a9;
+  --text:#2b2620;--text-2:#6a6154;--text-3:#8f8676;--prose:#332e26;
+  --accent:#b5651d;--accent-soft:#c98a45;--on-accent:#fff8ef;--accent-glow:rgba(181,101,29,.16);
+  --secret-bg:#f5ead2;--secret-border:#e6d3a8;--secret-text:#5f4e2a;--secret-chip:#e3cf9f;--secret-chip-text:#7a6220;
+  --danger:#c0392b;
+  --shadow:0 2px 20px rgba(90,60,20,.07);--modal-shadow:0 30px 80px rgba(40,26,8,.35);
+  --serif:"Newsreader",Georgia,serif;--sans:"Hanken Grotesk",system-ui,sans-serif;
+  --mono:ui-monospace,Menlo,monospace;
+}
+.night{
+  --bg:#171410;--bg-glow:rgba(210,140,50,.14);
+  --surface:#211d17;--surface-2:#2a241c;--border:#372f24;--border-strong:#463c2c;
+  --text:#efe7d8;--text-2:#b3a893;--text-3:#847a68;--prose:#ddd3c2;
+  --accent:#e0954a;--accent-soft:#c98a45;--on-accent:#20180c;--accent-glow:rgba(224,149,74,.20);
+  --secret-bg:#2b2415;--secret-border:#4a3d22;--secret-text:#e6d3a3;--secret-chip:#4a3d22;--secret-chip-text:#d8bd7f;
+  --danger:#e05c4c;
+  --shadow:0 2px 24px rgba(0,0,0,.35);--modal-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================== */
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(120% 55% at 50% -6%,var(--bg-glow),transparent 60%),var(--bg);
+  font-family:var(--sans);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.5}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-soft)}
+::selection{background:var(--accent);color:var(--on-accent)}
+h1,h2,h3{font-family:var(--serif);font-weight:500;letter-spacing:-.01em;margin:0}
+
+/* ---- Reusable component classes (lift these into the app's theme.css) ----- */
+
+/* Kicker: small uppercase accent label above a title */
+.kicker{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--accent)}
+/* Eyebrow: same idea but muted (section labels, table headers) */
+.eyebrow{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--text-3)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-size:14px;
+  font-weight:600;padding:11px 20px;border-radius:10px;cursor:pointer;border:1px solid transparent;
+  transition:transform .14s,border-color .14s,box-shadow .14s,background .14s}
+.btn-accent{background:var(--accent);color:var(--on-accent);box-shadow:0 6px 18px var(--accent-glow)}
+.btn-accent:hover{color:var(--on-accent)}
+.btn-ghost{background:var(--surface);border-color:var(--border-strong);color:var(--text)}
+.btn-soft{background:var(--surface-2);border-color:var(--border-strong);color:var(--text)}
+.btn-quiet{background:none;color:var(--text-3)}
+.btn-dashed{background:none;border:1px dashed var(--border-strong);color:var(--accent)}
+.btn-dashed:hover{border-color:var(--accent)}
+.btn[disabled]{background:var(--surface-2);color:var(--text-3);cursor:not-allowed;opacity:.6;box-shadow:none}
+.btn-danger{background:var(--danger);color:#fff;box-shadow:0 6px 16px rgba(192,57,43,.25)}
+/* Pill toggle (Expert), icon buttons (theme/settings) */
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--surface);
+  border:1px solid var(--border-strong);color:var(--text-2);font-family:var(--sans);font-size:13px;
+  font-weight:500;padding:7px 13px;border-radius:999px;cursor:pointer}
+.pill.is-on{background:var(--accent);color:var(--on-accent);border-color:transparent}
+.icon-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);
+  color:var(--text-2);font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+
+/* Surfaces */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+
+/* Chips & badges */
+.chip{display:inline-block;font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;border:1px solid var(--border-strong);color:var(--text-2);padding:3px 10px;border-radius:999px}
+.badge-role{font-family:var(--sans);font-size:9.5px;font-weight:600;letter-spacing:.1em;
+  border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:999px}
+.chip-secret{display:inline-block;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.08em;
+  background:var(--secret-chip);color:var(--secret-chip-text);padding:2px 7px;border-radius:4px}
+
+/* Form fields (replace every FluentTextField/FluentSelect/FluentTextArea) */
+.field{width:100%;border:1px solid var(--border-strong);border-radius:8px;padding:10px 12px;font-size:14px;
+  font-family:var(--sans);background:var(--surface-2);color:var(--text)}
+.field::placeholder{color:var(--text-3)}
+.field:focus{outline:none;border-color:var(--accent)}
+.fld-label{display:block;font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
+
+/* Prose (the narrative) with drop-cap on first paragraph */
+.prose{font-family:var(--serif);font-size:18px;line-height:1.72;color:var(--prose)}
+.prose p{margin:0 0 18px}.prose p:last-child{margin-bottom:0}
+.prose>p:first-of-type::first-letter{font-family:var(--serif);font-weight:600;font-size:3.5em;line-height:.8;
+  float:left;margin:.04em .1em 0 0;color:var(--accent)}
+
+/* Secret revealed box */
+.secret{background:var(--secret-bg);border:1px solid var(--secret-border);border-radius:10px;padding:14px 16px}
+.secret p{margin:0;font-family:var(--serif);font-size:15px;line-height:1.6;color:var(--secret-text)}
+
+/* Choice card (roman numeral) */
+.choice{display:flex;gap:16px;align-items:flex-start;text-align:left;width:100%;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;padding:16px 18px;cursor:pointer;
+  transition:transform .14s,border-color .14s,box-shadow .14s}
+.choice:hover{border-color:var(--accent);transform:translateX(4px);box-shadow:var(--shadow)}
+.choice-num{font-family:var(--serif);font-size:26px;font-weight:500;font-style:italic;color:var(--accent);
+  line-height:1;flex:none;width:26px;text-align:center}
+
+/* App chrome: header / footer */
+.appbar{display:flex;align-items:center;gap:20px;padding:14px 28px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);z-index:20}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-mark{width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;
+  justify-content:center;color:var(--on-accent);font-family:var(--serif);font-weight:600;font-size:15px;font-style:italic}
+.brand-name{font-family:var(--serif);font-size:20px;font-weight:500;letter-spacing:.01em;color:var(--text)}
+.appfoot{text-align:center;padding:26px;font-family:var(--sans);font-size:12px;color:var(--text-3);border-top:1px solid var(--border)}
+
+/* Timeline: progress bar navigator (replaces the page pills) */
+.progress{position:relative;height:8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden}
+.progress>span{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:999px}
+
+/* ============================================================================
+   GUIDE-ONLY chrome (not part of the app — just this document's scaffolding)
+   ========================================================================== */
+.doc{max-width:1120px;margin:0 auto;padding:0 28px 96px}
+.doc-hero{padding:56px 0 8px}
+.doc h2.sec{font-size:30px;margin:64px 0 6px;padding-top:24px;border-top:1px solid var(--border)}
+.doc h3.sub{font-family:var(--sans);font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--text-3);margin:30px 0 14px}
+.lead{font-family:var(--serif);font-size:19px;line-height:1.6;color:var(--text-2);max-width:680px}
+.demo{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;
+  display:flex;flex-wrap:wrap;gap:14px;align-items:center;box-shadow:var(--shadow)}
+.demo.col{flex-direction:column;align-items:stretch}
+.caption{font-family:var(--mono);font-size:11.5px;color:var(--text-3);margin:8px 2px 0}
+.grid{display:grid;gap:18px}
+.swatch{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.swatch .chip-color{height:56px}
+.swatch .lbl{padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--text-2);display:flex;
+  justify-content:space-between;gap:8px}
+/* A device-like frame for the screen blueprints */
+.screen{border:1px solid var(--border-strong);border-radius:16px;overflow:hidden;box-shadow:var(--modal-shadow);
+  background:var(--bg);margin-top:16px}
+.screen .bar{display:flex;align-items:center;gap:7px;padding:9px 14px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.screen .dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+.screen .url{margin-left:10px;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.screen .view{padding:0}
+table.map{width:100%;border-collapse:collapse;font-size:14px;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden}
+table.map th,table.map td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+table.map th{font-family:var(--sans);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);background:var(--surface-2)}
+table.map tr:last-child td{border-bottom:none}
+table.map code{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+.checklist{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:9px}
+.checklist li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--text-2);line-height:1.5}
+.checklist li::before{content:"◇";color:var(--accent);flex:none;margin-top:1px}
+.note{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:8px;padding:12px 16px;font-size:13.5px;color:var(--text-2);line-height:1.55}
+</style>
+</head>
+<body>
+
+<!-- =====================  GUIDE HEADER  ===================== -->
+<header class="appbar">
+  <div class="brand"><span class="brand-mark">N</span><span class="brand-name">Narratum</span></div>
+  <span class="chip" style="border-color:var(--border)">Guide de refonte IHM</span>
+  <div style="flex:1"></div>
+  <button class="pill" id="expertToggle" onclick="this.classList.toggle('is-on')">✦ Expert</button>
+  <button class="icon-btn" id="themeToggle" title="Jour / Nuit" onclick="toggleTheme()">☾</button>
+  <button class="icon-btn" title="Réglages">⚙</button>
+</header>
+
+<div class="doc">
+
+  <div class="doc-hero">
+    <div class="kicker" style="margin-bottom:12px">Direction artistique</div>
+    <h1 style="font-size:52px;line-height:1.04;margin-bottom:16px">Une refonte <span style="font-style:italic">éditoriale</span></h1>
+    <p class="lead">On abandonne le langage Fluent au profit d'une esthétique « livre » chaleureuse :
+      titres et prose en <strong>Newsreader</strong> (serif), interface en <strong>Hanken&nbsp;Grotesk</strong> (sans),
+      accent sienna, papier crème, et un thème <strong>nuit</strong> assorti. Ce document est la source de vérité
+      de la migration&nbsp;: tokens, composants réutilisables, blueprints des 5&nbsp;écrans et correspondances
+      Fluent&nbsp;→&nbsp;custom. Basculez le thème (☾/☀) en haut à droite pour vérifier les deux modes.</p>
+    <div class="note" style="margin-top:22px;max-width:680px">
+      Maquettes de référence (pixel-près, interactives) dans
+      <code style="font-family:var(--mono);color:var(--accent)">reviews/Révision IHM générateur d'histoire/</code> —
+      Accueil, Bibliotheque, Creer, Lecture, Narratum. Ce guide en extrait le système et le fige en classes CSS.
+    </div>
+  </div>
+
+  <!-- =====================  1. FONDATIONS  ===================== -->
+  <h2 class="sec">1 · Fondations</h2>
+
+  <h3 class="sub">Couleurs — Jour (:root) &amp; Nuit (.night)</h3>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+    <div class="swatch"><div class="chip-color" style="background:#b5651d"></div><div class="lbl"><span>--accent</span><span>#b5651d</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#c98a45"></div><div class="lbl"><span>--accent-soft</span><span>#c98a45</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#f3ede2;border-bottom:1px solid var(--border)"></div><div class="lbl"><span>--bg</span><span>#f3ede2</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#fbf7ef;border-bottom:1px solid var(--border)"></div><div class="lbl"><span>--surface</span><span>#fbf7ef</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#f1e9da;border-bottom:1px solid var(--border)"></div><div class="lbl"><span>--surface-2</span><span>#f1e9da</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#2b2620"></div><div class="lbl"><span>--text</span><span>#2b2620</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#171410"></div><div class="lbl"><span>night --bg</span><span>#171410</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#211d17"></div><div class="lbl"><span>night --surface</span><span>#211d17</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#e0954a"></div><div class="lbl"><span>night --accent</span><span>#e0954a</span></div></div>
+    <div class="swatch"><div class="chip-color" style="background:#c0392b"></div><div class="lbl"><span>--danger</span><span>#c0392b</span></div></div>
+  </div>
+
+  <h3 class="sub">Typographie</h3>
+  <div class="demo col">
+    <div style="font-family:var(--serif);font-size:48px;font-weight:500;color:var(--text)">Newsreader — titres &amp; prose</div>
+    <div style="font-family:var(--serif);font-style:italic;font-size:24px;color:var(--text-2)">italic pour l'emphase &amp; le logotype</div>
+    <div style="font-family:var(--sans);font-size:18px;color:var(--text)">Hanken Grotesk — interface, labels, boutons</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--text-3)">ui-monospace — méta, compteurs, chemins de fichier</div>
+    <div class="caption">Import Google Fonts déjà dans chaque maquette. Pour l'app : self-host ou &lt;link&gt; dans App.razor.</div>
+  </div>
+
+  <h3 class="sub">Rayons, ombres, rythme</h3>
+  <div class="demo">
+    <div style="width:120px;height:70px;background:var(--surface);border:1px solid var(--border);border-radius:8px"></div>
+    <div style="width:120px;height:70px;background:var(--surface);border:1px solid var(--border);border-radius:10px"></div>
+    <div style="width:120px;height:70px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)"></div>
+    <div style="width:120px;height:70px;background:var(--surface);border:1px solid var(--border);border-radius:999px"></div>
+    <div class="caption" style="width:100%">Rayons usuels : 8 (champs), 10–12 (boutons/choix), 14–16 (cartes), 999 (pills). Ombre douce ambrée <code style="font-family:var(--mono);color:var(--accent)">--shadow</code>.</div>
+  </div>
+
+  <!-- =====================  2. COMPOSANTS  ===================== -->
+  <h2 class="sec">2 · Composants</h2>
+
+  <h3 class="sub">Boutons &amp; contrôles d'en-tête</h3>
+  <div class="demo">
+    <button class="btn btn-accent">✦ Générer la suite</button>
+    <button class="btn btn-ghost">📚 Voir mes histoires</button>
+    <button class="btn btn-soft">📖 Lire</button>
+    <button class="btn btn-dashed">＋ Ajouter un personnage</button>
+    <button class="btn" disabled>Suivant →</button>
+    <button class="btn btn-danger">Supprimer</button>
+    <button class="btn btn-quiet">Annuler</button>
+    <span class="pill">✦ Expert</span>
+    <span class="pill is-on">✦ Expert</span>
+    <span class="icon-btn">☾</span>
+    <span class="icon-btn">⚙</span>
+  </div>
+
+  <h3 class="sub">Champs de formulaire (remplacent FluentTextField / FluentSelect / FluentTextArea)</h3>
+  <div class="demo col">
+    <div><label class="fld-label">Nom du monde *</label><input class="field" placeholder="Ex : Le Commandement Stargate"></div>
+    <div><label class="fld-label">Modèle de génération</label>
+      <select class="field"><option>gpt-4o-mini · Azure (cloud)</option><option>deepseek-r1-1.5b · GPU · local</option></select></div>
+    <div><label class="fld-label">Que se passe-t-il ensuite ?</label>
+      <textarea class="field" style="min-height:78px;resize:vertical" placeholder="Ex : Les personnages découvrent une porte secrète…"></textarea></div>
+  </div>
+
+  <h3 class="sub">Chips, badges &amp; cartes</h3>
+  <div class="demo">
+    <span class="chip">SciFi</span>
+    <span class="chip">Mystery</span>
+    <span class="badge-role">PROTAGONISTE</span>
+    <span class="chip-secret">PERSONNAGE</span>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:14px">
+    <div class="secret">
+      <span class="chip-secret" style="margin-bottom:8px">PERSONNAGE</span>
+      <p>L'équipe de Samantha est consciente des dangers, mais cache son inquiétude derrière un masque d'assurance.</p>
+    </div>
+    <div class="card" style="padding:14px 16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
+        <strong style="font-family:var(--serif);font-size:17px;font-weight:600;color:var(--text)">Samantha Carter</strong>
+        <span class="badge-role">PROTAGONISTE</span>
+      </div>
+      <div style="font-size:13.5px;color:var(--text-2);line-height:1.55">Scientifique et leader d'équipe, prête à explorer l'inconnu.</div>
+    </div>
+  </div>
+
+  <h3 class="sub">Carte de choix (numéro romain) &amp; barre de timeline</h3>
+  <div class="demo col">
+    <button class="choice">
+      <span class="choice-num">I</span>
+      <span style="flex:1">
+        <span style="display:block;font-weight:600;font-size:15px;color:var(--text);margin-bottom:4px">Explorer la rivière cachée au loin</span>
+        <span style="display:block;font-size:13.5px;color:var(--text-2);line-height:1.55">Une source d'énergie mystérieuse, potentiellement liée à la planète.</span>
+      </span>
+      <span style="font-size:17px;color:var(--accent);align-self:center">→</span>
+    </button>
+    <div style="display:flex;align-items:center;gap:14px;width:100%">
+      <button class="icon-btn">◀</button>
+      <div style="flex:1">
+        <div class="progress"><span style="width:38%"></span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:7px;font-family:var(--mono);font-size:10.5px;color:var(--text-3)">
+          <span>Début</span><span style="color:var(--accent);font-weight:600">Page 2 / 51</span><span>Fin</span></div>
+      </div>
+      <button class="icon-btn">▶</button>
+      <button class="pill">Aller à ▾</button>
+    </div>
+    <div class="caption">La timeline devient une <strong>barre de progression</strong> (scale à 50+ pages), plus les pastilles par page.</div>
+  </div>
+
+  <h3 class="sub">Prose avec lettrine</h3>
+  <div class="demo">
+    <div class="prose" style="max-width:640px">
+      <p>Samantha Carter se tenait sur le seuil de l'inconnu, le cœur battant à l'unisson avec le doux murmure de la Porte des Étoiles. Les chevrons s'illuminaient un à un, chaque cliquetis résonnant dans l'espace clos de la salle des opérations.</p>
+      <p>Alors qu'elle traversait le vortex, l'univers semblait se plier autour d'elle, une danse de lumière et d'ombre.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">Modale (suppression &amp; coulisses des agents)</h3>
+  <div class="demo" style="justify-content:center;background:rgba(15,10,4,.35)">
+    <div class="card" style="max-width:400px;width:100%;box-shadow:var(--modal-shadow);padding:26px 26px 22px;border-radius:16px">
+      <div style="font-family:var(--serif);font-size:22px;color:var(--text);margin-bottom:8px">Supprimer l'histoire ?</div>
+      <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--text-2)">« <strong style="color:var(--text)">Stargate</strong> » et toutes ses pages seront définitivement supprimées. Cette action est irréversible.</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-soft">Annuler</button>
+        <button class="btn btn-danger">Supprimer</button>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px">Nouveaux patterns vs Fluent : suppression = <strong>modale de confirmation</strong> maison (plus <code style="font-family:var(--mono);color:var(--accent)">DialogService</code>) ; les coulisses des agents (mode Expert) passent d'un panneau inline à une <strong>modale plein écran</strong> déclenchée par un bouton « 🔍 Voir les coulisses ».</div>
+
+  <!-- =====================  3. ÉCRANS  ===================== -->
+  <h2 class="sec">3 · Écrans (blueprints)</h2>
+  <p class="lead" style="font-size:16px">Rendus statiques condensés — la structure et la hiérarchie priment. Détail au pixel dans les maquettes d'origine.</p>
+
+  <!-- 3.1 Accueil -->
+  <h3 class="sub">3.1 · Accueil / Dashboard <code style="font-family:var(--mono);color:var(--accent)">/</code></h3>
+  <div class="screen"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">Accueil.dc.html</span></div>
+  <div class="view" style="padding:36px 40px 44px">
+    <div class="kicker" style="margin-bottom:12px">Générateur d'histoires</div>
+    <h1 style="font-size:44px;margin-bottom:12px">Bienvenue sur <span style="font-style:italic">Narratum</span></h1>
+    <p style="font-family:var(--serif);font-size:17px;color:var(--text-2);max-width:520px;margin:0 0 26px">Écrivez, page après page, des récits qui se souviennent d'eux-mêmes.</p>
+    <div style="display:flex;gap:12px;margin-bottom:34px"><button class="btn btn-accent">＋ Créer une nouvelle histoire</button><button class="btn btn-ghost">📚 Voir toutes mes histoires</button></div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px"><h2 style="font-size:24px">Histoires récentes</h2><span style="font-family:var(--mono);font-size:12px;color:var(--text-3)">4 histoires</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+      <div class="card" style="padding:18px 20px;position:relative;overflow:hidden"><span style="position:absolute;top:0;left:0;width:100%;height:3px;background:#4a7fb5"></span>
+        <div style="font-size:24px;margin-bottom:10px">🌌</div><div style="font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:10px">Stargate</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><span class="chip">SciFi</span><span style="font-size:12px;color:var(--text-3)">51 pages</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border)"><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">18/07/2026</span><span style="font-size:13px;font-weight:600;color:var(--accent)">Reprendre →</span></div>
+      </div>
+      <div class="card" style="padding:18px 20px;position:relative;overflow:hidden"><span style="position:absolute;top:0;left:0;width:100%;height:3px;background:#8e5aa8"></span>
+        <div style="font-size:24px;margin-bottom:10px">🕯️</div><div style="font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:10px">La descente aux enfers de Clara</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><span class="chip">Mystery</span><span style="font-size:12px;color:var(--text-3)">12 pages</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border)"><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">09/03/2026</span><span style="font-size:13px;font-weight:600;color:var(--accent)">Reprendre →</span></div>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- 3.2 Bibliothèque -->
+  <h3 class="sub">3.2 · Bibliothèque <code style="font-family:var(--mono);color:var(--accent)">/library</code></h3>
+  <div class="screen"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">Bibliotheque.dc.html</span></div>
+  <div class="view" style="padding:32px 40px 40px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:6px">
+      <div><div class="kicker" style="margin-bottom:8px">Toutes mes histoires</div><h1 style="font-size:36px">Bibliothèque</h1></div>
+      <button class="btn btn-accent">＋ Nouvelle histoire</button>
+    </div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--text-3);margin-bottom:22px">4 histoires · triées par date</div>
+    <div class="card" style="overflow:hidden">
+      <div style="display:grid;grid-template-columns:2.4fr 1fr .7fr 1.3fr auto;gap:16px;padding:12px 20px;border-bottom:1px solid var(--border)"><span class="eyebrow">Titre</span><span class="eyebrow">Genre</span><span class="eyebrow">Pages</span><span class="eyebrow">Modifiée</span><span class="eyebrow" style="text-align:right">Actions</span></div>
+      <div style="display:grid;grid-template-columns:2.4fr 1fr .7fr 1.3fr auto;gap:16px;align-items:center;padding:14px 20px">
+        <div style="display:flex;align-items:center;gap:12px"><span style="font-size:19px">🌌</span><span style="font-family:var(--serif);font-size:17px;font-weight:600">Stargate</span></div>
+        <span class="chip">SciFi</span><span style="font-size:14px;color:var(--text-2)">51</span><span style="font-family:var(--mono);font-size:12px;color:var(--text-3)">18/07/2026</span>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-accent" style="padding:8px 14px;font-size:13px">▶ Continuer</button><button class="btn btn-soft" style="padding:8px 13px;font-size:13px">📖 Lire</button><button class="icon-btn" style="border-radius:9px">🗑</button></div>
+      </div>
+      <div style="display:grid;grid-template-columns:2.4fr 1fr .7fr 1.3fr auto;gap:16px;align-items:center;padding:14px 20px;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:12px"><span style="font-size:19px">🌊</span><span style="font-family:var(--serif);font-size:17px;font-weight:600">Les Abysses de Vantar</span></div>
+        <span class="chip">Aventure</span><span style="font-size:14px;color:var(--text-2)">27</span><span style="font-family:var(--mono);font-size:12px;color:var(--text-3)">02/03/2026</span>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-accent" style="padding:8px 14px;font-size:13px">▶ Continuer</button><button class="btn btn-soft" style="padding:8px 13px;font-size:13px">📖 Lire</button><button class="icon-btn" style="border-radius:9px">🗑</button></div>
+      </div>
+    </div>
+    <div class="caption">Liste tabulaire dans une carte (plus le FluentDataGrid). Suppression → modale de confirmation.</div>
+  </div></div>
+
+  <!-- 3.3 Créer -->
+  <h3 class="sub">3.3 · Créer (assistant) <code style="font-family:var(--mono);color:var(--accent)">/wizard</code></h3>
+  <div class="screen"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">Creer.dc.html · étape 2/5</span></div>
+  <div class="view" style="padding:32px 40px 40px;max-width:640px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:24px"><div class="kicker" style="margin-bottom:8px">Nouvel univers</div><h1 style="font-size:34px">Créer une histoire</h1></div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:26px">
+      <span style="display:flex;align-items:center;gap:8px;padding:0 12px"><span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600">✓</span><span style="font-size:12.5px;color:var(--text-3)">Le monde</span></span>
+      <span style="display:flex;align-items:center;gap:8px;padding:0 12px;border-left:1px solid var(--border)"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;box-shadow:0 0 0 4px var(--accent-glow)">2</span><span style="font-size:12.5px;font-weight:700">Genre</span></span>
+      <span style="display:flex;align-items:center;gap:8px;padding:0 12px;border-left:1px solid var(--border)"><span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-strong);color:var(--text-3);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600">3</span><span style="font-size:12.5px;color:var(--text-3)">Personnages</span></span>
+      <span style="display:flex;align-items:center;gap:8px;padding:0 12px;border-left:1px solid var(--border)"><span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-strong);color:var(--text-3);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600">4</span><span style="font-size:12.5px;color:var(--text-3)">Lieux</span></span>
+      <span style="display:flex;align-items:center;gap:8px;padding:0 12px;border-left:1px solid var(--border)"><span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-strong);color:var(--text-3);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600">5</span><span style="font-size:12.5px;color:var(--text-3)">Résumé</span></span>
+    </div>
+    <div class="card" style="padding:28px 30px">
+      <h2 style="font-size:22px;margin-bottom:4px">Genre &amp; style</h2>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 22px">La couleur narrative et le moteur de génération.</p>
+      <div style="margin-bottom:18px"><label class="fld-label">Genre</label><select class="field"><option>Fantasy</option><option>SciFi</option></select></div>
+      <div style="margin-bottom:18px"><label class="fld-label">Souscription Azure</label><select class="field"><option>☁ abo_Tanuscorp</option></select></div>
+      <div><label class="fld-label">Modèle de génération (local ou cloud)</label><select class="field"><option>gpt-4o-mini · Azure (cloud)</option></select>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-3)">▸ Sera généré avec : <strong style="color:var(--text-2)">gpt-4o-mini</strong></div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:20px"><span class="btn btn-quiet">Annuler</span><div style="flex:1"></div><button class="btn btn-ghost">← Précédent</button><button class="btn btn-accent">Suivant →</button></div>
+  </div></div>
+  <div class="caption">Stepper cliquable (✓ fait / ● courant avec halo / ○ à venir). Étapes 3 &amp; 4 : lignes « nom + description + ✕ » avec bouton pointillé « ＋ Ajouter ». Étape 5 : récap en grille + pills de comptage.</div>
+
+  <!-- 3.4 Lecture -->
+  <h3 class="sub">3.4 · Lecture (lecteur) <code style="font-family:var(--mono);color:var(--accent)">/reader/{slot}</code></h3>
+  <div class="screen"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">Lecture.dc.html</span></div>
+  <div class="view" style="padding:30px 40px 34px;max-width:660px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:6px"><div class="kicker" style="margin-bottom:8px">Chapitre en cours</div><h1 style="font-size:36px">Stargate</h1></div>
+    <div style="max-width:300px;margin:18px auto 30px"><div class="progress" style="height:5px"><span style="width:50%"></span></div><div style="text-align:center;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--text-3)">Page 1 / 2</div></div>
+    <div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--border-strong);box-shadow:var(--shadow);margin-bottom:28px">
+      <div style="aspect-ratio:16/9;background:repeating-linear-gradient(135deg,var(--surface-2),var(--surface-2) 12px,var(--surface) 12px,var(--surface) 24px);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--text-3)">illustration · page 1</div>
+      <span style="position:absolute;top:12px;left:12px" class="chip">Illustration</span>
+    </div>
+    <div class="prose"><p>Samantha Carter se tenait sur le seuil de l'inconnu, le cœur battant à l'unisson avec le doux murmure de la Porte des Étoiles.</p><p>Alors qu'elle traversait le vortex, l'univers semblait se plier autour d'elle.</p></div>
+  </div></div>
+  <div class="caption">Lecture épurée (image 16:9 + prose, pas de composer). Barre de navigation bas de page collante : ← précédente / compteur / suivante → ou « ✦ Continuer l'histoire » sur la dernière page.</div>
+
+  <!-- 3.5 Narratum (génération) -->
+  <h3 class="sub">3.5 · Narratum — page de génération <code style="font-family:var(--mono);color:var(--accent)">/generation/{slot}</code> <span style="color:var(--accent)">★ écran principal</span></h3>
+  <div class="screen"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">Narratum.dc.html</span></div>
+  <div class="view" style="display:flex">
+    <aside style="width:210px;flex:none;border-right:1px solid var(--border);background:color-mix(in srgb,var(--surface) 55%,var(--bg));padding:18px 12px">
+      <div style="display:flex;justify-content:space-between;padding:0 6px;margin-bottom:12px"><span class="eyebrow">Bibliothèque</span><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">5</span></div>
+      <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px;font-size:13px;border-radius:10px;margin-bottom:14px">＋ Nouvelle histoire</button>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;background:var(--accent-glow);box-shadow:inset 3px 0 0 var(--accent)"><span>🌌</span><span style="flex:1"><span style="display:block;font-size:14px;font-weight:700">Stargate</span><span style="display:block;font-size:11.5px;color:var(--text-3)">51 pages</span></span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px"><span style="opacity:.85">🌊</span><span style="flex:1"><span style="display:block;font-size:14px;font-weight:500;color:var(--text-2)">Les Abysses de Vantar</span><span style="display:block;font-size:11.5px;color:var(--text-3)">12 pages</span></span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px"><span style="opacity:.85">⏳</span><span style="flex:1"><span style="display:block;font-size:14px;font-weight:500;color:var(--text-2)">L'Horloger de minuit</span><span style="display:block;font-size:11.5px;color:var(--text-3)">8 pages</span></span></div>
+    </aside>
+    <div style="flex:1;padding:30px 34px 40px;min-width:0">
+      <div style="text-align:center;margin-bottom:24px">
+        <div class="kicker" style="margin-bottom:10px">Une histoire de science-fiction</div>
+        <h1 style="font-size:42px">Stargate</h1>
+        <div style="font-size:12.5px;color:var(--text-3);margin-top:10px">Généré avec <strong style="color:var(--text-2)">gpt-4o-mini</strong> · Azure · illustration FLUX.2-pro</div>
+      </div>
+      <div style="max-width:460px;margin:0 auto 30px;display:flex;align-items:center;gap:12px">
+        <button class="icon-btn">◀</button>
+        <div style="flex:1"><div class="progress"><span style="width:38%"></span></div>
+          <div style="display:flex;justify-content:space-between;margin-top:7px;font-family:var(--mono);font-size:10.5px;color:var(--text-3)"><span>Début</span><span style="color:var(--accent);font-weight:600">Page 2 / 51</span><span>Fin</span></div></div>
+        <button class="icon-btn">▶</button>
+      </div>
+      <div style="display:grid;grid-template-columns:230px 1fr;gap:32px;align-items:start">
+        <div><div style="aspect-ratio:1;border-radius:4px;border:1px solid var(--border-strong);box-shadow:var(--shadow);background:repeating-linear-gradient(135deg,var(--surface-2),var(--surface-2) 11px,var(--surface) 11px,var(--surface) 22px);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--text-3);text-align:center">illustration<br>1024×1024</div>
+          <div style="font-family:var(--mono);font-size:10.5px;color:var(--text-3);margin-top:8px">story-…215022 / page 2</div></div>
+        <div class="prose" style="font-size:16px"><p>Samantha Carter se tenait sur le seuil de l'inconnu, le cœur battant à l'unisson avec le doux murmure de la Porte des Étoiles.</p><p>Alors qu'elle traversait le vortex, l'univers semblait se plier autour d'elle, une danse de lumière et d'ombre.</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:34px;padding-top:28px;border-top:1px solid var(--border)">
+        <div><div class="eyebrow" style="margin-bottom:12px">Secret révélé</div><div class="secret"><span class="chip-secret" style="margin-bottom:8px">PERSONNAGE</span><p>L'équipe cache son inquiétude derrière un masque d'assurance.</p></div></div>
+        <div><div class="eyebrow" style="margin-bottom:12px">Personnages</div><div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:5px"><strong style="font-family:var(--serif);font-size:17px;font-weight:600">Samantha Carter</strong><span class="badge-role">PROTAGONISTE</span></div><div style="font-size:13.5px;color:var(--text-2)">Scientifique et leader d'équipe.</div></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:28px;margin-top:40px;align-items:start">
+        <div><h2 style="font-size:24px;margin-bottom:16px">Que faites-vous ?</h2>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <button class="choice"><span class="choice-num">I</span><span style="flex:1"><span style="display:block;font-weight:600;font-size:15px;margin-bottom:4px">Explorer la rivière cachée</span><span style="display:block;font-size:13.5px;color:var(--text-2)">Une source d'énergie mystérieuse.</span></span><span style="color:var(--accent);align-self:center">→</span></button>
+            <button class="choice"><span class="choice-num">II</span><span style="flex:1"><span style="display:block;font-weight:600;font-size:15px;margin-bottom:4px">Étudier la vibration sous le sol</span><span style="display:block;font-size:13.5px;color:var(--text-2)">Des structures anciennes enfouies.</span></span><span style="color:var(--accent);align-self:center">→</span></button>
+          </div></div>
+        <div class="card" style="padding:20px">
+          <h2 style="font-size:19px;margin-bottom:2px">Écrire la suite</h2>
+          <p style="font-size:12.5px;color:var(--text-3);margin:0 0 16px">Ou laissez le récit continuer seul.</p>
+          <label class="fld-label">Modèle &amp; image</label>
+          <select class="field" style="margin-bottom:6px"><option>gpt-4o-mini</option></select>
+          <select class="field" style="margin-bottom:14px"><option>FLUX.2-pro</option></select>
+          <label class="fld-label">Que se passe-t-il ensuite ?</label>
+          <textarea class="field" style="min-height:64px;resize:vertical;margin-bottom:14px" placeholder="Ex : une porte secrète…"></textarea>
+          <button class="btn btn-accent" style="width:100%;justify-content:center">✦ Générer la suite</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:34px"><button class="btn btn-dashed" style="border-radius:999px">🔍 Voir les coulisses des agents</button></div>
+    </div>
+  </div></div>
+
+  <!-- =====================  4. MIGRATION  ===================== -->
+  <h2 class="sec">4 · Notes de migration (Fluent → custom)</h2>
+  <p class="lead" style="font-size:16px">On retire <code style="font-family:var(--mono);color:var(--accent)">Microsoft.FluentUI.AspNetCore.Components</code> et on rend en HTML natif + cette feuille de style.</p>
+
+  <h3 class="sub">Correspondances composants</h3>
+  <table class="map">
+    <tr><th>Fluent v5 (actuel)</th><th>Remplacement</th><th>Classe</th></tr>
+    <tr><td><code>FluentButton</code> (ButtonAppearance)</td><td><code>&lt;button&gt;</code> / <code>&lt;a&gt;</code></td><td><code>.btn .btn-accent|ghost|soft|dashed|danger|quiet</code></td></tr>
+    <tr><td><code>FluentSelect</code> (générique TValue)</td><td><code>&lt;select&gt;</code> natif</td><td><code>.field</code> + <code>.fld-label</code></td></tr>
+    <tr><td><code>FluentTextInput</code> / <code>FluentTextArea</code></td><td><code>&lt;input&gt;</code> / <code>&lt;textarea&gt;</code></td><td><code>.field</code></td></tr>
+    <tr><td><code>FluentText</code> (Size/Weight)</td><td><code>&lt;h1..h3&gt;</code> serif, <code>&lt;p&gt;</code>, <code>.kicker</code>, <code>.eyebrow</code></td><td>—</td></tr>
+    <tr><td><code>FluentCard</code></td><td><code>&lt;div&gt;</code></td><td><code>.card</code></td></tr>
+    <tr><td><code>FluentSpinner</code></td><td>SVG/CSS accent spinner maison</td><td>(à créer)</td></tr>
+    <tr><td><code>FluentMessageBar</code></td><td><code>&lt;div&gt;</code> ton statut</td><td><code>.note</code> (variante danger/success)</td></tr>
+    <tr><td><code>FluentLayout</code> / providers</td><td><code>.appbar</code> + <code>&lt;main&gt;</code> + <code>.appfoot</code></td><td>—</td></tr>
+    <tr><td><code>DialogService.ShowConfirmationAsync</code></td><td>Modale maison (overlay + carte)</td><td>voir §2</td></tr>
+    <tr><td>Timeline (pastilles par page)</td><td>Barre de progression + ◀ ▶ + « Aller à »</td><td><code>.progress</code></td></tr>
+  </table>
+
+  <h3 class="sub">Changements structurels</h3>
+  <ul class="checklist">
+    <li><strong>Thème jour/nuit</strong> : classe <code style="font-family:var(--mono);color:var(--accent)">.night</code> sur l'élément racine, togglée par le bouton ☾/☀ ; persister le choix (localStorage via JS interop, ou service scоped + cookie).</li>
+    <li><strong>Polices</strong> Newsreader + Hanken Grotesk : <code style="font-family:var(--mono);color:var(--accent)">&lt;link&gt;</code> Google Fonts dans <code style="font-family:var(--mono);color:var(--accent)">App.razor</code>, ou self-host dans <code style="font-family:var(--mono);color:var(--accent)">wwwroot</code> pour l'offline.</li>
+    <li><strong>theme.css</strong> unique (tokens + classes ci-dessus) chargé globalement ; retirer le bundle Fluent et les <code style="font-family:var(--mono);color:var(--accent)">--colorNeutral*</code>.</li>
+    <li><strong>Layout génération</strong> : sidebar bibliothèque persistante à gauche (270px, sticky) + colonne centrale (max 1020px) ; le composer « Écrire la suite » est une carte étroite à droite de la rangée de choix.</li>
+    <li><strong>Prose</strong> : lettrine sur le premier paragraphe, serif 18–19px, interligne 1.72–1.78.</li>
+    <li><strong>Mode Expert</strong> : les coulisses des agents passent en <strong>modale</strong> déclenchée par un bouton pointillé, plus un panneau inline.</li>
+    <li><strong>En-tête global</strong> : logo N + Narratum, toggle Expert (pill), toggle thème, réglages ; sur la page Lecture, pilule centrale « 📖 Lecture · &lt;titre&gt; ».</li>
+    <li><strong>Réglages (⚙)</strong> : la page <code style="font-family:var(--mono);color:var(--accent)">/config</code> reste, à re-styler avec <code style="font-family:var(--mono);color:var(--accent)">.field</code>/<code style="font-family:var(--mono);color:var(--accent)">.card</code> (non maquettée — reprendre le langage).</li>
+  </ul>
+
+  <h3 class="sub">Ordre suggéré</h3>
+  <ul class="checklist">
+    <li>1 · Poser <code style="font-family:var(--mono);color:var(--accent)">theme.css</code> (tokens + classes) + polices + toggle jour/nuit dans le layout.</li>
+    <li>2 · Reconstruire l'<strong>en-tête / layout</strong> global (appbar + footer) sans Fluent.</li>
+    <li>3 · Écran par écran : Accueil → Bibliothèque → Créer → Lecture → <strong>Narratum</strong> (le plus riche en dernier).</li>
+    <li>4 · Modales (suppression, coulisses) + états vides + spinner de génération.</li>
+    <li>5 · Retirer les <code style="font-family:var(--mono);color:var(--accent)">PackageReference</code> Fluent du <code style="font-family:var(--mono);color:var(--accent)">.csproj</code> une fois le dernier composant migré.</li>
+  </ul>
+
+  <div class="appfoot" style="margin-top:56px;border:none">Narratum — guide de refonte IHM · thèmes jour/nuit · source&nbsp;: reviews/Révision IHM générateur d'histoire</div>
+</div>
+
+<script>
+function toggleTheme(){
+  var night = document.documentElement.classList.toggle('night');
+  document.getElementById('themeToggle').textContent = night ? '☀' : '☾';
+}
+</script>
+</body>
+</html>
