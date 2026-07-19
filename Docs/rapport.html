@@ -244,6 +244,7 @@
           <tr><td class="feat">Retrait de Fluent</td><td>Suppression des paquets, DI, providers, imports et bundle Fluent ; <code>theme.css</code> + <code>theme.js</code> uniques.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Hygiène dépôt</td><td>Base SQLite dev désindexée (gitignore) ; nettoyage des branches ; refonte mergée dans <code>main</code>.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 0</td><td>E2 « Lire » depuis l'accueil · E4 Narrateur masqué des coulisses · E5 suppression de la page Configuration.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Évolutions — phase 1</td><td>E1 régénération de l'illustration · E6 réécriture depuis une page (troncature + confirmation) · C3 « Continuer seul » · secrets cachés en mode Expert.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -285,7 +286,7 @@
     <p>Six raffinements issus de l'usage réel. Chacun avec son approche, les fichiers concernés et un ordre de grandeur d'effort.</p>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">E1</span><h3>Régénérer l'illustration d'une page</h3><span class="effort">Effort · M</span></div>
+      <div class="fhead"><span class="fidx">E1</span><h3>Régénérer l'illustration d'une page</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · M</span></div>
       <p class="oneliner">Relancer manuellement la génération d'image quand elle a échoué (ou déçu) sur une page.</p>
       <div class="maprow">
         <div class="from"><div class="lab">Aujourd'hui</div><p>L'image est produite dans la passe d'agents post-sauvegarde. Si elle échoue, la page reste sans illustration (<code>ImagePath</code> nul) et rien ne permet de réessayer.</p></div>
@@ -373,7 +374,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">E6</span><h3>Régénérer depuis une page antérieure = tronquer la suite</h3><span class="effort">Effort · M</span></div>
+      <div class="fhead"><span class="fidx">E6</span><h3>Régénérer depuis une page antérieure = tronquer la suite</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · M</span></div>
       <p class="oneliner">Revenir sur une page précédente et relancer la génération doit supprimer les pages suivantes (devenues une branche caduque) — après avertissement.</p>
       <div class="maprow">
         <div class="from"><div class="lab">Aujourd'hui</div><p>La génération enchaîne depuis la pointe du récit. Régénérer en étant revenu sur une page antérieure n'a pas de sémantique claire, et les pages suivantes resteraient incohérentes.</p></div>
@@ -412,7 +413,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">C3</span><h3>« Continuer seul »</h3><span class="effort">Effort · S</span></div>
+      <div class="fhead"><span class="fidx">C3</span><h3>« Continuer seul »</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · S</span></div>
       <p class="oneliner">Le composer promet déjà « ou laissez le récit continuer seul » — mais aucun bouton ne le fait.</p>
       <p class="muted" style="font-size:.9rem;margin:0">Un bouton qui génère la page suivante sans intention explicite (l'IA enchaîne), ou choisit une des 3 suites automatiquement.</p>
     </div>
@@ -448,9 +449,9 @@
     <div class="phase">
       <div class="pnum">1</div>
       <div>
-        <span class="ptag">Génération à la carte</span>
-        <h4>Reprendre la main sur une page</h4>
-        <p>Rejouer l'image, réécrire depuis une page antérieure, laisser filer le récit, dévoiler les secrets à l'auteur.</p>
+        <span class="ptag">Génération à la carte · livré</span>
+        <h4>Reprendre la main sur une page <span class="pill present"><span class="dot"></span>Livré</span></h4>
+        <p>Rejouer l'image, réécrire depuis une page antérieure, laisser filer le récit, dévoiler les secrets à l'auteur. 819 tests verts.</p>
         <div class="deliv"><b>Livrables</b> E1 (régénérer l'illustration) · E6 (tronquer la suite à partir d'une page) · C3 (continuer seul) · secrets cachés en Expert.</div>
       </div>
     </div>
