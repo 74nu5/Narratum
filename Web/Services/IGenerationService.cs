@@ -185,4 +185,13 @@ public interface IGenerationService
         string slotName,
         string displayName,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Starts a fresh run of the same universe: the world bible and the seed page are cloned
+    /// into a new slot, leaving the pages behind. The source's opening action is returned so the
+    /// caller can replay it — same beginning, then the choices make the two runs drift apart.
+    /// </summary>
+    Task<Result<StoryRun>> DuplicateStoryAsync(
+        string sourceSlotName,
+        CancellationToken ct = default);
 }
