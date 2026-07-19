@@ -317,6 +317,7 @@
     [Parameter] public string SlotName { get; set; } = string.Empty;
 
     private List<StoryEntry> _library = new();
+    private string? _loadedSlot;
     private string? _genre;
     private bool _backstageOpen;
     private bool _confirmRewrite;
@@ -380,10 +381,42 @@
 
     private string? PageModel(int pageIndex) => _pageModels.GetValueOrDefault(pageIndex);
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         // Re-render when the Expert toggle (in the layout) changes.
         ExpertMode.OnExpertModeToggled += HandleExpertToggled;
+    }
+
+    // Picking another story in the sidebar only changes the route parameter, and Blazor reuses
+    // this component instance — so the story must be (re)loaded here. Doing it in
+    // OnInitializedAsync would leave the previous story's title and prose on screen.
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedSlot == SlotName)
+            return;
+
+        _loadedSlot = SlotName;
+        await LoadStoryAsync();
+    }
+
+    private async Task LoadStoryAsync()
+    {
+        // Drop everything tied to the story we were on.
+        _currentNarrative = string.Empty;
+        _currentPageImage = null;
+        _currentPageModel = null;
+        _choices = Array.Empty<StoryChoice>();
+        _characters = Array.Empty<CharacterProfile>();
+        _secrets = Array.Empty<StorySecret>();
+        _agentTraces = Array.Empty<AgentTraceInfo>();
+        _pageHistory = new();
+        _currentPageIndex = 0;
+        _errorMessage = string.Empty;
+        _imageError = null;
+        _userIntent = string.Empty;
+        _backstageOpen = false;
+        _confirmRewrite = false;
+        _pendingIntent = null;
 
         _library = await LibraryService.ListStoriesAsync();
         _genre = _library.FirstOrDefault(s => s.SlotName == SlotName)?.GenreStyle;
