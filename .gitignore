@@ -419,3 +419,8 @@ FodyWeavers.xsd
 
 # Runtime-generated page images (F4)
 generated-images/
+
+# Narratum dev SQLite database (runtime state, not source)
+Web/narratum.db
+Web/narratum.db-shm
+Web/narratum.db-wal
