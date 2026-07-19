@@ -556,6 +556,29 @@ public class StoryRepository : IStoryRepository
         return metadata?.DisplayName ?? slotName;
     }
 
+    public async Task SaveStoryWorldAsync(string slotName, string worldJson, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var metadata = await db.SaveSlots.FirstOrDefaultAsync(m => m.SlotName == slotName, ct);
+        if (metadata == null)
+            return;
+
+        db.Entry(metadata).CurrentValues.SetValues(metadata with { SerializedWorld = worldJson });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<string?> GetStoryWorldAsync(string slotName, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.SaveSlots
+            .AsNoTracking()
+            .Where(m => m.SlotName == slotName)
+            .Select(m => m.SerializedWorld)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

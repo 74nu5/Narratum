@@ -195,4 +195,11 @@ public record SaveSlotMetadata
     /// Description de la sauvegarde (optionnel).
     /// </summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// Bible de l'univers sérialisée (monde, style, personnages, lieux) telle que définie à la
+    /// création. Immuable pendant la partie ; réinjectée dans les prompts. Null pour les
+    /// histoires antérieures à cette fonctionnalité.
+    /// </summary>
+    public string? SerializedWorld { get; init; }
 }
