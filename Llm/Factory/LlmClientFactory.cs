@@ -21,6 +21,7 @@ namespace Narratum.Llm.Factory;
 public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ModelParameterCapabilities _capabilities;
     private ILlmLifecycleManager? _lifecycleManager;
     private IChatClient? _chatClient;
     private TokenCredential? _azureCredential;
@@ -31,11 +32,13 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
     public LlmClientFactory(
         LlmClientConfig config,
         ILoggerFactory? loggerFactory = null,
-        TokenCredential? azureCredential = null)
+        TokenCredential? azureCredential = null,
+        ModelParameterCapabilities? capabilities = null)
     {
         Config = config ?? throw new ArgumentNullException(nameof(config));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         _azureCredential = azureCredential;
+        _capabilities = capabilities ?? new ModelParameterCapabilities();
     }
 
     public async Task<ILlmClient> CreateClientAsync(CancellationToken cancellationToken = default)
@@ -50,7 +53,8 @@ public sealed class LlmClientFactory : ILlmClientFactory, IAsyncDisposable
             chatClient,
             Config,
             _loggerFactory.CreateLogger<ChatClientLlmAdapter>(),
-            _lifecycleManager);
+            _lifecycleManager,
+            _capabilities);
     }
 
     private async Task<IChatClient> GetOrCreateChatClientAsync(CancellationToken cancellationToken)

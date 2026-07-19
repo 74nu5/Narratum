@@ -26,6 +26,10 @@ public static class LlmServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(config);
 
         services.AddSingleton(config);
+
+        // Singleton on purpose: ILlmClient is scoped, so a per-client cache would forget everything
+        // at each Blazor circuit and pay the rejection round trip again.
+        services.TryAddSingleton<ModelParameterCapabilities>();
         services.TryAddSingleton<ILlmClientFactory, LlmClientFactory>();
 
         // Entra ID credential for Azure AI Foundry. ManagedIdentity is excluded because on
@@ -55,7 +59,8 @@ public static class LlmServiceCollectionExtensions
                 local,
                 sp.GetRequiredService<LlmClientConfig>(),
                 sp.GetRequiredService<TokenCredential>(),
-                sp.GetService<ILoggerFactory>());
+                sp.GetService<ILoggerFactory>(),
+                sp.GetRequiredService<ModelParameterCapabilities>());
 #pragma warning restore IDISP005
         });
 

@@ -27,6 +27,10 @@ internal sealed class RoutingLlmClient : ILlmClient, IStreamingLlmClient, IModel
     private readonly TokenCredential? _credential;
     private readonly ILoggerFactory? _loggerFactory;
 
+    // Passed on to every Azure factory below, so what one endpoint learns about a model is not
+    // re-learned by the next.
+    private readonly ModelParameterCapabilities? _capabilities;
+
     private readonly ConcurrentDictionary<string, Lazy<Task<ILlmClient>>> _azureClients =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentBag<LlmClientFactory> _azureFactories = [];
@@ -36,12 +40,14 @@ internal sealed class RoutingLlmClient : ILlmClient, IStreamingLlmClient, IModel
         ILlmClient local,
         LlmClientConfig config,
         TokenCredential? credential,
-        ILoggerFactory? loggerFactory)
+        ILoggerFactory? loggerFactory,
+        ModelParameterCapabilities? capabilities = null)
     {
         this._local = local ?? throw new ArgumentNullException(nameof(local));
         this._config = config ?? throw new ArgumentNullException(nameof(config));
         this._credential = credential;
         this._loggerFactory = loggerFactory;
+        this._capabilities = capabilities;
     }
 
     public string ClientName => "Routing(local+azure)";
@@ -129,7 +135,8 @@ internal sealed class RoutingLlmClient : ILlmClient, IStreamingLlmClient, IModel
             AzureFoundry = this._config.AzureFoundry with { Endpoint = endpoint },
         };
 
-        var factory = new LlmClientFactory(azureConfig, this._loggerFactory, this._credential);
+        var factory = new LlmClientFactory(
+            azureConfig, this._loggerFactory, this._credential, this._capabilities);
         this._azureFactories.Add(factory);
         return await factory.CreateClientAsync(cancellationToken);
     }

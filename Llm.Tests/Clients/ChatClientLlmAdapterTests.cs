@@ -229,6 +229,65 @@ public sealed class ChatClientLlmAdapterTests
     }
 
     [Fact]
+    public async Task GenerateAsync_OnAModelThatRefusesTemperature_KeepsTheOtherParameters()
+    {
+        // The old behaviour dropped every option on rejection, so the token cap and the stop
+        // sequences vanished along with the temperature. Only the refused knob may be omitted.
+        var chatClient = CreateMockChatClient();
+        var capabilities = new ModelParameterCapabilities();
+        capabilities.Learn("picky", "Unsupported value: 'temperature' ...");
+
+        var adapter = new ChatClientLlmAdapter(
+            chatClient, DefaultConfig, logger: null, lifecycleManager: null, capabilities: capabilities);
+
+        var parameters = new LlmParameters
+        {
+            Temperature = 0.5,
+            MaxTokens = 512,
+            TopP = 0.8,
+            StopTokens = new[] { "END" }
+        };
+        var metadata = new Dictionary<string, object>
+        {
+            [ChatClientLlmAdapter.ModelMetadataKey] = "picky",
+        };
+
+        await adapter.GenerateAsync(new LlmRequest("System", "User", parameters, metadata));
+
+        await chatClient.Received(1).GetResponseAsync(
+            Arg.Any<IEnumerable<ChatMessage>>(),
+            Arg.Is<ChatOptions?>(opts =>
+                opts != null &&
+                opts.Temperature == null &&
+                opts.MaxOutputTokens == 512 &&
+                opts.TopP == 0.8f &&
+                opts.StopSequences != null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GenerateAsync_OnAReasoningModel_OmitsSamplingWithoutEverAsking()
+    {
+        // Seeded from the model name: no 400 is paid to discover this.
+        var chatClient = CreateMockChatClient();
+        var adapter = new ChatClientLlmAdapter(
+            chatClient, DefaultConfig, logger: null, lifecycleManager: null,
+            capabilities: new ModelParameterCapabilities());
+
+        var metadata = new Dictionary<string, object>
+        {
+            [ChatClientLlmAdapter.ModelMetadataKey] = "gpt-5-mini",
+        };
+
+        await adapter.GenerateAsync(new LlmRequest("System", "User", metadata: metadata));
+
+        await chatClient.Received(1).GetResponseAsync(
+            Arg.Any<IEnumerable<ChatMessage>>(),
+            Arg.Is<ChatOptions?>(opts => opts != null && opts.Temperature == null && opts.TopP == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GenerateAsync_EmptyStopTokens_SetsNullStopSequences()
     {
         var chatClient = CreateMockChatClient();

@@ -27,9 +27,9 @@ public interface IUniverseRepository
 }
 
 /// <summary>
-/// A reusable setting. <paramref name="Characters"/> and <paramref name="Locations"/> travel as
-/// serialized JSON: the persistence layer stays agnostic of the Web layer's shapes, exactly as it
-/// already does for choices, characters and secrets on a page.
+/// A reusable setting. Its cast and places travel as serialized JSON: the persistence layer stays
+/// agnostic of the Web layer's shapes, exactly as it already does for choices, characters and
+/// secrets on a page.
 /// </summary>
 public record Universe(
     string UniverseId,
