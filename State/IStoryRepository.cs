@@ -155,6 +155,12 @@ public interface IStoryRepository
     /// <summary>Renames a story (its library display name).</summary>
     Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default);
 
+    /// <summary>Stores the serialized world bible defined when the story was created.</summary>
+    Task SaveStoryWorldAsync(string slotName, string worldJson, CancellationToken ct = default);
+
+    /// <summary>Gets the serialized world bible, or null for stories created before it existed.</summary>
+    Task<string?> GetStoryWorldAsync(string slotName, CancellationToken ct = default);
+
     /// <summary>
     /// Replaces a page's prose — the author correcting the narrator by hand. Only the text
     /// changes; the page's state snapshot, choices, characters and image are untouched.

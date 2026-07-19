@@ -128,6 +128,29 @@ public class GenerationService : IGenerationService
             _modelSelector.NormalizeOrDefault(request.Model),
             ct);
 
+        // Persist the full world definition: characters' descriptions, locations and narrative
+        // style used to be collected by the wizard and then dropped on the floor. They now
+        // survive as the story's bible and are fed back into every page (see the narrator below).
+        if (result is Result<StoryMetadata>.Success)
+        {
+            var world = new StoryWorld(
+                request.WorldName,
+                request.GenreStyle,
+                request.WorldDescription,
+                request.NarrativeStyle,
+                [.. request.Characters.Select(c => new WorldCharacter(c.Name, c.Description))],
+                [.. (request.Locations ?? []).Select(l => new WorldPlace(l.Name, l.Description))]);
+
+            try
+            {
+                await _storyRepository.SaveStoryWorldAsync(slotName, JsonSerializer.Serialize(world), ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to persist the world bible for {SlotName}", slotName);
+            }
+        }
+
         return result.Match<Result<string>>(
             onSuccess: metadata =>
             {
@@ -313,9 +336,18 @@ public class GenerationService : IGenerationService
                 + string.Join("\n", hiddenSecrets.Select(s => $"- {s}"))
             : string.Empty;
 
+        // The world bible: what the author defined at creation (monde, ton, personnages, lieux).
+        // Without it the narrator only ever sees names, and the setting stops constraining anything.
+        var world = await GetStoryWorldAsync(slotName, ct);
+        var worldSection = world is null
+            ? string.Empty
+            : "\n\nBIBLE DE L'UNIVERS (référence permanente — respecte-la, ne la recopie pas) :\n"
+                + world.ToPromptSection();
+
         // 2. Narrator agent — the user-visible prose, streamed live.
         var narratorPrompt = _promptOptimizer.BuildOptimizedNarratorPrompt(
                 storyState, intent, previousNarrative: latestPage.NarrativeText)
+            + worldSection
             + $"\n\nRÉSUMÉ DU CONTEXTE (référence, ne pas recopier) :\n{summary.Output}"
             + hiddenSecretsSection
             + "\n\n" + FrenchOnly;
@@ -359,8 +391,10 @@ public class GenerationService : IGenerationService
         }
 
         // 3. Consistency agent — checks the generated text against established facts (Expert-only).
-        var establishedFacts = storyState.Characters.Values
-            .SelectMany(c => c.KnownFacts)
+        // The bible is the canon the consistency agent should check against, alongside what the
+        // characters have learned along the way.
+        var establishedFacts = (world?.ToFacts() ?? [])
+            .Concat(storyState.Characters.Values.SelectMany(c => c.KnownFacts))
             .Distinct()
             .ToList();
         traces.Add(await RunAgentAsync(
@@ -638,6 +672,27 @@ public class GenerationService : IGenerationService
         }
 
         return (null, imagePrompt);
+    }
+
+    /// <summary>
+    /// Reads the story's world bible. Returns null for stories created before it was persisted
+    /// (or when the blob can't be read) — every caller degrades to the previous behaviour.
+    /// </summary>
+    private async Task<StoryWorld?> GetStoryWorldAsync(string slotName, CancellationToken ct)
+    {
+        try
+        {
+            var json = await _storyRepository.GetStoryWorldAsync(slotName, ct);
+
+            return string.IsNullOrWhiteSpace(json)
+                ? null
+                : JsonSerializer.Deserialize<StoryWorld>(json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read the world bible for {SlotName}", slotName);
+            return null;
+        }
     }
 
     /// <summary>
