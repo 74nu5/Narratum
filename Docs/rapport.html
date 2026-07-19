@@ -246,6 +246,7 @@
           <tr><td class="feat">Évolutions — phase 0</td><td>E2 « Lire » depuis l'accueil · E4 Narrateur masqué des coulisses · E5 suppression de la page Configuration.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 1</td><td>E1 régénération de l'illustration · E6 réécriture depuis une page (troncature + confirmation) · C3 « Continuer seul » · secrets cachés en mode Expert.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 2</td><td>E3 étape « Première page » au wizard (génération immédiate) · C1 export Markdown (endpoint + liens). Correctif : rechargement de l'histoire au changement de paramètre de route.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Évolutions — phase 3</td><td>C2 régénérer / éditer une page · annuler la dernière page · régénérer les choix · renommer une histoire · export <strong>EPUB</strong> (fait main, illustrations embarquées).</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -408,7 +409,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">C2</span><h3>Régénérer / éditer la page courante</h3><span class="effort">Effort · M</span></div>
+      <div class="fhead"><span class="fidx">C2</span><h3>Régénérer / éditer la page courante</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · M</span></div>
       <p class="oneliner">Rejouer la génération de la page affichée (autre modèle, intention ajustée) ou corriger la prose à la main.</p>
       <p class="muted" style="font-size:.9rem;margin:0">Symétrique de E1 côté texte. Utile quand une page part de travers, sans repartir de zéro.</p>
     </div>
@@ -420,11 +421,11 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">C4</span><h3>Petits plus</h3><span class="effort">Effort · S</span></div>
+      <div class="fhead"><span class="fidx">C4</span><h3>Petits plus</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · S</span></div>
       <ul class="clean" style="margin:.2rem 0 0">
         <li><strong>Annuler la dernière page</strong> — rollback quand une génération rate.</li>
         <li><strong>Secrets cachés en mode Expert</strong> — ils sont stockés ; les montrer à l'auteur (pas au lecteur).</li>
-        <li><strong>Renommer une histoire</strong> — éditer le titre depuis la bibliothèque.</li>
+        <li><strong>Renommer une histoire</strong> — édition en ligne depuis la bibliothèque (Entrée / Échap).</li>
         <li><strong>Régénérer les choix</strong> — si les 3 suites n'inspirent pas.</li>
       </ul>
     </div>
@@ -470,10 +471,10 @@
     <div class="phase">
       <div class="pnum">3</div>
       <div>
-        <span class="ptag">Édition avancée</span>
-        <h4>Retoucher le récit</h4>
-        <p>Reprise fine du texte et de la structure.</p>
-        <div class="deliv"><b>Livrables</b> C2 (régénérer/éditer la page) · annuler la dernière page · renommer · régénérer les choix · export EPUB/PDF.</div>
+        <span class="ptag">Édition avancée · livré</span>
+        <h4>Retoucher le récit <span class="pill present"><span class="dot"></span>Livré</span></h4>
+        <p>Reprise fine du texte et de la structure. <strong>PDF non livré</strong> — voir §07.</p>
+        <div class="deliv"><b>Livrables</b> C2 (régénérer/éditer la page) · annuler la dernière page · renommer · régénérer les choix · export EPUB.</div>
       </div>
     </div>
   </div>
@@ -499,9 +500,14 @@
       <p><strong>Recommandation :</strong> toute génération depuis une page N &lt; dernière (bouton « Générer » <em>ou</em> clic sur un choix) ouvre l'avertissement de troncature. À trancher : ce comportement implicite, ou réserver la réécriture à une action explicite « Réécrire à partir d'ici » ?</p>
     </div>
 
+    <div class="q resolved">
+      <p class="qq"><span class="chk">✓</span> C1 — Formats d'export</p>
+      <p><strong>Markdown et EPUB livrés.</strong> L'EPUB est fabriqué à la main (<code>ZipArchive</code> : mimetype stocké, container, OPF, nav, XHTML, illustrations embarquées) — <em>aucune dépendance ajoutée</em>.</p>
+    </div>
+
     <div class="q">
-      <p class="qq">C1 — Formats d'export prioritaires ?</p>
-      <p>Markdown est quasi gratuit et suffit pour une v1. EPUB/PDF demandent une librairie. Ordre suggéré : Markdown → EPUB → PDF.</p>
+      <p class="qq">PDF — le générer, ou pas ?</p>
+      <p><strong>Recommandation : ne pas l'implémenter.</strong> Un PDF correct exige un moteur de rendu (QuestPDF, wkhtmltopdf, Chromium headless) — grosse dépendance pour un gain faible, puisque l'EPUB se convertit en une commande (<code>pandoc</code>, Calibre) et se lit partout. À rouvrir seulement si un PDF paginé « prêt à imprimer » devient un vrai besoin.</p>
     </div>
   </div>
 </section>

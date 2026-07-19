@@ -139,6 +139,9 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em
 .lib-body { border-top: 1px solid var(--border); transition: background .12s; }
 .lib-body:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .lib-del:hover { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+/* The rename pencil stays discreet until the row is hovered. */
+.lib-rename { opacity: 0; transition: opacity .12s; }
+.lib-body:hover .lib-rename { opacity: 1; }
 
 /* ---- Chips & badges ------------------------------------------------------ */
 .chip {

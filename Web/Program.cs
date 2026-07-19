@@ -86,6 +86,13 @@ app.MapGet("/export/{slotName}/markdown", async (
     return Results.File(System.Text.Encoding.UTF8.GetBytes(markdown), "text/markdown; charset=utf-8", fileName);
 });
 
+app.MapGet("/export/{slotName}/epub", async (
+    string slotName, StoryExportService export, CancellationToken ct) =>
+{
+    var (fileName, content) = await export.ToEpubAsync(slotName, ct);
+    return Results.File(content, "application/epub+zip", fileName);
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

@@ -1,6 +1,7 @@
 @page "/library"
 @rendermode InteractiveServer
 @inject StoryLibraryService LibraryService
+@inject IGenerationService GenService
 @inject NavigationManager Navigation
 
 <PageTitle>Bibliothèque - Narratum</PageTitle>
@@ -50,7 +51,19 @@
                     <div class="lib-row lib-body">
                         <div style="display:flex;align-items:center;gap:12px;min-width:0">
                             <span style="font-size:19px;flex:none">@StoryVisuals.Icon(story.GenreStyle)</span>
-                            <span style="font-family:var(--serif);font-size:18px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@story.DisplayName</span>
+                            @if (_renamingSlot == story.SlotName)
+                            {
+                                <input class="field" @bind="_renameText" @onkeydown="@(e => OnRenameKeyAsync(e, story.SlotName))"
+                                       style="font-family:var(--serif);font-size:17px" autofocus />
+                                <button class="btn btn-accent btn-sm" @onclick="() => SaveRenameAsync(story.SlotName)">OK</button>
+                                <button class="btn btn-quiet btn-sm" @onclick="() => _renamingSlot = null">✕</button>
+                            }
+                            else
+                            {
+                                <span style="font-family:var(--serif);font-size:18px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@story.DisplayName</span>
+                                <button class="btn btn-quiet btn-sm lib-rename" title="Renommer" style="padding:2px 6px"
+                                        @onclick="() => StartRename(story)">✎</button>
+                            }
                         </div>
                         <div><span class="chip">@story.GenreStyle</span></div>
                         <div style="font-size:14px;color:var(--text-2)">@story.PageCount</div>
@@ -58,7 +71,7 @@
                         <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
                             <a class="btn btn-accent btn-sm" href="@($"/generation/{story.SlotName}")">▶ Continuer</a>
                             <a class="btn btn-soft btn-sm" href="@($"/reader/{story.SlotName}")">📖 Lire</a>
-                            <a class="btn btn-soft btn-sm" href="@($"/export/{story.SlotName}/markdown")" title="Exporter en Markdown">⤓</a>
+                            <a class="btn btn-soft btn-sm" href="@($"/export/{story.SlotName}/epub")" title="Exporter en EPUB">⤓ EPUB</a>
                             <button class="icon-btn lib-del" title="Supprimer" @onclick="() => _deleteTarget = story">🗑</button>
                         </div>
                     </div>
@@ -88,8 +101,36 @@
 @code {
     private List<StoryEntry>? _stories;
     private StoryEntry? _deleteTarget;
+    private string? _renamingSlot;
+    private string _renameText = string.Empty;
 
     protected override async Task OnInitializedAsync() => _stories = await LibraryService.ListStoriesAsync();
+
+    private void StartRename(StoryEntry story)
+    {
+        _renamingSlot = story.SlotName;
+        _renameText = story.DisplayName;
+    }
+
+    private async Task OnRenameKeyAsync(KeyboardEventArgs e, string slotName)
+    {
+        if (e.Key == "Enter")
+            await SaveRenameAsync(slotName);
+        else if (e.Key == "Escape")
+            _renamingSlot = null;
+    }
+
+    private async Task SaveRenameAsync(string slotName)
+    {
+        var name = _renameText.Trim();
+        if (name.Length > 0)
+        {
+            await GenService.RenameStoryAsync(slotName, name);
+            _stories = await LibraryService.ListStoriesAsync();
+        }
+
+        _renamingSlot = null;
+    }
 
     private async Task ConfirmDelete()
     {

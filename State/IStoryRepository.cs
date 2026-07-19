@@ -145,6 +145,15 @@ public interface IStoryRepository
     /// Gets the display name for a story slot.
     /// </summary>
     Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default);
+
+    /// <summary>Renames a story (its library display name).</summary>
+    Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replaces a page's prose — the author correcting the narrator by hand. Only the text
+    /// changes; the page's state snapshot, choices, characters and image are untouched.
+    /// </summary>
+    Task UpdatePageTextAsync(string slotName, int pageIndex, string narrativeText, CancellationToken ct = default);
 }
 
 /// <summary>

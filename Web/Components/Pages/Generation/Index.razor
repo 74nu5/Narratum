@@ -98,9 +98,21 @@
                             </figure>
                         }
                         <div>
-                            <div class="prose dropcap">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
+                            @if (_editing)
+                            {
+                                <textarea class="field" @bind="_editText"
+                                          style="min-height:460px;font-family:var(--serif);font-size:17px;line-height:1.7"></textarea>
+                                <div style="display:flex;gap:8px;margin-top:12px">
+                                    <button class="btn btn-accent btn-sm" @onclick="SaveEditAsync">Enregistrer</button>
+                                    <button class="btn btn-soft btn-sm" @onclick="() => _editing = false">Annuler</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="prose dropcap">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
+                            }
 
-                            @if (string.IsNullOrEmpty(_currentPageImage) && !_isGenerating)
+                            @if (string.IsNullOrEmpty(_currentPageImage) && !_isGenerating && !_editing)
                             {
                                 <button class="btn btn-dashed btn-sm" style="margin-top:22px" @onclick="RegenerateImage" disabled="@_regeneratingImage">
                                     @(_regeneratingImage ? "🖼 Génération de l'illustration…" : "🖼 Générer une illustration")
@@ -120,6 +132,19 @@
                     </div>
                 }
             </div>
+
+            @* Page-level actions: correct it, rewrite it, or take it back. *@
+            @if (!_isGenerating && !_editing && !string.IsNullOrEmpty(_currentNarrative) && _currentPageIndex > 0)
+            {
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:22px;justify-content:center">
+                    <button class="btn btn-quiet btn-sm" @onclick="StartEdit">✎ Éditer le texte</button>
+                    <button class="btn btn-quiet btn-sm" @onclick="RequestRegeneratePage">↻ Régénérer cette page</button>
+                    @if (IsAtTip)
+                    {
+                        <button class="btn btn-quiet btn-sm" @onclick="RequestDeleteLastPage">🗑 Supprimer cette page</button>
+                    }
+                </div>
+            }
 
             @if (!string.IsNullOrEmpty(_errorMessage))
             {
@@ -182,7 +207,15 @@
             @* Choices + composer *@
             <section class="gen-2col-actions">
                 <div>
-                    <h2 style="font-size:26px;margin-bottom:18px">Que faites-vous ?</h2>
+                    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+                        <h2 style="font-size:26px">Que faites-vous ?</h2>
+                        @if (!_isGenerating && _choices.Count > 0)
+                        {
+                            <button class="btn btn-quiet btn-sm" @onclick="RegenerateChoicesAsync" disabled="@_regeneratingChoices">
+                                @(_regeneratingChoices ? "↻ …" : "↻ Autres choix")
+                            </button>
+                        }
+                    </div>
                     @if (!_isGenerating && _choices.Count > 0)
                     {
                         <div style="display:flex;flex-direction:column;gap:12px">
@@ -248,7 +281,10 @@
 
                     <button class="btn btn-accent btn-block" @onclick="() => RequestGenerate(_userIntent)" disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">✦ Générer la suite</button>
                     <button class="btn btn-ghost btn-block" style="margin-top:8px" @onclick="() => RequestGenerate(AutoContinueIntent)" disabled="@_isGenerating">↷ Continuer seul</button>
-                    <a class="btn btn-quiet btn-block" href="@($"/export/{SlotName}/markdown")" style="margin-top:8px">⤓ Exporter en Markdown</a>
+                    <div style="display:flex;gap:6px;margin-top:8px">
+                        <a class="btn btn-quiet btn-sm" href="@($"/export/{SlotName}/epub")" style="flex:1">⤓ EPUB</a>
+                        <a class="btn btn-quiet btn-sm" href="@($"/export/{SlotName}/markdown")" style="flex:1">⤓ Markdown</a>
+                    </div>
                     <a class="btn btn-quiet btn-block" href="/" style="margin-top:2px">← Retour au tableau de bord</a>
                 </div>
             </section>
@@ -264,22 +300,16 @@
     </div>
 </div>
 
-@* Rewriting from an earlier page drops everything that followed — destructive, so confirm. *@
-@if (_confirmRewrite)
+@* Every destructive page action funnels through the same confirmation. *@
+@if (_confirm is not null)
 {
-    <div class="overlay" @onclick="CancelRewrite">
+    <div class="overlay" @onclick="() => _confirm = null">
         <div class="modal" style="max-width:440px;padding:26px 26px 22px" @onclick:stopPropagation="true">
-            <div class="modal-title" style="margin-bottom:8px">Réécrire à partir de cette page ?</div>
-            <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--text-2)">
-                Vous êtes revenu sur la page <strong style="color:var(--text)">@_currentPageIndex</strong>.
-                Générer une suite ici supprimera définitivement
-                <strong style="color:var(--text)">@PagesToDrop page@(PagesToDrop > 1 ? "s" : null)</strong>
-                (@(_currentPageIndex + 1) à @(_pageHistory.Count > 0 ? _pageHistory.Max() : _currentPageIndex)).
-                Cette action est irréversible.
-            </p>
+            <div class="modal-title" style="margin-bottom:8px">@_confirm.Title</div>
+            <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--text-2)">@_confirm.Body</p>
             <div style="display:flex;gap:10px;justify-content:flex-end">
-                <button class="btn btn-soft" @onclick="CancelRewrite">Annuler</button>
-                <button class="btn btn-danger" @onclick="ConfirmRewrite">Supprimer et générer</button>
+                <button class="btn btn-soft" @onclick="() => _confirm = null">Annuler</button>
+                <button class="btn btn-danger" @onclick="RunConfirmAsync">@_confirm.ConfirmLabel</button>
             </div>
         </div>
     </div>
@@ -326,10 +356,16 @@
     private string? _autoStartedFor;
     private string? _genre;
     private bool _backstageOpen;
-    private bool _confirmRewrite;
-    private string? _pendingIntent;
+    private ConfirmPrompt? _confirm;
     private bool _regeneratingImage;
+    private bool _regeneratingChoices;
     private string? _imageError;
+    private bool _editing;
+    private string _editText = string.Empty;
+    private string _currentPageIntent = string.Empty;
+
+    /// A pending destructive action, shown in the confirmation modal.
+    private sealed record ConfirmPrompt(string Title, string Body, string ConfirmLabel, Func<Task> Action);
 
     // Used by "Continuer seul": the service requires a non-empty intent, so hand the narrator
     // an explicit "just keep going" instruction rather than loosening the contract.
@@ -431,8 +467,9 @@
         _imageError = null;
         _userIntent = string.Empty;
         _backstageOpen = false;
-        _confirmRewrite = false;
-        _pendingIntent = null;
+        _confirm = null;
+        _editing = false;
+        _currentPageIntent = string.Empty;
 
         _library = await LibraryService.ListStoriesAsync();
         _genre = _library.FirstOrDefault(s => s.SlotName == SlotName)?.GenreStyle;
@@ -503,31 +540,109 @@
 
         if (!IsAtTip)
         {
-            _pendingIntent = intent;
-            _confirmRewrite = true;
+            var from = _currentPageIndex;
+            _confirm = new ConfirmPrompt(
+                "Réécrire à partir de cette page ?",
+                $"Vous êtes revenu sur la page {from}. Générer une suite ici supprimera définitivement "
+                + $"{PagesToDrop} page{(PagesToDrop > 1 ? "s" : "")} ({from + 1} à {_pageHistory.Max()}). "
+                + "Cette action est irréversible.",
+                "Supprimer et générer",
+                async () =>
+                {
+                    await GenService.TruncateAfterAsync(SlotName, from);
+                    await LoadPageHistory();
+                    await RunGenerationAsync(intent);
+                });
             return;
         }
 
         await RunGenerationAsync(intent);
     }
 
-    private void CancelRewrite()
+    private async Task RunConfirmAsync()
     {
-        _confirmRewrite = false;
-        _pendingIntent = null;
+        var prompt = _confirm;
+        _confirm = null;
+        if (prompt is not null)
+            await prompt.Action();
     }
 
-    private async Task ConfirmRewrite()
+    /// Rewrites the page on screen: drop it (and anything after) and replay its own intent.
+    private void RequestRegeneratePage()
     {
-        _confirmRewrite = false;
-        var intent = _pendingIntent;
-        _pendingIntent = null;
-        if (intent is null)
+        if (_currentPageIndex <= 0)
             return;
 
-        await GenService.TruncateAfterAsync(SlotName, _currentPageIndex);
-        await LoadPageHistory();
-        await RunGenerationAsync(intent);
+        var index = _currentPageIndex;
+        var intent = string.IsNullOrWhiteSpace(_currentPageIntent) ? AutoContinueIntent : _currentPageIntent;
+        var following = _pageHistory.Max() - index;
+
+        _confirm = new ConfirmPrompt(
+            "Régénérer cette page ?",
+            $"La page {index} sera réécrite à partir de la même intention."
+            + (following > 0 ? $" Les {following} page{(following > 1 ? "s" : "")} suivante{(following > 1 ? "s" : "")} seront supprimées." : string.Empty)
+            + " Cette action est irréversible.",
+            "Régénérer",
+            async () =>
+            {
+                await GenService.TruncateAfterAsync(SlotName, index - 1);
+                await LoadPageHistory();
+                await RunGenerationAsync(intent);
+            });
+    }
+
+    /// Takes back the last page — the undo for a generation that went wrong.
+    private void RequestDeleteLastPage()
+    {
+        var last = _pageHistory.Count > 0 ? _pageHistory.Max() : 0;
+        if (last <= 0)
+            return;
+
+        _confirm = new ConfirmPrompt(
+            "Supprimer cette page ?",
+            $"La page {last} sera définitivement supprimée et l'histoire reviendra à la page {last - 1}. "
+            + "Cette action est irréversible.",
+            "Supprimer",
+            async () =>
+            {
+                await GenService.TruncateAfterAsync(SlotName, last - 1);
+                await LoadPageHistory();
+                if (_pageHistory.Count > 0)
+                    await LoadPage(_pageHistory.Max());
+                _library = await LibraryService.ListStoriesAsync();
+            });
+    }
+
+    private void StartEdit()
+    {
+        _editText = _currentNarrative;
+        _editing = true;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        await GenService.UpdatePageTextAsync(SlotName, _currentPageIndex, _editText);
+        _currentNarrative = _editText;
+        _editing = false;
+    }
+
+    private async Task RegenerateChoicesAsync()
+    {
+        _regeneratingChoices = true;
+        try
+        {
+            var result = await GenService.RegeneratePageChoicesAsync(SlotName, _currentPageIndex, _selectedModel);
+            if (result is Narratum.Core.Result<IReadOnlyList<StoryChoice>>.Success success)
+                _choices = success.Value;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            _regeneratingChoices = false;
+        }
     }
 
     /// Re-runs just the illustration for the page on screen (the prose is untouched).
@@ -584,6 +699,8 @@
     private async Task LoadPage(int pageIndex)
     {
         _currentPageIndex = pageIndex;
+        _editing = false;
+        _imageError = null;
 
         var pageResult = await GenService.LoadPageAsync(SlotName, pageIndex);
         pageResult.Match(
@@ -591,6 +708,7 @@
             {
                 _currentNarrative = page.NarrativeText;
                 _currentPageModel = page.ModelUsed;
+                _currentPageIntent = page.IntentDescription;
                 // Default the model selector to the model this page was generated with.
                 if (!string.IsNullOrWhiteSpace(page.ModelUsed) && page.ModelUsed != "N/A")
                     _selectedModel = ResolveSelectedModel(page.ModelUsed);
