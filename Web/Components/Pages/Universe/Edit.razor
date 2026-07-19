@@ -1,0 +1,200 @@
+@page "/universe/{UniverseId}"
+@rendermode InteractiveServer
+@inject UniverseService Universes
+@inject NavigationManager Navigation
+
+<PageTitle>Modifier l'univers - Narratum</PageTitle>
+
+<div style="max-width:720px;margin:0 auto;padding:44px 28px 72px">
+
+    @if (_notFound)
+    {
+        <div class="card" style="padding:44px 22px;text-align:center;font-family:var(--serif);font-size:17px;color:var(--text-3)">
+            Cet univers n'existe plus.
+            <div style="margin-top:18px"><a class="btn btn-soft" href="/library">← Bibliothèque</a></div>
+        </div>
+    }
+    else if (_universe is null)
+    {
+        <div class="spinner" style="margin:32px auto"></div>
+    }
+    else
+    {
+        <div style="margin-bottom:26px">
+            <div class="kicker" style="margin-bottom:10px">Univers</div>
+            <h1 style="font-size:38px">Modifier « @_universe.Name »</h1>
+        </div>
+
+        <div class="callout-soft" style="margin-bottom:24px">
+            ▸ Les parties déjà commencées gardent l'univers tel qu'il était à leur démarrage.
+            Vos modifications s'appliqueront aux <strong>prochaines parties</strong>.
+        </div>
+
+        <div class="card" style="padding:28px 30px">
+
+            <div style="margin-bottom:20px">
+                <label class="fld-label">Nom du monde <span class="fld-req">*</span></label>
+                <input class="field" @bind="_name" @bind:event="oninput" />
+            </div>
+
+            <div style="margin-bottom:20px">
+                <label class="fld-label">Description du monde</label>
+                <textarea class="field" @bind="_description" style="min-height:120px"
+                          placeholder="Ambiance, époque, règles, ton…"></textarea>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px">
+                <div>
+                    <label class="fld-label">Genre</label>
+                    <select class="field" @bind="_genre">
+                        @foreach (var g in GenreOptions)
+                        {
+                            <option value="@g.Key">@g.Value</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="fld-label">Style narratif</label>
+                    <input class="field" @bind="_narrativeStyle" placeholder="Ex : Épique, sombre…" />
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px">
+                <label class="fld-label">Action d'ouverture</label>
+                <textarea class="field" @bind="_openingAction" style="min-height:90px"
+                          placeholder="Ce par quoi chaque partie commence…"></textarea>
+                <div style="margin-top:8px;font-size:12.5px;color:var(--text-3)">
+                    ▸ Rejouée au démarrage de chaque nouvelle partie de cet univers.
+                </div>
+            </div>
+
+            <div style="margin-bottom:8px"><span class="eyebrow">Personnages</span></div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">
+                @foreach (var c in _characters)
+                {
+                    <div class="editor-row">
+                        <div><input class="field" @bind="c.Name" placeholder="Nom" /></div>
+                        <div><input class="field" @bind="c.Description" placeholder="Rôle, traits…" /></div>
+                        <button class="icon-btn editor-del" title="Retirer" @onclick="() => _characters.Remove(c)">✕</button>
+                    </div>
+                }
+            </div>
+            <button class="btn btn-dashed" style="margin-bottom:26px" @onclick="() => _characters.Add(new())">＋ Ajouter un personnage</button>
+
+            <div style="margin-bottom:8px"><span class="eyebrow">Lieux</span></div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">
+                @foreach (var l in _locations)
+                {
+                    <div class="editor-row">
+                        <div><input class="field" @bind="l.Name" placeholder="Nom du lieu" /></div>
+                        <div><input class="field" @bind="l.Description" placeholder="Atmosphère, détails…" /></div>
+                        <button class="icon-btn editor-del" title="Retirer" @onclick="() => _locations.Remove(l)">✕</button>
+                    </div>
+                }
+            </div>
+            <button class="btn btn-dashed" @onclick="() => _locations.Add(new())">＋ Ajouter un lieu</button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-top:24px">
+            <a class="btn btn-quiet" href="/library">Annuler</a>
+            <div style="flex:1"></div>
+            @if (_saved)
+            {
+                <span style="font-size:13px;color:var(--accent)">✓ Enregistré</span>
+            }
+            <button class="btn btn-accent" @onclick="SaveAsync" disabled="@(string.IsNullOrWhiteSpace(_name) || _saving)">
+                @(_saving ? "Enregistrement…" : "Enregistrer")
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string UniverseId { get; set; } = string.Empty;
+
+    private static readonly IReadOnlyList<KeyValuePair<string, string>> GenreOptions =
+    [
+        new("Fantasy", "Fantasy"),
+        new("SciFi", "Science-Fiction"),
+        new("Mystery", "Mystère"),
+        new("Horror", "Horreur"),
+        new("Historical", "Historique"),
+    ];
+
+    private UniverseInfo? _universe;
+    private bool _notFound;
+    private bool _saving;
+    private bool _saved;
+
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private string _genre = "Fantasy";
+    private string _narrativeStyle = string.Empty;
+    private string _openingAction = string.Empty;
+    private readonly List<Row> _characters = [];
+    private readonly List<Row> _locations = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_universe?.UniverseId == UniverseId)
+            return;
+
+        _universe = await Universes.GetAsync(UniverseId);
+        if (_universe is null)
+        {
+            _notFound = true;
+            return;
+        }
+
+        _name = _universe.Name;
+        _description = _universe.Description ?? string.Empty;
+        _genre = _universe.GenreStyle;
+        _narrativeStyle = _universe.NarrativeStyle ?? string.Empty;
+        _openingAction = _universe.OpeningAction ?? string.Empty;
+
+        _characters.Clear();
+        _characters.AddRange(_universe.Characters.Select(c => new Row { Name = c.Name, Description = c.Description ?? string.Empty }));
+
+        _locations.Clear();
+        _locations.AddRange(_universe.Locations.Select(l => new Row { Name = l.Name, Description = l.Description ?? string.Empty }));
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_universe is null)
+            return;
+
+        _saving = true;
+        try
+        {
+            // Rows left blank are dropped rather than saved as nameless entries.
+            await Universes.UpdateAsync(_universe with
+            {
+                Name = _name.Trim(),
+                Description = Blank(_description),
+                GenreStyle = _genre,
+                NarrativeStyle = Blank(_narrativeStyle),
+                OpeningAction = Blank(_openingAction),
+                Characters = [.. _characters.Where(Named).Select(c => new WorldCharacter(c.Name.Trim(), c.Description))],
+                Locations = [.. _locations.Where(Named).Select(l => new WorldPlace(l.Name.Trim(), l.Description))],
+            });
+
+            _saved = true;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static bool Named(Row row) => !string.IsNullOrWhiteSpace(row.Name);
+
+    private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>An editable character or place row.</summary>
+    private sealed class Row
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+}

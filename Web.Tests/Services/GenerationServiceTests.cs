@@ -74,6 +74,84 @@ public class GenerationServiceTests
             NarrativeStyle: narrativeStyle);
     }
 
+    /// <summary>
+    /// Builds a service whose universe repository knows a single universe, so the tests below can
+    /// pit the run's frozen snapshot against the live universe.
+    /// </summary>
+    private GenerationService CreateServiceWithUniverse(Universe universe)
+    {
+        var universes = new Mock<IUniverseRepository>();
+        universes
+            .Setup(u => u.GetAsync(universe.UniverseId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(universe);
+
+        return new GenerationService(
+            new FullOrchestrationService(new Mock<ILlmClient>().Object),
+            _mockRepository.Object,
+            new ModelSelectionService(new LlmClientConfig { DefaultModel = "phi-4-mini" }),
+            new Mock<ILlmClient>().Object,
+            new Mock<IImageGenerator>().Object,
+            CreateImageStorage(),
+            universes.Object,
+            NullLogger<GenerationService>.Instance);
+    }
+
+    private static Universe SampleUniverse(string name) => new(
+        "univers-1", name, "Fantasy", "Version courante", null, "[]", "[]", null, null, DateTime.UtcNow);
+
+    [Fact]
+    public async Task GetRunWorldAsync_PrefersTheSnapshotTakenWhenTheRunStarted()
+    {
+        // Retouching a universe must shape the next run, never rewrite what an existing one was
+        // built on — so a run keeps writing against the setting it began with.
+        var universe = SampleUniverse("Nom modifié depuis");
+        var service = CreateServiceWithUniverse(universe);
+
+        _mockRepository
+            .Setup(r => r.GetStoryWorldAsync("slot-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"WorldName":"Nom d'origine","GenreStyle":"Fantasy"}""");
+        _mockRepository
+            .Setup(r => r.GetStoryUniverseAsync("slot-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(universe.UniverseId);
+
+        var world = await service.GetRunWorldAsync("slot-1");
+
+        world.Should().NotBeNull();
+        world!.WorldName.Should().Be("Nom d'origine");
+    }
+
+    [Fact]
+    public async Task GetRunWorldAsync_FallsBackToTheUniverse_WhenTheRunHasNoSnapshot()
+    {
+        var universe = SampleUniverse("Univers vivant");
+        var service = CreateServiceWithUniverse(universe);
+
+        _mockRepository
+            .Setup(r => r.GetStoryWorldAsync("slot-2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        _mockRepository
+            .Setup(r => r.GetStoryUniverseAsync("slot-2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(universe.UniverseId);
+
+        var world = await service.GetRunWorldAsync("slot-2");
+
+        world.Should().NotBeNull();
+        world!.WorldName.Should().Be("Univers vivant");
+    }
+
+    [Fact]
+    public async Task GetRunWorldAsync_ReturnsNull_ForAStoryThatPredatesTheWorldBible()
+    {
+        _mockRepository
+            .Setup(r => r.GetStoryWorldAsync("old-slot", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        _mockRepository
+            .Setup(r => r.GetStoryUniverseAsync("old-slot", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        (await _service.GetRunWorldAsync("old-slot")).Should().BeNull();
+    }
+
     [Fact]
     public async Task CreateStoryAsync_WhenValidRequest_ReturnsSuccess()
     {

@@ -60,6 +60,8 @@
                         <div style="display:flex;align-items:center;gap:8px;flex:none" @onclick:stopPropagation="true">
                             <button class="btn btn-accent btn-sm" title="Démarrer une nouvelle partie dans cet univers"
                                     @onclick="() => StartRunAsync(universe.UniverseId)" disabled="@_starting">＋ Nouvelle partie</button>
+                            <a class="btn btn-soft btn-sm" href="@($"/universe/{universe.UniverseId}")"
+                               title="Modifier cet univers">✎ Modifier</a>
                             <button class="icon-btn lib-del" title="Supprimer l'univers"
                                     @onclick="() => _deleteUniverse = universe">🗑</button>
                         </div>
