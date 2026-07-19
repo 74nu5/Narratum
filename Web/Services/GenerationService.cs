@@ -522,6 +522,67 @@ public class GenerationService : IGenerationService
         _ => "Tu es un agent narratif. " + FrenchOnly
     };
 
+    /// <inheritdoc />
+    public async Task<Result<string>> RegeneratePageImageAsync(
+        string slotName, int pageIndex, string imageModel, CancellationToken ct = default)
+    {
+        if (!_imageGenerator.CanHandle(imageModel))
+            return Result<string>.Fail("Aucun modèle d'image sélectionné.");
+
+        var loadResult = await _storyRepository.LoadPageAsync(slotName, pageIndex, ct);
+        if (loadResult is Result<Core.PageSnapshot>.Failure loadFailure)
+            return Result<string>.Fail(loadFailure.Message);
+
+        var page = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
+
+        // Re-derive the visual prompt from the page text: when the first attempt failed, no
+        // prompt was ever persisted, so there is nothing to reuse.
+        var textModel = _modelSelector.NormalizeOrDefault(page.ModelUsed);
+        var (imagePath, imagePrompt) = await GenerateImageAsync(
+            slotName, pageIndex, page.NarrativeText, imageModel, textModel, ct);
+
+        if (imagePath is null)
+            return Result<string>.Fail("La génération de l'illustration a échoué.");
+
+        await _storyRepository.SavePageImageAsync(slotName, pageIndex, imagePath, imagePrompt, ct);
+        _logger.LogInformation("Regenerated image for {SlotName} page {PageIndex}", slotName, pageIndex);
+
+        return Result<string>.Ok(imagePath);
+    }
+
+    /// <inheritdoc />
+    public Task<int> TruncateAfterAsync(string slotName, int pageIndex, CancellationToken ct = default)
+        => _storyRepository.TruncatePagesAfterAsync(slotName, pageIndex, ct);
+
+    /// <inheritdoc />
+    public async Task<Result<IReadOnlyList<StoryChoice>>> RegeneratePageChoicesAsync(
+        string slotName, int pageIndex, string? model = null, CancellationToken ct = default)
+    {
+        var loadResult = await _storyRepository.LoadPageAsync(slotName, pageIndex, ct);
+        if (loadResult is Result<Core.PageSnapshot>.Failure loadFailure)
+            return Result<IReadOnlyList<StoryChoice>>.Fail(loadFailure.Message);
+
+        var page = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
+        var chosenModel = _modelSelector.NormalizeOrDefault(model ?? page.ModelUsed);
+
+        var choices = await GenerateChoicesAsync(page.NarrativeText, chosenModel, ct);
+        await _storyRepository.SavePageChoicesAsync(
+            slotName, pageIndex, JsonSerializer.Serialize(choices), ct);
+
+        _logger.LogInformation("Regenerated choices for {SlotName} page {PageIndex}", slotName, pageIndex);
+
+        return Result<IReadOnlyList<StoryChoice>>.Ok(choices);
+    }
+
+    /// <inheritdoc />
+    public Task UpdatePageTextAsync(
+        string slotName, int pageIndex, string narrativeText, CancellationToken ct = default)
+        => _storyRepository.UpdatePageTextAsync(slotName, pageIndex, narrativeText, ct);
+
+    /// <inheritdoc />
+    public Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default)
+        => _storyRepository.RenameStoryAsync(slotName, displayName, ct);
+
     /// <summary>
     /// Two-stage image generation: an ImagePrompt agent turns the page into a visual prompt (using
     /// the text model), then the chosen image model renders it and the bytes are saved to a file.
@@ -873,7 +934,8 @@ public class GenerationService : IGenerationService
                 page.PageIndex,
                 page.NarrativeText,
                 page.GeneratedAt,
-                page.ModelUsed)),
+                page.ModelUsed,
+                page.IntentDescription)),
             onFailure: error => Result<PageInfo>.Fail(error));
     }
 
@@ -912,4 +974,5 @@ public record PageInfo(
     int PageIndex,
     string NarrativeText,
     DateTime GeneratedAt,
-    string ModelUsed = "");
+    string ModelUsed = "",
+    string IntentDescription = "");

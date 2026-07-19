@@ -64,6 +64,13 @@ public interface IStoryRepository
     Task<bool> StoryExistsAsync(string slotName, CancellationToken ct = default);
 
     /// <summary>
+    /// Deletes every page strictly after <paramref name="pageIndex"/>. Used when the author
+    /// rewrites the story from an earlier page: the pages that followed no longer belong to it.
+    /// Returns how many pages were removed.
+    /// </summary>
+    Task<int> TruncatePagesAfterAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets all page indices for a story (timeline).
     /// </summary>
     Task<List<int>> GetPageHistoryAsync(string slotName, CancellationToken ct = default);
@@ -138,6 +145,15 @@ public interface IStoryRepository
     /// Gets the display name for a story slot.
     /// </summary>
     Task<string> GetDisplayNameAsync(string slotName, CancellationToken ct = default);
+
+    /// <summary>Renames a story (its library display name).</summary>
+    Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replaces a page's prose — the author correcting the narrator by hand. Only the text
+    /// changes; the page's state snapshot, choices, characters and image are untouched.
+    /// </summary>
+    Task UpdatePageTextAsync(string slotName, int pageIndex, string narrativeText, CancellationToken ct = default);
 }
 
 /// <summary>

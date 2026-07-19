@@ -139,6 +139,9 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em
 .lib-body { border-top: 1px solid var(--border); transition: background .12s; }
 .lib-body:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .lib-del:hover { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+/* The rename pencil stays discreet until the row is hovered. */
+.lib-rename { opacity: 0; transition: opacity .12s; }
+.lib-body:hover .lib-rename { opacity: 1; }
 
 /* ---- Chips & badges ------------------------------------------------------ */
 .chip {
@@ -193,6 +196,8 @@ textarea.field { resize: vertical; line-height: 1.5; }
 /* ---- Secret revealed box ------------------------------------------------- */
 .secret { background: var(--secret-bg); border: 1px solid var(--secret-border); border-radius: 10px; padding: 14px 16px; }
 .secret p { margin: 0; font-family: var(--serif); font-size: 15px; line-height: 1.6; color: var(--secret-text); }
+/* Hidden secrets (Expert only): the author's material, not yet revealed to the reader. */
+.secret-hidden { background: transparent; border-style: dashed; opacity: .78; }
 
 /* ---- Character card ------------------------------------------------------ */
 .person { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }

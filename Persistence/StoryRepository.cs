@@ -339,6 +339,23 @@ public class StoryRepository : IStoryRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<int> TruncatePagesAfterAsync(string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var obsolete = await db.PageSnapshots
+            .Where(p => p.SlotName == slotName && p.PageIndex > pageIndex)
+            .ToListAsync(ct);
+
+        if (obsolete.Count == 0)
+            return 0;
+
+        db.PageSnapshots.RemoveRange(obsolete);
+        await db.SaveChangesAsync(ct);
+
+        return obsolete.Count;
+    }
+
     public async Task<bool> StoryExistsAsync(string slotName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);
@@ -526,5 +543,31 @@ public class StoryRepository : IStoryRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.SlotName == slotName, ct);
         return metadata?.DisplayName ?? slotName;
+    }
+
+    public async Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var metadata = await db.SaveSlots.FirstOrDefaultAsync(m => m.SlotName == slotName, ct);
+        if (metadata == null)
+            return;
+
+        db.Entry(metadata).CurrentValues.SetValues(metadata with { DisplayName = displayName });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdatePageTextAsync(
+        string slotName, int pageIndex, string narrativeText, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var page = await db.PageSnapshots
+            .FirstOrDefaultAsync(p => p.SlotName == slotName && p.PageIndex == pageIndex, ct);
+        if (page == null)
+            return;
+
+        db.Entry(page).CurrentValues.SetValues(page with { NarrativeText = narrativeText });
+        await db.SaveChangesAsync(ct);
     }
 }

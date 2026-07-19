@@ -132,4 +132,47 @@ public interface IGenerationService
         string slotName,
         int pageIndex,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Re-runs the illustration for an existing page — the image agent can fail (or disappoint)
+    /// while the page itself is fine, and the author shouldn't have to regenerate the prose.
+    /// A fresh visual prompt is derived from the page text, then rendered with
+    /// <paramref name="imageModel"/>. Returns the served image URL on success.
+    /// </summary>
+    Task<Result<string>> RegeneratePageImageAsync(
+        string slotName,
+        int pageIndex,
+        string imageModel,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the pages after <paramref name="pageIndex"/> so the story can be rewritten from
+    /// there. Returns how many pages were removed.
+    /// </summary>
+    Task<int> TruncateAfterAsync(
+        string slotName,
+        int pageIndex,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Re-runs the choice agent for a page, when the three proposed continuations don't inspire.
+    /// </summary>
+    Task<Result<IReadOnlyList<StoryChoice>>> RegeneratePageChoicesAsync(
+        string slotName,
+        int pageIndex,
+        string? model = null,
+        CancellationToken ct = default);
+
+    /// <summary>Replaces a page's prose with the author's own text.</summary>
+    Task UpdatePageTextAsync(
+        string slotName,
+        int pageIndex,
+        string narrativeText,
+        CancellationToken ct = default);
+
+    /// <summary>Renames a story (its library display name).</summary>
+    Task RenameStoryAsync(
+        string slotName,
+        string displayName,
+        CancellationToken ct = default);
 }
