@@ -75,6 +75,33 @@ public sealed class UniverseService
     public Task DeleteAsync(string universeId, CancellationToken ct = default)
         => this._repository.DeleteAsync(universeId, ct);
 
+    /// <summary>
+    /// Promotes a character a run invented into the universe's cast, so the <em>next</em> runs
+    /// start with it. Runs in progress are untouched — they already carry it in their own page
+    /// roster, and their snapshot is deliberately frozen. Matching on the name keeps this
+    /// idempotent: adding the same character twice is a no-op rather than a duplicate.
+    /// </summary>
+    public async Task<bool> AddCharacterAsync(
+        string universeId, WorldCharacter character, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(character.Name))
+            return false;
+
+        var universe = await this.GetAsync(universeId, ct);
+        if (universe is null)
+            return false;
+
+        if (universe.Characters.Any(c => string.Equals(c.Name, character.Name, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        await this.UpdateAsync(universe with { Characters = [.. universe.Characters, character] }, ct);
+
+        this._logger.LogInformation(
+            "Promoted character {Character} into universe {UniverseId}", character.Name, universeId);
+
+        return true;
+    }
+
     private static UniverseInfo ToInfo(Universe u) => new(
         u.UniverseId,
         u.Name,
