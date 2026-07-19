@@ -7,73 +7,69 @@
 
 <PageTitle>Configuration - Narratum</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-        <FluentLabel Typo="Typography.H2">⚙️ Configuration LLM</FluentLabel>
-        <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> ← Dashboard</FluentButton>
-    </FluentStack>
-    
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-            <FluentLabel Typo="Typography.H4">Modèle de narration</FluentLabel>
-            <FluentLabel Typo="Typography.Body" Style="opacity:0.7;">
-                Modèle par défaut de session. Chaque histoire choisit son modèle à la création,
-                et chaque page peut le changer depuis l'écran de génération.
-            </FluentLabel>
-            <FluentSelect TOption="ModelOption"
-                          Items="_selectableModels"
-                          OptionValue="@(m => m.Id)"
-                          OptionText="@(m => m.Label)"
-                          @bind-Value="_selectedModel"
-                          Label="Modèle"
-                          Style="width: 100%; max-width: 480px;" />
-            
-            @if (_selectedModel == "custom")
-            {
-                <FluentTextField @bind-Value="_customModel" Label="Nom du modèle personnalisé" 
-                               Placeholder="Ex: llama-3.2" Style="max-width: 400px;" />
-            }
-            
-            <FluentButton Appearance="Appearance.Accent" OnClick="SaveConfig" Style="max-width: 200px;">
-                💾 Sauvegarder
-            </FluentButton>
+<div style="max-width:720px;margin:0 auto;padding:48px 28px 72px">
 
-            @if (_saved)
-            {
-                <FluentMessageBar Intent="MessageIntent.Success">✓ Configuration sauvegardée !</FluentMessageBar>
-            }
-        </FluentStack>
-    </FluentCard>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:28px">
+        <div>
+            <div class="kicker" style="margin-bottom:10px">Réglages</div>
+            <h1 style="font-size:38px">Configuration LLM</h1>
+        </div>
+        <a class="btn btn-ghost" href="/">← Dashboard</a>
+    </div>
 
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
-            <FluentLabel Typo="Typography.H4">Informations système</FluentLabel>
-            <FluentLabel><strong>Modèle actuel :</strong> @ModelService.CurrentNarratorModel</FluentLabel>
-            <FluentLabel><strong>Provider :</strong> Foundry Local</FluentLabel>
-            <FluentLabel><strong>Endpoint :</strong> http://localhost:5272</FluentLabel>
-        </FluentStack>
-    </FluentCard>
+    <div class="card" style="padding:26px 28px;margin-bottom:20px">
+        <h2 style="font-size:21px;margin-bottom:4px">Modèle de narration</h2>
+        <p style="font-size:13px;color:var(--text-3);margin:0 0 18px;line-height:1.55">
+            Modèle par défaut de session. Chaque histoire choisit son modèle à la création,
+            et chaque page peut le changer depuis l'écran de génération.
+        </p>
+        <label class="fld-label">Modèle</label>
+        <select class="field" style="max-width:480px" @bind="_selectedModel">
+            @foreach (var m in _selectableModels)
+            {
+                <option value="@m.Id">@m.Label</option>
+            }
+        </select>
 
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-            <FluentLabel Typo="Typography.H4">Test de connexion</FluentLabel>
-            <FluentButton Appearance="Appearance.Neutral" OnClick="TestConnection" Disabled="@_testing">
-                🔌 Tester la connexion LLM
-            </FluentButton>
-            
-            @if (_testing)
-            {
-                <FluentProgressRing />
-            }
-            else if (_testResult != null)
-            {
-                <FluentMessageBar Intent="@(_testSuccess ? MessageIntent.Success : MessageIntent.Error)">
-                    @_testResult
-                </FluentMessageBar>
-            }
-        </FluentStack>
-    </FluentCard>
-</FluentStack>
+        @if (_selectedModel == "custom")
+        {
+            <div style="margin-top:14px">
+                <label class="fld-label">Nom du modèle personnalisé</label>
+                <input class="field" style="max-width:400px" @bind="_customModel" placeholder="Ex : llama-3.2" />
+            </div>
+        }
+
+        <div style="margin-top:18px">
+            <button class="btn btn-accent" @onclick="SaveConfig">💾 Sauvegarder</button>
+        </div>
+        @if (_saved)
+        {
+            <div class="msg msg-success" style="margin-top:14px;display:inline-block">✓ Configuration sauvegardée !</div>
+        }
+    </div>
+
+    <div class="card" style="padding:26px 28px;margin-bottom:20px">
+        <h2 style="font-size:21px;margin-bottom:14px">Informations système</h2>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--text-2)">
+            <div><strong style="color:var(--text)">Modèle actuel :</strong> @ModelService.CurrentNarratorModel</div>
+            <div><strong style="color:var(--text)">Provider :</strong> Foundry Local</div>
+            <div><strong style="color:var(--text)">Endpoint :</strong> <span class="mono">http://localhost:5272</span></div>
+        </div>
+    </div>
+
+    <div class="card" style="padding:26px 28px">
+        <h2 style="font-size:21px;margin-bottom:14px">Test de connexion</h2>
+        <button class="btn btn-ghost" @onclick="TestConnection" disabled="@_testing">🔌 Tester la connexion LLM</button>
+        @if (_testing)
+        {
+            <div class="spinner" style="margin-top:16px"></div>
+        }
+        else if (_testResult is not null)
+        {
+            <div class="msg @(_testSuccess ? "msg-success" : "msg-error")" style="margin-top:14px">@_testResult</div>
+        }
+    </div>
+</div>
 
 @code {
     private string _selectedModel = "Phi-4-mini";
@@ -104,7 +100,7 @@
         ModelService.CurrentNarratorModel = modelToUse;
         _saved = true;
 
-        Task.Delay(3000).ContinueWith(_ => 
+        Task.Delay(3000).ContinueWith(_ =>
         {
             _saved = false;
             InvokeAsync(StateHasChanged);
@@ -135,4 +131,3 @@
         }
     }
 }
-

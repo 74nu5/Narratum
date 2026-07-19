@@ -1,47 +1,28 @@
 @inherits LayoutComponentBase
 @inject ExpertModeService ExpertMode
+@inject NavigationManager Navigation
 
-<FluentLayout>
-    <FluentHeader Style="padding: 0.5rem 1rem;">
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Start" VerticalAlignment="VerticalAlignment.Center">
-            <FluentLabel Typo="Typography.H3" Style="cursor: pointer;" @onclick="@(() => NavigationManager.NavigateTo("/"))">
-                ✨ Narratum
-            </FluentLabel>
-            <FluentSpacer />
-            <StorySwitcher />
-            <FluentSpacer />
-            <FluentSwitch Label="🔧 Expert" @bind-Value="@ExpertMode.IsExpertModeEnabled" />
-            <FluentButton Appearance="Appearance.Outline" @onclick='() => NavigationManager.NavigateTo("/config")'>
-                ⚙️ Config
-            </FluentButton>
-        </FluentStack>
-    </FluentHeader>
-    
-    <FluentBodyContent Style="padding: 2rem;">
-        <div class="page">
-            <main>
-                @Body
-            </main>
-        </div>
-    </FluentBodyContent>
-    
-    <FluentFooter Style="padding: 1rem; border-top: 1px solid var(--neutral-stroke-divider-rest);">
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-            <FluentLabel Typo="Typography.Body">Narratum - Générateur d'histoires déterministe</FluentLabel>
-            <SaveIndicator IsSaving="@_isSaving" SaveError="@_saveError" LastSaveTime="@_lastSaveTime" />
-        </FluentStack>
-    </FluentFooter>
-</FluentLayout>
+<div class="app-root">
+    <header class="appbar">
+        <a class="brand" href="/" style="cursor:pointer">
+            <span class="brand-mark">N</span>
+            <span class="brand-name">Narratum</span>
+        </a>
+        <div class="spacer"></div>
+        <button class="pill @(ExpertMode.IsExpertModeEnabled ? "is-on" : null)" @onclick="ToggleExpert" title="Mode expert">✦ Expert</button>
+        <button class="icon-btn" onclick="window.narratumTheme.toggle()" title="Jour / Nuit" type="button">
+            <span class="theme-moon">☾</span><span class="theme-sun">☀</span>
+        </button>
+        <a class="icon-btn" href="/config" title="Réglages">⚙</a>
+    </header>
 
-<FluentToastProvider />
-<FluentDialogProvider />
-<FluentTooltipProvider />
-<FluentMessageBarProvider />
+    <main class="appmain">
+        @Body
+    </main>
+
+    <footer class="appfoot">Narratum — générateur d'histoires déterministe</footer>
+</div>
 
 @code {
-    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
-
-    private bool _isSaving = false;
-    private bool _saveError = false;
-    private DateTime? _lastSaveTime = null;
+    private void ToggleExpert() => ExpertMode.IsExpertModeEnabled = !ExpertMode.IsExpertModeEnabled;
 }

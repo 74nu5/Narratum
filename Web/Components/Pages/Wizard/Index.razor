@@ -9,131 +9,158 @@
 
 <PageTitle>Créer une histoire - Narratum</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">✨ Créer une nouvelle histoire</FluentLabel>
-    
-    @* Step indicator *@
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
-            @for (var i = 0; i < this.stepTitles.Length; i++)
-            {
-                var stepIndex = i;
-                <FluentButton Appearance="@(stepIndex == this.currentStep ? Appearance.Accent : Appearance.Neutral)"
-                              Disabled="@(stepIndex > this.currentStep)"
-                              @onclick="() => this.currentStep = stepIndex">
-                    @(stepIndex + 1). @this.stepTitles[stepIndex]
-                </FluentButton>
-            }
-        </FluentStack>
-    </FluentCard>
-    
-    @* Step content *@
-    <div>
+<div style="max-width:680px;margin:0 auto;padding:44px 28px 72px">
+
+    <div style="text-align:center;margin-bottom:30px">
+        <div class="kicker" style="margin-bottom:10px">Nouvel univers</div>
+        <h1 style="font-size:40px">Créer une histoire</h1>
+    </div>
+
+    @* Stepper *@
+    <div style="display:flex;align-items:center;justify-content:center;margin-bottom:34px;flex-wrap:wrap">
+        @for (var i = 0; i < this.stepTitles.Length; i++)
+        {
+            var stepIndex = i;
+            var current = stepIndex == this.currentStep;
+            var done = stepIndex < this.currentStep;
+            <button @onclick="() => this.currentStep = stepIndex"
+                    style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:6px 14px;@(stepIndex > 0 ? "border-left:1px solid var(--border)" : "")">
+                <span style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-family:var(--sans);font-size:11.5px;font-weight:600;flex:none;@(StepDotStyle(current, done))">@(done ? "✓" : (stepIndex + 1).ToString())</span>
+                <span style="font-family:var(--sans);font-size:12.5px;font-weight:@(current ? 700 : 500);color:@(current ? "var(--text)" : "var(--text-3)");white-space:nowrap">@this.stepTitles[stepIndex]</span>
+            </button>
+        }
+    </div>
+
+    <div class="card" style="padding:30px 32px;min-height:280px;animation:stepIn .24s ease">
         @switch (this.currentStep)
         {
-            case 0: @* Monde *@
-                <WorldEditor @bind-WorldName="this.worldName" @bind-WorldDescription="this.worldDescription" />
+            case 0:
+                <h2 style="font-size:23px;margin-bottom:4px">Le monde</h2>
+                <p style="font-size:13px;color:var(--text-3);margin:0 0 24px">Où votre histoire prend-elle racine ?</p>
+                <div style="margin-bottom:20px">
+                    <label class="fld-label">Nom du monde <span class="fld-req">*</span></label>
+                    <input class="field" @bind="this.worldName" @bind:event="oninput" placeholder="Ex : Le Commandement Stargate" />
+                </div>
+                <div>
+                    <label class="fld-label">Description du monde</label>
+                    <textarea class="field" @bind="this.worldDescription" style="min-height:120px" placeholder="Ambiance, époque, règles, ton…"></textarea>
+                </div>
                 break;
-                
-            case 1: @* Genre *@
-                <FluentCard>
-                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-                        <FluentSelect TOption="string" Label="Genre" @bind-Value="this.genre">
-                            <FluentOption TOption="string" Value="Fantasy">Fantasy</FluentOption>
-                            <FluentOption TOption="string" Value="SciFi">Science-Fiction</FluentOption>
-                            <FluentOption TOption="string" Value="Mystery">Mystère</FluentOption>
-                            <FluentOption TOption="string" Value="Horror">Horreur</FluentOption>
-                            <FluentOption TOption="string" Value="Historical">Historique</FluentOption>
-                        </FluentSelect>
-                        <FluentTextArea Label="Style narratif (optionnel)" @bind-Value="this.narrativeStyle" Rows="3"
-                                      Placeholder="Ex: Épique, sombre, humoristique..." />
-                        @if (this.subscriptions.Count > 0)
+
+            case 1:
+                <h2 style="font-size:23px;margin-bottom:4px">Genre &amp; style</h2>
+                <p style="font-size:13px;color:var(--text-3);margin:0 0 24px">La couleur narrative et le moteur de génération.</p>
+                <div style="margin-bottom:20px">
+                    <label class="fld-label">Genre</label>
+                    <select class="field" @bind="this.genre">
+                        @foreach (var g in genreOptions)
                         {
-                            <FluentSelect TOption="AzureSubscriptionInfo"
-                                          Items="this.subscriptions"
-                                          OptionValue="@(s => s.SubscriptionId)"
-                                          OptionText="@(s => $"☁️ {s.DisplayName}")"
-                                          Value="this.currentSubscription"
-                                          ValueChanged="this.OnSubscriptionChanged"
-                                          Disabled="@(this.subscriptions.Count < 2)"
-                                          Label="Souscription Azure"
-                                          Style="width: 100%; max-width: 480px;" />
+                            <option value="@g.Key">@g.Value</option>
                         }
-                        <FluentSelect TOption="ModelOption"
-                                      Items="this.models"
-                                      OptionValue="@(m => m.Id)"
-                                      OptionText="@(m => m.Label)"
-                                      @bind-Value="this.model"
-                                      Label="Modèle de génération (local ou cloud)"
-                                      Style="width: 100%; max-width: 480px;" />
-                        <div style="font-size: 0.82rem; opacity: 0.75; margin-top: -8px;">
-                            ▶ Sera généré avec : <strong>@ModelDisplay.Badge(this.model, this.models)</strong>
+                    </select>
+                </div>
+                <div style="margin-bottom:20px">
+                    <label class="fld-label">Style narratif (optionnel)</label>
+                    <input class="field" @bind="this.narrativeStyle" placeholder="Ex : Épique, sombre, humoristique…" />
+                </div>
+                @if (this.subscriptions.Count > 0)
+                {
+                    <div style="margin-bottom:20px">
+                        <label class="fld-label">Souscription Azure</label>
+                        <select class="field" @bind="this.currentSubscription" @bind:after="OnSubscriptionChanged" disabled="@(this.subscriptions.Count < 2)">
+                            @foreach (var s in this.subscriptions)
+                            {
+                                <option value="@s.SubscriptionId">☁ @s.DisplayName</option>
+                            }
+                        </select>
+                    </div>
+                }
+                <div>
+                    <label class="fld-label">Modèle de génération (local ou cloud)</label>
+                    <select class="field" @bind="this.model">
+                        @foreach (var m in this.models)
+                        {
+                            <option value="@m.Id">@m.Label</option>
+                        }
+                    </select>
+                    <div style="margin-top:10px;font-size:12px;color:var(--text-3)">▸ Sera généré avec : <strong style="color:var(--text-2)">@ModelDisplay.Badge(this.model, this.models)</strong></div>
+                </div>
+                break;
+
+            case 2:
+                <h2 style="font-size:23px;margin-bottom:4px">Personnages</h2>
+                <p style="font-size:13px;color:var(--text-3);margin:0 0 22px">Qui peuplera votre récit ? (facultatif)</p>
+                <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+                    @foreach (var c in this.characters)
+                    {
+                        <div class="editor-row">
+                            <div><label class="fld-label">Nom</label><input class="field" @bind="c.Name" placeholder="Nom" /></div>
+                            <div><label class="fld-label">Description</label><input class="field" @bind="c.Description" placeholder="Rôle, traits…" /></div>
+                            <button class="icon-btn editor-del" title="Retirer" @onclick="() => this.characters.Remove(c)">✕</button>
                         </div>
-                    </FluentStack>
-                </FluentCard>
+                    }
+                </div>
+                <button class="btn btn-dashed" @onclick="() => this.characters.Add(new())">＋ Ajouter un personnage</button>
                 break;
-                
-            case 2: @* Personnages *@
-                <CharactersEditor @bind-Characters="this.characters" />
+
+            case 3:
+                <h2 style="font-size:23px;margin-bottom:4px">Lieux</h2>
+                <p style="font-size:13px;color:var(--text-3);margin:0 0 22px">Les décors marquants de l'aventure. (facultatif)</p>
+                <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+                    @foreach (var l in this.locations)
+                    {
+                        <div class="editor-row">
+                            <div><label class="fld-label">Nom du lieu</label><input class="field" @bind="l.Name" placeholder="Nom" /></div>
+                            <div><label class="fld-label">Description</label><input class="field" @bind="l.Description" placeholder="Atmosphère, détails…" /></div>
+                            <button class="icon-btn editor-del" title="Retirer" @onclick="() => this.locations.Remove(l)">✕</button>
+                        </div>
+                    }
+                </div>
+                <button class="btn btn-dashed" @onclick="() => this.locations.Add(new())">＋ Ajouter un lieu</button>
                 break;
-                
-            case 3: @* Lieux *@
-                <LocationsEditor @bind-Locations="this.locations" />
-                break;
-                
-            case 4: @* Résumé *@
-                <FluentCard>
-                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-                        <FluentLabel Typo="Typography.H4">📋 Récapitulatif</FluentLabel>
-                        <FluentLabel><strong>Monde :</strong> @(this.worldName)
-                        </FluentLabel>
-                        <FluentLabel><strong>Description :</strong> @(this.worldDescription ?? "Aucune")
-                        </FluentLabel>
-                        <FluentLabel><strong>Genre :</strong> @(this.genre)
-                        </FluentLabel>
-                        <FluentLabel><strong>Style :</strong> @(this.narrativeStyle ?? "Par défaut")
-                        </FluentLabel>
-                        <FluentLabel><strong>Personnages :</strong> @this.characters.Count</FluentLabel>
-                        <FluentLabel><strong>Lieux :</strong> @this.locations.Count</FluentLabel>
-                        
-                        @if (this.characters.Count > 0)
+
+            case 4:
+                <h2 style="font-size:23px;margin-bottom:4px">Récapitulatif</h2>
+                <p style="font-size:13px;color:var(--text-3);margin:0 0 24px">Un dernier regard avant de donner vie à l'histoire.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-bottom:22px">
+                    <div><div class="eyebrow" style="margin-bottom:3px">Monde</div><div style="font-family:var(--serif);font-size:17px;color:var(--text)">@(string.IsNullOrWhiteSpace(this.worldName) ? "— sans nom —" : this.worldName)</div></div>
+                    <div><div class="eyebrow" style="margin-bottom:3px">Genre</div><div style="font-family:var(--serif);font-size:17px;color:var(--text)">@this.genre</div></div>
+                    <div style="grid-column:1/-1"><div class="eyebrow" style="margin-bottom:3px">Description</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2);line-height:1.5">@(string.IsNullOrWhiteSpace(this.worldDescription) ? "Aucune description." : this.worldDescription)</div></div>
+                    <div><div class="eyebrow" style="margin-bottom:3px">Style</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2)">@(string.IsNullOrWhiteSpace(this.narrativeStyle) ? "—" : this.narrativeStyle)</div></div>
+                    <div><div class="eyebrow" style="margin-bottom:3px">Modèle</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2)">@ModelDisplay.Badge(this.model, this.models)</div></div>
+                </div>
+                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+                    <span class="chip" style="text-transform:none;letter-spacing:0;font-size:12.5px;padding:6px 13px;background:var(--surface-2)">👥 @NamedCharacters.Count personnage(s)</span>
+                    <span class="chip" style="text-transform:none;letter-spacing:0;font-size:12.5px;padding:6px 13px;background:var(--surface-2)">📍 @NamedLocations.Count lieu(x)</span>
+                </div>
+                @if (NamedCharacters.Count > 0)
+                {
+                    <div class="eyebrow" style="margin-bottom:8px">Distribution</div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        @foreach (var c in NamedCharacters)
                         {
-                            <FluentLabel Typo="Typography.Body"><strong>Liste des personnages :</strong></FluentLabel>
-                            <ul>
-                                @foreach (var c in this.characters)
-                                {
-                                    <li>@c.Name @(string.IsNullOrEmpty(c.Description) ? "" : $"- {c.Description}")</li>
-                                }
-                            </ul>
+                            <div style="font-family:var(--serif);font-size:15px;color:var(--text-2)"><strong style="color:var(--text)">@c.Name</strong>@(string.IsNullOrWhiteSpace(c.Description) ? "" : $" — {c.Description}")</div>
                         }
-                    </FluentStack>
-                </FluentCard>
+                    </div>
+                }
                 break;
         }
     </div>
-    
-    @* Navigation buttons *@
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" HorizontalAlignment="HorizontalAlignment.End">
-        <FluentButton Appearance="Appearance.Neutral" @onclick='() => this.Navigation.NavigateTo("/")'> Annuler</FluentButton>
-        
+
+    <div style="display:flex;align-items:center;gap:12px;margin-top:24px">
+        <a class="btn btn-quiet" href="/">Annuler</a>
+        <div style="flex:1"></div>
         @if (this.currentStep > 0)
         {
-            <FluentButton Appearance="Appearance.Neutral" @onclick="this.PreviousStep">← Précédent</FluentButton>
+            <button class="btn btn-ghost" @onclick="this.PreviousStep">← Précédent</button>
         }
-        
         @if (this.currentStep < this.stepTitles.Length - 1)
         {
-            <FluentButton Appearance="Appearance.Accent" @onclick="this.NextStep" Disabled="@(!this.CanProceed)">
-                Suivant →
-            </FluentButton>
+            <button class="btn btn-accent" @onclick="this.NextStep" disabled="@(!this.CanProceed)">Suivant →</button>
         }
         else
         {
-            <FluentButton Appearance="Appearance.Accent" @onclick="this.CreateStory" Disabled="@(!this.CanCreate)">
-                🚀 Créer l'histoire
-            </FluentButton>
+            <button class="btn btn-accent" @onclick="this.CreateStory" disabled="@(!this.CanCreate)">✦ Créer l'histoire</button>
         }
-    </FluentStack>
-</FluentStack>
-
-
+    </div>
+</div>

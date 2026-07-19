@@ -5,55 +5,71 @@
 
 <PageTitle>Lecture - Narratum</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
-    <FluentLabel Typo="Typography.H2">📖 @_displayTitle</FluentLabel>
+<div style="max-width:720px;margin:0 auto;padding:48px 28px 40px">
 
-    @* Current page *@
-    <FluentCard Style="min-height: 300px;">
-        @if (!string.IsNullOrEmpty(_currentNarrative))
+    <div style="text-align:center;margin-bottom:8px">
+        <div class="kicker" style="margin-bottom:10px">Chapitre en cours</div>
+        <h1 style="font-size:44px;line-height:1.05">@_displayTitle</h1>
+    </div>
+
+    <div style="max-width:340px;margin:22px auto 40px">
+        <div class="progress" style="height:5px"><span style="width:@(_progressPct)%"></span></div>
+        <div class="mono" style="text-align:center;margin-top:8px;font-size:11px;color:var(--text-3)">Page @_currentPageIndex / @_maxPage</div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="msg msg-error" style="margin-bottom:24px">@_errorMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(_currentNarrative))
+    {
+        <article style="animation:pageIn .28s ease">
+            @if (!string.IsNullOrEmpty(_currentImage))
+            {
+                <figure style="margin:0 0 34px;position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--border-strong);box-shadow:var(--shadow)">
+                    <img src="@_currentImage" alt="Illustration de la page" style="display:block;width:100%" />
+                    <span class="chip" style="position:absolute;top:12px;left:12px;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(4px)">Illustration</span>
+                </figure>
+            }
+            <div class="prose dropcap">@_currentNarrative</div>
+        </article>
+    }
+    else
+    {
+        <div class="card" style="padding:40px;text-align:center;font-family:var(--serif);font-size:17px;color:var(--text-3)">Aucune page à afficher.</div>
+    }
+</div>
+
+<div style="position:sticky;bottom:0;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--border);padding:14px 28px">
+    <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:14px">
+        <button class="btn btn-ghost" @onclick="PreviousPage" disabled="@(_currentPageIndex == 0)">← Page précédente</button>
+        <div class="mono" style="flex:1;text-align:center;font-size:12px;color:var(--text-3)">@_currentPageIndex / @_maxPage</div>
+        @if (_currentPageIndex >= _maxPage)
         {
-            <div style="white-space: pre-wrap; line-height: 1.6;">@_currentNarrative</div>
+            <a class="btn btn-accent" href="@($"/generation/{SlotName}")">✦ Continuer l'histoire</a>
         }
         else
         {
-            <FluentLabel>Aucune page à afficher.</FluentLabel>
+            <button class="btn btn-ghost" @onclick="NextPage">Page suivante →</button>
         }
-    </FluentCard>
+    </div>
+</div>
 
-    @* Navigation *@
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
-        <FluentButton Appearance="Appearance.Neutral" @onclick="PreviousPage" Disabled="@(_currentPageIndex == 0)">
-            ← Page précédente
-        </FluentButton>
-        
-        <FluentLabel>Page @_currentPageIndex / @(_maxPage)</FluentLabel>
-        
-        <FluentButton Appearance="Appearance.Neutral" @onclick="NextPage" Disabled="@(_currentPageIndex >= _maxPage)">
-            Page suivante →
-        </FluentButton>
-        
-        <FluentSpacer />
-        
-        <FluentButton Appearance="Appearance.Neutral" @onclick='() => Navigation.NavigateTo("/")'> 
-            ← Retour au dashboard
-        </FluentButton>
-    </FluentStack>
-
-    @* Error display *@
-    @if (!string.IsNullOrEmpty(_errorMessage))
-    {
-        <FluentMessageBar Intent="MessageIntent.Error">@_errorMessage</FluentMessageBar>
-    }
-</FluentStack>
+<div style="text-align:center;padding:18px;font-size:12px">
+    <a href="/library" style="color:var(--text-3)">← Retour à la bibliothèque</a>
+</div>
 
 @code {
     [Parameter] public string SlotName { get; set; } = string.Empty;
 
-    private int _currentPageIndex = 0;
-    private int _maxPage = 0;
+    private int _currentPageIndex;
+    private int _maxPage;
     private string _currentNarrative = string.Empty;
+    private string? _currentImage;
     private string _errorMessage = string.Empty;
     private string _displayTitle = string.Empty;
+    private int _progressPct => _maxPage <= 0 ? 100 : (int)Math.Round((double)_currentPageIndex / _maxPage * 100);
 
     protected override async Task OnInitializedAsync()
     {
@@ -73,6 +89,7 @@
         pageResult.Match(
             onSuccess: page => _currentNarrative = page.NarrativeText,
             onFailure: error => _errorMessage = error);
+        _currentImage = await GenService.GetPageImageAsync(SlotName, _currentPageIndex);
     }
 
     private async Task PreviousPage()

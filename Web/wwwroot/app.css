@@ -1,26 +1,3 @@
-html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-}
-
-/* Cap dropdown lists to ~5 visible options, then scroll. Targets the Fluent
-   select's listbox part (shadow DOM), so it must live in a global stylesheet. */
-fluent-select::part(listbox) {
-    max-height: 200px !important;
-    overflow-y: auto;
-}
-
-/* Composer intent field grows to fill the sidebar's height; its inner control
-   (shadow DOM) stretches with it. */
-.composer-intent {
-    flex: 1 1 auto;
-    min-height: 140px;
-}
-
-.composer-intent::part(control) {
-    height: 100%;
-    resize: none;
-}
-
 a, .btn-link {
     color: #006bb7;
 }

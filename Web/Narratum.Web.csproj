@@ -21,12 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Microsoft Fluent UI Blazor -->
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.14.3" />
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.14.3" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.302" />
   </ItemGroup>
 

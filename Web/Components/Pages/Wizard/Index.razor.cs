@@ -4,13 +4,20 @@ using Narratum.Llm.Azure;
 using Narratum.Web.Models;
 using Narratum.Web.Services;
 
-using static Shared.CharactersEditor;
-using static Shared.LocationsEditor;
-
 public partial class Index
 {
     private readonly string[] stepTitles = ["Monde", "Genre", "Personnages", "Lieux", "Résumé"];
     private int currentStep;
+
+    // Genre catalogue (code → French label).
+    private static readonly IReadOnlyList<KeyValuePair<string, string>> genreOptions =
+    [
+        new("Fantasy", "Fantasy"),
+        new("SciFi", "Science-Fiction"),
+        new("Mystery", "Mystère"),
+        new("Horror", "Horreur"),
+        new("Historical", "Historique"),
+    ];
 
     private string worldName = string.Empty;
     private string worldDescription = string.Empty;
@@ -21,8 +28,20 @@ public partial class Index
     private IReadOnlyList<ModelOption> localModels = [];
     private IReadOnlyList<AzureSubscriptionInfo> subscriptions = [];
     private string? currentSubscription;
-    private List<CharacterInput> characters = [];
-    private List<LocationInput> locations = [];
+    private readonly List<CharacterInput> characters = [];
+    private readonly List<LocationInput> locations = [];
+
+    private IReadOnlyList<CharacterInput> NamedCharacters =>
+        this.characters.Where(c => !string.IsNullOrWhiteSpace(c.Name)).ToList();
+
+    private IReadOnlyList<LocationInput> NamedLocations =>
+        this.locations.Where(l => !string.IsNullOrWhiteSpace(l.Name)).ToList();
+
+    // Inline dot style for a wizard step marker (current / done / upcoming).
+    private static string StepDotStyle(bool current, bool done) => current
+        ? "background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 4px var(--accent-glow)"
+        : done ? "background:transparent;color:var(--accent);border:1px solid var(--accent)"
+        : "background:transparent;color:var(--text-3);border:1px solid var(--border-strong)";
 
     protected override async Task OnInitializedAsync()
     {
@@ -40,13 +59,12 @@ public partial class Index
         this.models = [.. this.localModels, .. azureModels];
     }
 
-    private async Task OnSubscriptionChanged(string? subscriptionId)
+    private async Task OnSubscriptionChanged()
     {
-        if (string.IsNullOrEmpty(subscriptionId))
+        if (string.IsNullOrEmpty(this.currentSubscription))
             return;
 
-        this.currentSubscription = subscriptionId;
-        this.AzureState.SetCurrentSubscription(subscriptionId);
+        this.AzureState.SetCurrentSubscription(this.currentSubscription);
         await this.RebuildModelListAsync();
     }
 
@@ -89,8 +107,17 @@ public partial class Index
         this.Navigation.NavigateTo($"/generation/{slotName}");
     }
 
-    private void Refresh()
+    /// <summary>Character row captured by the wizard form.</summary>
+    public sealed class CharacterInput
     {
-        this.StateHasChanged();
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
+    /// <summary>Location row captured by the wizard form.</summary>
+    public sealed class LocationInput
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 }
