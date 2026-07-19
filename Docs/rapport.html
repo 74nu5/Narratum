@@ -483,21 +483,23 @@
 <!-- 07 -->
 <section>
   <div class="wrap">
-    <div class="sec-head"><span class="sec-num">07</span><h2>Décisions à confirmer</h2></div>
+    <div class="sec-head"><span class="sec-num">07</span><h2>Décisions</h2></div>
+    <p>Les arbitrages E3, E5, E6 et C1 sont tranchés et implémentés. Seul le PDF reste ouvert.</p>
 
-    <div class="q">
-      <p class="qq">E3 — Où génère-t-on la première page ?</p>
-      <p><strong>Recommandation :</strong> naviguer vers l'écran de génération avec l'intention pré-remplie et <em>lancer automatiquement</em> le streaming. Réutilise l'UI existante, effort moindre. (Alternative : afficher la génération dans le wizard — plus lourd.)</p>
+    <div class="q resolved">
+      <p class="qq"><span class="chk">✓</span> E3 — Où génère-t-on la première page ?</p>
+      <p><strong>Recommandation retenue :</strong> l'assistant navigue vers l'écran de génération avec l'intention pré-remplie et <em>lance automatiquement</em> le streaming, puis retire la query string pour qu'un rafraîchissement ne régénère pas. Pas de génération dans le wizard.</p>
     </div>
 
-    <div class="q">
-      <p class="qq">E5 — Garde-t-on un diagnostic de connexion ?</p>
-      <p><strong>Recommandation :</strong> supprimer <code>/config</code> et l'engrenage ; n'ajouter un indicateur d'état LLM (pastille verte/rouge) que si le besoin apparaît. À trancher : suppression totale, ou mini-indicateur conservé ?</p>
+    <div class="q resolved">
+      <p class="qq"><span class="chk">✓</span> E5 — Garde-t-on un diagnostic de connexion ?</p>
+      <p><strong>Recommandation retenue :</strong> suppression totale — <code>/config</code> et l'engrenage sont partis, <em>sans</em> pastille d'état LLM en remplacement. <code>ModelSelectionService</code> subsiste comme fournisseur du modèle par défaut. À rouvrir seulement si le besoin d'un diagnostic se fait sentir.</p>
     </div>
 
-    <div class="q">
-      <p class="qq">E6 — Que déclenche la réécriture depuis une page antérieure ?</p>
-      <p><strong>Recommandation :</strong> toute génération depuis une page N &lt; dernière (bouton « Générer » <em>ou</em> clic sur un choix) ouvre l'avertissement de troncature. À trancher : ce comportement implicite, ou réserver la réécriture à une action explicite « Réécrire à partir d'ici » ?</p>
+    <div class="q resolved">
+      <p class="qq"><span class="chk">✓</span> E6 — Que déclenche la réécriture depuis une page antérieure ?</p>
+      <p><strong>Recommandation retenue — comportement implicite.</strong> Toute génération depuis une page N &lt; dernière ouvre l'avertissement de troncature, quel qu'en soit le déclencheur : « ✦ Générer la suite », clic sur un choix, ou « ↷ Continuer seul ». À la confirmation, <strong>toutes les pages suivantes (N+1 → dernière) sont supprimées</strong>, puis la nouvelle page est écrite à partir de l'état de N. Pas d'action séparée « Réécrire à partir d'ici ».</p>
+      <p style="margin-top:.5rem">La régénération de la page courante (« ↻ Régénérer cette page ») affiche le même type d'avertissement, en annonçant le nombre de pages suivantes supprimées.</p>
     </div>
 
     <div class="q resolved">
