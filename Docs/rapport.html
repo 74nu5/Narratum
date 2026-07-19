@@ -214,11 +214,15 @@
     <div class="sec-head"><span class="sec-num">01</span><h2>Résumé exécutif</h2></div>
     <p>Parti d'une base <strong>hexagonale, 100 % locale et persistée</strong> (Foundry Local, EF Core + SQLite, un snapshot d'état par page), Narratum a d'abord absorbé les quatre features narratives de StoryMaker — <strong>choix multiples, personnages, secrets, image par page</strong> — sans renoncer à sa propreté. Un <strong>provider cloud Azure AI Foundry</strong> (auth Entra) est venu compléter l'inférence locale, sélectionnable modèle par modèle.</p>
     <p>Le chantier suivant fut l'<strong>interface</strong> : après un aller-retour Fluent UI (v4 → v5 RC), le choix a été fait d'abandonner Fluent au profit d'un <strong>thème éditorial custom</strong> (serif Newsreader + sans Hanken&nbsp;Grotesk, accent sienna, papier crème, mode jour/nuit). Les six écrans ont été reconstruits en HTML natif + une feuille de style unique, et la dépendance Fluent entièrement retirée.</p>
+    <p>Enfin, l'intention d'origine du projet — <strong>définir un univers et le rejouer autant de
+      fois qu'on veut</strong> — a été instruite et livrée (§06), après avoir découvert que la moitié
+      de cet univers était jusque-là silencieusement jetée.</p>
+
     <div class="callout">
       <span class="cico">✦</span>
       <div>
         <p class="ctitle">Où en est-on aujourd'hui</p>
-        <p>L'application est fonctionnelle de bout en bout — création, génération multi-agents streamée, lecture, bibliothèque — dans une IHM cohérente et sans dette Fluent. Les évolutions ci-dessous sont des raffinements d'usage, nés de la pratique réelle de l'outil.</p>
+        <p>L'application est fonctionnelle de bout en bout — création, génération multi-agents streamée, lecture, bibliothèque, export — dans une IHM cohérente et sans dette Fluent. Les évolutions ci-dessous sont des raffinements d'usage, nés de la pratique réelle de l'outil.</p>
       </div>
     </div>
   </div>
@@ -248,6 +252,8 @@
           <tr><td class="feat">Évolutions — phase 2</td><td>E3 étape « Première page » au wizard (génération immédiate) · C1 export Markdown (endpoint + liens). Correctif : rechargement de l'histoire au changement de paramètre de route.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 3</td><td>C2 régénérer / éditer une page · annuler la dernière page · régénérer les choix · renommer une histoire · export <strong>EPUB</strong> (fait main, illustrations embarquées).</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Prompt d'image éditable</td><td>La régénération d'illustration passe par un éditeur de prompt (pré-rempli, re-proposable), qu'elle ait échoué ou non.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Bible d'univers opérante</td><td>Monde, style, descriptions de personnages et lieux persistés (<code>SerializedWorld</code>) et réinjectés dans le narrateur et l'agent Cohérence. Corrige une perte de données silencieuse.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">« Nouvelle partie »</td><td>Rejoue un univers dans une partie neuve : bible + page 0 clonées, ouverture rejouée automatiquement.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -444,7 +450,118 @@
 <!-- 06 -->
 <section>
   <div class="wrap">
-    <div class="sec-head"><span class="sec-num">06</span><h2>Feuille de route proposée</h2></div>
+    <div class="sec-head"><span class="sec-num">06</span><h2>L'univers réutilisable</h2></div>
+
+    <p>L'intention d'origine du projet : <em>définir un univers — background, situation de départ,
+      personnages — l'enregistrer, puis démarrer l'histoire autant de fois qu'on veut, pour obtenir
+      des récits différents à partir d'une même base.</em> Ce fil a été instruit en trois temps.</p>
+
+    <h3>6.1 — Le constat : la base n'existait pas vraiment</h3>
+    <p>L'assistant collectait déjà exactement cet univers (<code>StoryCreationRequest</code>), mais
+      comme objet jetable. Vérification faite dans le code, voici ce qu'il en restait :</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Donnée saisie</th><th>Sort réel (avant)</th></tr></thead>
+        <tbody>
+          <tr><td class="feat">Nom du monde, genre</td><td>Conservés</td></tr>
+          <tr><td class="feat">Description du monde</td><td>Uniquement dans le texte de la page 0</td></tr>
+          <tr><td class="feat">Personnages</td><td>Seuls les <strong>noms</strong> survivaient — descriptions perdues</td></tr>
+          <tr><td class="feat">Style narratif</td><td>Concaténé dans un libellé d'affichage, jamais transmis au narrateur</td></tr>
+          <tr><td class="feat">Lieux</td><td><strong>Jetés</strong> — <code>request.Locations</code> n'avait aucun usage</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="cico">△</span>
+      <div>
+        <p class="ctitle">Conséquence</p>
+        <p>Construire « une base réutilisable » sans corriger cela aurait produit des parties qui
+          divergent pour la mauvaise raison : parce que la base ne contraignait presque rien.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">U1</span><h3>Rendre la bible d'univers opérante</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · M</span></div>
+      <p class="oneliner">Persister la définition complète de l'univers et la réinjecter dans les prompts.</p>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li><code>StoryWorld</code> (+ <code>WorldCharacter</code>/<code>WorldPlace</code>) capture la définition complète et se rend soit en section de prompt, soit en faits discrets.</li>
+          <li>Stockée en <code>SerializedWorld</code> sur le <strong>slot</strong> — métadonnée immuable, une seule ligne (migration <code>AddStoryWorld</code>).</li>
+          <li>Injectée en « BIBLE DE L'UNIVERS » dans le prompt du narrateur, et en faits établis pour l'agent Cohérence.</li>
+          <li>Les histoires antérieures (sans bible) retombent sur l'ancien comportement.</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span><b>Validé par un test falsifiable :</b> depuis une ouverture ne nommant que le personnage, la page générée a fait surgir la cité de verre, la loi interdisant de crier, les gants dépareillés, la Halle aux Cendres, sa cendre blanche et les pieds nus — et a tenu le style « phrases courtes, présent ». Tous ces éléments étaient auparavant perdus.</span></div>
+    </div>
+
+    <h3>6.2 — Le test de divergence</h3>
+    <p>Deux parties lancées sur une base et une ouverture <strong>strictement identiques</strong>,
+      puis une troisième via « Nouvelle partie » :</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th></th><th>Run A</th><th>Run B</th><th>Partie 2</th></tr></thead>
+        <tbody>
+          <tr><td class="feat">Qui survient</td><td>un messager</td><td>un messager</td><td><strong>une cliente</strong></td></tr>
+          <tr><td class="feat">La demande</td><td>commande de verre</td><td>un cristal pour le Conseil</td><td><strong>un verre de protection pour son fils en danger</strong></td></tr>
+          <tr><td class="feat">Enjeu</td><td>prestige</td><td>prestige</td><td><strong>la vie d'un enfant</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>A et B sont deux variations d'une même scène : squelette identique, texture différente.
+      La partie 2, elle, introduit un personnage et un enjeu absents des deux autres.
+      <strong>Conclusion : à base et ouverture identiques, on obtient bien des amorces
+      différentes</strong> — et la divergence s'accentue ensuite via les choix.</p>
+
+    <div class="callout">
+      <span class="cico">✎</span>
+      <div>
+        <p class="ctitle">Un critère mal posé, corrigé</p>
+        <p>Un verdict intermédiaire concluait « l'hypothèse ne tient pas ». Il jugeait en fait
+          « deux <em>histoires</em> différentes ? » là où l'attendu était « deux <em>parties</em> d'un
+          même univers, qui bifurquent ». Sur le bon critère, le résultat est positif. À noter aussi :
+          seule la page 1 — le point le plus contraint du récit — avait été comparée.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">U2</span><h3>« Nouvelle partie »</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · S</span></div>
+      <p class="oneliner">Rejouer un univers autant de fois qu'on veut, depuis la même ouverture.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p>La bible et la page 0 sont clonées dans un slot neuf ; les pages écrites restent derrière.</p></div>
+        <div class="to"><div class="lab">Puis</div><p>L'action d'ouverture (l'intention de la page 1 source) est rejouée automatiquement via <code>?intent=</code> — on atterrit sur une page 1 en cours d'écriture.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li><code>DuplicateStoryAsync</code> renvoie le nouveau slot et l'ouverture à rejouer.</li>
+          <li>Nommage « <em>titre</em> — partie N », en évitant les collisions.</li>
+          <li>Boutons dans le composer et sur chaque ligne de bibliothèque.</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span><b>Bon marché grâce à U1 :</b> la bible étant un blob unique sur le slot, dupliquer = créer un slot, copier le blob, recopier la page 0. <b>Aucune entité nouvelle, aucune migration.</b></span></div>
+    </div>
+
+    <h3>6.3 — Ce qui reste ouvert</h3>
+    <ul class="clean">
+      <li><strong>La duplication ne propage rien.</strong> Retoucher le monde d'une partie ne touche pas les autres. C'est l'arbitrage assumé de la version pauvre.</li>
+      <li><strong>La bibliothèque va se charger.</strong> Plusieurs univers × plusieurs parties, à plat, deviendra illisible. Un regroupement s'imposera.</li>
+      <li><strong>Le canon dérive.</strong> Les parties inventent des personnages (un frère disparu est apparu spontanément lors des tests). Vouloir les promouvoir dans l'univers viendra tôt ou tard.</li>
+    </ul>
+    <p>Ces trois points sont exactement les déclencheurs d'une entité <code>Univers</code> de plein
+      droit (table dédiée + clé étrangère sur le slot, assistant scindé en « créer un univers » /
+      « démarrer une partie », bibliothèque à deux niveaux). <strong>Tant qu'ils ne mordent pas, la
+      version actuelle suffit.</strong></p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Feuille de route proposée</h2></div>
     <p>Regroupée pour livrer de la valeur vite : d'abord les gains rapides, puis les chantiers avec un peu de plomberie.</p>
 
     <div class="phase p0">
@@ -482,8 +599,18 @@
       <div>
         <span class="ptag">Édition avancée · livré</span>
         <h4>Retoucher le récit <span class="pill present"><span class="dot"></span>Livré</span></h4>
-        <p>Reprise fine du texte et de la structure. <strong>PDF non livré</strong> — voir §07.</p>
+        <p>Reprise fine du texte et de la structure. <strong>PDF non livré</strong> — voir §08.</p>
         <div class="deliv"><b>Livrables</b> C2 (régénérer/éditer la page) · annuler la dernière page · renommer · régénérer les choix · export EPUB.</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pnum">4</div>
+      <div>
+        <span class="ptag">Intention d'origine · livré</span>
+        <h4>L'univers réutilisable <span class="pill present"><span class="dot"></span>Livré</span></h4>
+        <p>Rendre la base opérante, puis pouvoir la rejouer. Détail et résultats du test de divergence en §06.</p>
+        <div class="deliv"><b>Livrables</b> U1 (bible d'univers dans les prompts) · U2 (« Nouvelle partie ») · prompt d'image éditable.</div>
       </div>
     </div>
   </div>
@@ -492,7 +619,7 @@
 <!-- 07 -->
 <section>
   <div class="wrap">
-    <div class="sec-head"><span class="sec-num">07</span><h2>Décisions</h2></div>
+    <div class="sec-head"><span class="sec-num">08</span><h2>Décisions</h2></div>
     <p>Les arbitrages E3, E5, E6 et C1 sont tranchés et implémentés. Seul le PDF reste ouvert.</p>
 
     <div class="q resolved">
