@@ -120,6 +120,17 @@
                 break;
 
             case 4:
+                <h2 style="font-size:23px;margin-bottom:4px">Première page</h2>
+                <p style="font-size:13px;color:var(--text-3);margin:0 0 22px">Par quoi l'histoire commence-t-elle ? (facultatif — vous pourrez aussi l'écrire plus tard)</p>
+                <label class="fld-label">Première action</label>
+                <textarea class="field" @bind="this.firstAction" style="min-height:120px"
+                          placeholder="Ex : Le gardien découvre une page arrachée du registre, écrite de la main de son frère disparu…"></textarea>
+                <div style="margin-top:12px;font-size:12.5px;color:var(--text-3);line-height:1.55">
+                    ▸ Si vous remplissez ce champ, la première page sera générée immédiatement après la création.
+                </div>
+                break;
+
+            case 5:
                 <h2 style="font-size:23px;margin-bottom:4px">Récapitulatif</h2>
                 <p style="font-size:13px;color:var(--text-3);margin:0 0 24px">Un dernier regard avant de donner vie à l'histoire.</p>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-bottom:22px">
@@ -128,6 +139,7 @@
                     <div style="grid-column:1/-1"><div class="eyebrow" style="margin-bottom:3px">Description</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2);line-height:1.5">@(string.IsNullOrWhiteSpace(this.worldDescription) ? "Aucune description." : this.worldDescription)</div></div>
                     <div><div class="eyebrow" style="margin-bottom:3px">Style</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2)">@(string.IsNullOrWhiteSpace(this.narrativeStyle) ? "—" : this.narrativeStyle)</div></div>
                     <div><div class="eyebrow" style="margin-bottom:3px">Modèle</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2)">@ModelDisplay.Badge(this.model, this.models)</div></div>
+                    <div style="grid-column:1/-1"><div class="eyebrow" style="margin-bottom:3px">Première page</div><div style="font-family:var(--serif);font-size:15px;color:var(--text-2);line-height:1.5">@(string.IsNullOrWhiteSpace(this.firstAction) ? "— à écrire depuis l'écran de génération —" : this.firstAction)</div></div>
                 </div>
                 <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
                     <span class="chip" style="text-transform:none;letter-spacing:0;font-size:12.5px;padding:6px 13px;background:var(--surface-2)">👥 @NamedCharacters.Count personnage(s)</span>

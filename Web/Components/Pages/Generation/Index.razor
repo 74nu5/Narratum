@@ -248,7 +248,8 @@
 
                     <button class="btn btn-accent btn-block" @onclick="() => RequestGenerate(_userIntent)" disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">✦ Générer la suite</button>
                     <button class="btn btn-ghost btn-block" style="margin-top:8px" @onclick="() => RequestGenerate(AutoContinueIntent)" disabled="@_isGenerating">↷ Continuer seul</button>
-                    <a class="btn btn-quiet btn-block" href="/" style="margin-top:4px">← Retour au tableau de bord</a>
+                    <a class="btn btn-quiet btn-block" href="@($"/export/{SlotName}/markdown")" style="margin-top:8px">⤓ Exporter en Markdown</a>
+                    <a class="btn btn-quiet btn-block" href="/" style="margin-top:2px">← Retour au tableau de bord</a>
                 </div>
             </section>
 
@@ -316,8 +317,13 @@
 @code {
     [Parameter] public string SlotName { get; set; } = string.Empty;
 
+    /// Opening action handed over by the wizard: page 1 is generated on arrival.
+    [SupplyParameterFromQuery(Name = "intent")]
+    public string? OpeningIntent { get; set; }
+
     private List<StoryEntry> _library = new();
     private string? _loadedSlot;
+    private string? _autoStartedFor;
     private string? _genre;
     private bool _backstageOpen;
     private bool _confirmRewrite;
@@ -397,6 +403,16 @@
 
         _loadedSlot = SlotName;
         await LoadStoryAsync();
+
+        // Arriving from the wizard with an opening action: write page 1 immediately, then drop
+        // the query string so a refresh doesn't generate it a second time.
+        if (!string.IsNullOrWhiteSpace(OpeningIntent) && _autoStartedFor != SlotName)
+        {
+            _autoStartedFor = SlotName;
+            var opening = OpeningIntent;
+            await RunGenerationAsync(opening);
+            Navigation.NavigateTo($"/generation/{SlotName}", replace: true);
+        }
     }
 
     private async Task LoadStoryAsync()

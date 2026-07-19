@@ -245,6 +245,7 @@
           <tr><td class="feat">Hygiène dépôt</td><td>Base SQLite dev désindexée (gitignore) ; nettoyage des branches ; refonte mergée dans <code>main</code>.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 0</td><td>E2 « Lire » depuis l'accueil · E4 Narrateur masqué des coulisses · E5 suppression de la page Configuration.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 1</td><td>E1 régénération de l'illustration · E6 réécriture depuis une page (troncature + confirmation) · C3 « Continuer seul » · secrets cachés en mode Expert.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Évolutions — phase 2</td><td>E3 étape « Première page » au wizard (génération immédiate) · C1 export Markdown (endpoint + liens). Correctif : rechargement de l'histoire au changement de paramètre de route.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -322,7 +323,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">E3</span><h3>Première action dans le wizard → génère la 1ʳᵉ page</h3><span class="effort">Effort · M</span></div>
+      <div class="fhead"><span class="fidx">E3</span><h3>Première action dans le wizard → génère la 1ʳᵉ page</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · M</span></div>
       <p class="oneliner">Une étape pour décrire la première action, afin de générer directement la page 1 à la création.</p>
       <div class="maprow">
         <div class="from"><div class="lab">Aujourd'hui</div><p>Le wizard crée l'histoire puis atterrit sur l'écran de génération, où l'utilisateur doit saisir une première intention pour lancer la page&nbsp;1.</p></div>
@@ -401,7 +402,7 @@
     <p>Quelques pistes qui prolongent naturellement l'usage — à prendre ou à laisser.</p>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">C1</span><h3>Exporter l'histoire</h3><span class="effort">Effort · M</span></div>
+      <div class="fhead"><span class="fidx">C1</span><h3>Exporter l'histoire</h3><span class="pill present"><span class="dot"></span>Markdown livré</span><span class="effort">Effort · M</span></div>
       <p class="oneliner">Compiler toutes les pages (prose + illustrations) en un fichier téléchargeable — Markdown d'abord, puis EPUB/PDF.</p>
       <p class="muted" style="font-size:.9rem;margin:0">Une maquette antérieure prévoyait un bouton « Export ». Très fort ROI pour un générateur d'histoires : on repart avec un livre. Markdown = trivial ; EPUB/PDF = une lib.</p>
     </div>
@@ -459,9 +460,9 @@
     <div class="phase">
       <div class="pnum">2</div>
       <div>
-        <span class="ptag">Confort de création</span>
-        <h4>Démarrer et emporter</h4>
-        <p>Une histoire qui démarre déjà écrite, et qu'on peut exporter.</p>
+        <span class="ptag">Confort de création · livré</span>
+        <h4>Démarrer et emporter <span class="pill present"><span class="dot"></span>Livré</span></h4>
+        <p>Une histoire qui démarre déjà écrite, et qu'on peut exporter. EPUB/PDF restent à faire (phase 3).</p>
         <div class="deliv"><b>Livrables</b> E3 (première action au wizard) · C1 (export Markdown).</div>
       </div>
     </div>

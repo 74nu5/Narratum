@@ -6,7 +6,7 @@ using Narratum.Web.Services;
 
 public partial class Index
 {
-    private readonly string[] stepTitles = ["Monde", "Genre", "Personnages", "Lieux", "Résumé"];
+    private readonly string[] stepTitles = ["Monde", "Genre", "Personnages", "Lieux", "Première page", "Résumé"];
     private int currentStep;
 
     // Genre catalogue (code → French label).
@@ -23,6 +23,9 @@ public partial class Index
     private string worldDescription = string.Empty;
     private string genre = "Fantasy";
     private string narrativeStyle = string.Empty;
+
+    // Optional opening action: when filled, the first page is generated right after creation.
+    private string firstAction = string.Empty;
     private string model = ModelSelectionService.AvailableModels[0].Id;
     private IReadOnlyList<ModelOption> models = ModelSelectionService.AvailableModels;
     private IReadOnlyList<ModelOption> localModels = [];
@@ -104,7 +107,12 @@ public partial class Index
 
         await this.GenService.CreateStoryAsync(slotName, request);
 
-        this.Navigation.NavigateTo($"/generation/{slotName}");
+        // Hand the opening action over so the generation screen writes page 1 straight away.
+        var target = string.IsNullOrWhiteSpace(this.firstAction)
+            ? $"/generation/{slotName}"
+            : $"/generation/{slotName}?intent={Uri.EscapeDataString(this.firstAction.Trim())}";
+
+        this.Navigation.NavigateTo(target);
     }
 
     /// <summary>Character row captured by the wizard form.</summary>

@@ -47,6 +47,7 @@ builder.Services.AddSingleton<ImageStorageService>();
 builder.Services.AddScoped<IModelResolver>(sp => sp.GetRequiredService<ModelSelectionService>());
 builder.Services.AddScoped<IGenerationService, GenerationService>();
 builder.Services.AddScoped<ExpertModeService>();
+builder.Services.AddScoped<StoryExportService>();
 
 var app = builder.Build();
 
@@ -76,6 +77,14 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
 
 app.UseAntiforgery();
 app.MapStaticAssets();
+
+// Story export — a plain endpoint so the browser downloads a file without JS interop.
+app.MapGet("/export/{slotName}/markdown", async (
+    string slotName, StoryExportService export, CancellationToken ct) =>
+{
+    var (fileName, markdown) = await export.ToMarkdownAsync(slotName, ct);
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(markdown), "text/markdown; charset=utf-8", fileName);
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

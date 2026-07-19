@@ -58,6 +58,7 @@
                         <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
                             <a class="btn btn-accent btn-sm" href="@($"/generation/{story.SlotName}")">▶ Continuer</a>
                             <a class="btn btn-soft btn-sm" href="@($"/reader/{story.SlotName}")">📖 Lire</a>
+                            <a class="btn btn-soft btn-sm" href="@($"/export/{story.SlotName}/markdown")" title="Exporter en Markdown">⤓</a>
                             <button class="icon-btn lib-del" title="Supprimer" @onclick="() => _deleteTarget = story">🗑</button>
                         </div>
                     </div>
