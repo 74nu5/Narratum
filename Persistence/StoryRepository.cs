@@ -510,6 +510,17 @@ public class StoryRepository : IStoryRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<string?> GetPageImagePromptAsync(string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.PageSnapshots
+            .AsNoTracking()
+            .Where(p => p.SlotName == slotName && p.PageIndex == pageIndex)
+            .Select(p => p.ImagePrompt)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<string?> GetPageImageAsync(string slotName, int pageIndex, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

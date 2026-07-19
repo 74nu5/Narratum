@@ -136,13 +136,23 @@ public interface IGenerationService
     /// <summary>
     /// Re-runs the illustration for an existing page — the image agent can fail (or disappoint)
     /// while the page itself is fine, and the author shouldn't have to regenerate the prose.
-    /// A fresh visual prompt is derived from the page text, then rendered with
-    /// <paramref name="imageModel"/>. Returns the served image URL on success.
+    /// Pass <paramref name="imagePromptOverride"/> to render the author's own wording; otherwise
+    /// a fresh visual prompt is derived from the page text. Returns the served image URL.
     /// </summary>
     Task<Result<string>> RegeneratePageImageAsync(
         string slotName,
         int pageIndex,
         string imageModel,
+        string? imagePromptOverride = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// The visual prompt to show the author before regenerating: the one that produced the
+    /// current illustration, or a freshly derived one when none was ever recorded.
+    /// </summary>
+    Task<string> SuggestImagePromptAsync(
+        string slotName,
+        int pageIndex,
         CancellationToken ct = default);
 
     /// <summary>

@@ -247,6 +247,7 @@
           <tr><td class="feat">Évolutions — phase 1</td><td>E1 régénération de l'illustration · E6 réécriture depuis une page (troncature + confirmation) · C3 « Continuer seul » · secrets cachés en mode Expert.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 2</td><td>E3 étape « Première page » au wizard (génération immédiate) · C1 export Markdown (endpoint + liens). Correctif : rechargement de l'histoire au changement de paramètre de route.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Évolutions — phase 3</td><td>C2 régénérer / éditer une page · annuler la dernière page · régénérer les choix · renommer une histoire · export <strong>EPUB</strong> (fait main, illustrations embarquées).</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Prompt d'image éditable</td><td>La régénération d'illustration passe par un éditeur de prompt (pré-rempli, re-proposable), qu'elle ait échoué ou non.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -303,7 +304,15 @@
           <li>UI : bouton sur la page courante de <code>Generation/Index.razor</code>, avec état « en cours » (spinner).</li>
         </ul>
       </div>
-      <div class="win"><span class="wico">◆</span><span>Débloque les pages sans image sans devoir régénérer tout le texte. <b>Fondation</b> pour « régénérer / éditer la page » (voir E-bis).</span></div>
+      <div class="plug">
+        <div class="lab">Complément — prompt éditable</div>
+        <ul>
+          <li>Le bouton n'ouvre plus une génération à l'aveugle mais un <strong>éditeur de prompt</strong>, pré-rempli avec celui qui a produit l'illustration actuelle (ou un prompt fraîchement suggéré si aucun n'a été enregistré — un échec n'en persiste aucun).</li>
+          <li>« ↻ Reproposer un prompt » relance l'agent ; « ✨ Générer » rend l'image avec le texte à l'écran, qui est ensuite persisté.</li>
+          <li>En cas d'échec, l'éditeur <strong>reste ouvert</strong> : c'est précisément le moment où l'auteur doit reformuler (filtre de contenu, cadrage indésirable…).</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Débloque les pages sans image sans régénérer le texte, et rend la main sur le visuel. <b>Validé en réel :</b> une page refusée deux fois par le filtre de contenu Azure a été illustrée après reformulation du prompt.</span></div>
     </div>
 
     <div class="feature">
