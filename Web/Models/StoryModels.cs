@@ -75,6 +75,27 @@ public record StoryWorld(
     }
 }
 
+/// <summary>
+/// Un univers réutilisable vu par l'UI : le décor, le ton, le casting, les lieux et la situation
+/// de départ. Chaque histoire en est une partie.
+/// </summary>
+public record UniverseInfo(
+    string UniverseId,
+    string Name,
+    string GenreStyle,
+    string? Description,
+    string? NarrativeStyle,
+    IReadOnlyList<WorldCharacter> Characters,
+    IReadOnlyList<WorldPlace> Locations,
+    string? OpeningAction,
+    string? DefaultModel,
+    DateTime CreatedAt)
+{
+    /// <summary>La bible telle qu'elle est injectée dans les prompts.</summary>
+    public StoryWorld ToWorld()
+        => new(this.Name, this.GenreStyle, this.Description, this.NarrativeStyle, this.Characters, this.Locations);
+}
+
 /// <summary>Un personnage tel que défini à la création (nom + description libre).</summary>
 public record WorldCharacter(string Name, string? Description = null);
 
@@ -93,6 +114,9 @@ public record StoryEntry
     public required string GenreStyle { get; init; }
     public string? Description { get; init; }
     public int TotalWordCount { get; init; }
+
+    /// <summary>The universe this story is a run of, or null for an unattached legacy story.</summary>
+    public string? UniverseId { get; init; }
 }
 
 /// <summary>

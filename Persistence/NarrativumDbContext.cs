@@ -34,6 +34,12 @@ public class NarrativumDbContext : DbContext
     public DbSet<PageSnapshotEntity> PageSnapshots { get; set; } = null!;
 
     /// <summary>
+    /// Table des univers : le décor réutilisable (monde, ton, casting, lieux, ouverture) dont
+    /// chaque histoire est une partie.
+    /// </summary>
+    public DbSet<UniverseEntity> Universes { get; set; } = null!;
+
+    /// <summary>
     /// Configure le modèle EF Core et les relations.
     /// </summary>
     /// <param name="modelBuilder">Builder pour configurer le modèle</param>
@@ -61,6 +67,24 @@ public class NarrativumDbContext : DbContext
         modelBuilder.Entity<SaveStateSnapshot>()
             .HasIndex(s => s.SlotName)
             .IsUnique();
+
+        // Configuration de UniverseEntity
+        modelBuilder.Entity<UniverseEntity>()
+            .HasKey(u => u.UniverseId);
+
+        modelBuilder.Entity<UniverseEntity>()
+            .Property(u => u.UniverseId)
+            .IsRequired()
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<UniverseEntity>()
+            .Property(u => u.Name)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<UniverseEntity>()
+            .Property(u => u.CreatedAt)
+            .IsRequired();
 
         // Configuration de SaveSlotMetadata
         modelBuilder.Entity<SaveSlotMetadata>()
@@ -198,8 +222,50 @@ public record SaveSlotMetadata
 
     /// <summary>
     /// Bible de l'univers sérialisée (monde, style, personnages, lieux) telle que définie à la
-    /// création. Immuable pendant la partie ; réinjectée dans les prompts. Null pour les
-    /// histoires antérieures à cette fonctionnalité.
+    /// création. Sert d'instantané de repli : quand la partie est rattachée à un univers, c'est
+    /// ce dernier qui fait foi. Null pour les histoires antérieures à cette fonctionnalité.
     /// </summary>
     public string? SerializedWorld { get; init; }
+
+    /// <summary>
+    /// Univers dont cette partie est issue. Null pour les histoires créées avant les univers.
+    /// </summary>
+    public string? UniverseId { get; init; }
+}
+
+/// <summary>
+/// Un univers réutilisable : le décor, le ton, le casting, les lieux et la situation de départ.
+/// Une même entrée est rejouée par autant de parties (<see cref="SaveSlotMetadata"/>) qu'on veut.
+/// </summary>
+public record UniverseEntity
+{
+    /// <summary>Identifiant lisible (ex. <c>univers-20260719-123456</c>).</summary>
+    public required string UniverseId { get; init; }
+
+    /// <summary>Nom du monde.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Genre narratif (Fantasy, SciFi…).</summary>
+    public required string GenreStyle { get; init; }
+
+    /// <summary>Description du monde : ambiance, époque, règles.</summary>
+    public string? Description { get; init; }
+
+    /// <summary>Ton et contraintes d'écriture à tenir.</summary>
+    public string? NarrativeStyle { get; init; }
+
+    /// <summary>Casting sérialisé (nom + description).</summary>
+    public string? SerializedCharacters { get; init; }
+
+    /// <summary>Lieux sérialisés (nom + description).</summary>
+    public string? SerializedLocations { get; init; }
+
+    /// <summary>Situation de départ rejouée par chaque nouvelle partie.</summary>
+    public string? OpeningAction { get; init; }
+
+    /// <summary>Modèle de génération retenu à la création.</summary>
+    public string? DefaultModel { get; init; }
+
+    /// <summary>Date de création.</summary>
+    public required DateTime CreatedAt { get; init; }
 }

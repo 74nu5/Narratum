@@ -1,5 +1,6 @@
 namespace Narratum.Web.Components.Pages.Wizard;
 
+using Narratum.Core;
 using Narratum.Llm.Azure;
 using Narratum.Web.Models;
 using Narratum.Web.Services;
@@ -92,25 +93,30 @@ public partial class Index
             this.currentStep--;
     }
 
+    /// <summary>
+    /// The wizard now defines a <em>universe</em>, then starts its first run. Everything collected
+    /// here is the reusable setting; the run is just the first playthrough of it.
+    /// </summary>
     private async Task CreateStory()
     {
-        var slotName = $"story-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
-
-        var request = new StoryCreationRequest(
+        var universe = await this.Universes.CreateAsync(
             this.worldName,
             this.genre,
-            [.. this.characters.Select(c => (c.Name, (string?)c.Description))],
             string.IsNullOrWhiteSpace(this.worldDescription) ? null : this.worldDescription,
             string.IsNullOrWhiteSpace(this.narrativeStyle) ? null : this.narrativeStyle,
-            [.. this.locations.Select(l => (l.Name, (string?)l.Description))],
+            [.. this.characters.Select(c => new WorldCharacter(c.Name, c.Description))],
+            [.. this.locations.Select(l => new WorldPlace(l.Name, l.Description))],
+            string.IsNullOrWhiteSpace(this.firstAction) ? null : this.firstAction.Trim(),
             this.model);
 
-        await this.GenService.CreateStoryAsync(slotName, request);
+        var run = await this.GenService.StartRunAsync(universe.UniverseId);
+        if (run is not Result<StoryRun>.Success success)
+            return;
 
         // Hand the opening action over so the generation screen writes page 1 straight away.
-        var target = string.IsNullOrWhiteSpace(this.firstAction)
-            ? $"/generation/{slotName}"
-            : $"/generation/{slotName}?intent={Uri.EscapeDataString(this.firstAction.Trim())}";
+        var target = string.IsNullOrWhiteSpace(success.Value.OpeningIntent)
+            ? $"/generation/{success.Value.SlotName}"
+            : $"/generation/{success.Value.SlotName}?intent={Uri.EscapeDataString(success.Value.OpeningIntent)}";
 
         this.Navigation.NavigateTo(target);
     }

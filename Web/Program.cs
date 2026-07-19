@@ -25,6 +25,7 @@ builder.Services.AddScoped<NarrativumDbContext>(sp =>
 
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<IStoryRepository, StoryRepository>();
+builder.Services.AddScoped<IUniverseRepository, UniverseRepository>();
 builder.Services.AddScoped<PersistenceService>();
 
 // Add Narratum LLM (Foundry Local)
@@ -48,6 +49,8 @@ builder.Services.AddScoped<IModelResolver>(sp => sp.GetRequiredService<ModelSele
 builder.Services.AddScoped<IGenerationService, GenerationService>();
 builder.Services.AddScoped<ExpertModeService>();
 builder.Services.AddScoped<StoryExportService>();
+builder.Services.AddScoped<UniverseService>();
+builder.Services.AddScoped<UniverseBackfillService>();
 
 var app = builder.Build();
 
@@ -56,6 +59,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<NarrativumDbContext>();
     db.InitializeNarratumDatabase();
+
+    // Promote pre-universe stories into real universes so runs of one setting group together.
+    await scope.ServiceProvider.GetRequiredService<UniverseBackfillService>().RunAsync();
 }
 
 // Configure the HTTP request pipeline.

@@ -41,7 +41,8 @@ public class StoryLibraryService
             LastModified = s.LastUpdated,
             PageCount = s.PageCount,
             GenreStyle = s.GenreStyle,
-            Description = s.Description
+            Description = s.Description,
+            UniverseId = s.UniverseId
         })];
     }
 

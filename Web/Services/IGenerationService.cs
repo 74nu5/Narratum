@@ -194,4 +194,12 @@ public interface IGenerationService
     Task<Result<StoryRun>> DuplicateStoryAsync(
         string sourceSlotName,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Starts a new run of a universe: a story seeded from the setting, attached to it, named
+    /// « <em>univers</em> — partie N ». The universe's opening action is returned to be replayed.
+    /// </summary>
+    Task<Result<StoryRun>> StartRunAsync(
+        string universeId,
+        CancellationToken ct = default);
 }

@@ -43,6 +43,7 @@ public class GenerationServiceTests
             new Mock<ILlmClient>().Object,
             new Mock<IImageGenerator>().Object,
             CreateImageStorage(),
+            new Mock<IUniverseRepository>().Object,
             NullLogger<GenerationService>.Instance);
     }
 
@@ -281,6 +282,7 @@ public class GenerationServiceTests
             new FakeStreamingLlmClient("Once ", "upon ", "a time."),
             new Mock<IImageGenerator>().Object,
             CreateImageStorage(),
+            new Mock<IUniverseRepository>().Object,
             NullLogger<GenerationService>.Instance);
 
         // Act
@@ -305,6 +307,7 @@ public class GenerationServiceTests
             new FakeStreamingLlmClient("x"),
             new Mock<IImageGenerator>().Object,
             CreateImageStorage(),
+            new Mock<IUniverseRepository>().Object,
             NullLogger<GenerationService>.Instance);
 
         var act = async () =>
@@ -350,6 +353,7 @@ public class GenerationServiceTests
             fakeClient,
             new Mock<IImageGenerator>().Object,
             CreateImageStorage(),
+            new Mock<IUniverseRepository>().Object,
             NullLogger<GenerationService>.Instance);
 
         // Act — request an explicit model for this page
@@ -442,6 +446,7 @@ public class GenerationServiceTests
             new ThrowingAgentsStreamingClient("Il ", "était ", "une fois."),
             new Mock<IImageGenerator>().Object,
             CreateImageStorage(),
+            new Mock<IUniverseRepository>().Object,
             NullLogger<GenerationService>.Instance);
 
         // Act

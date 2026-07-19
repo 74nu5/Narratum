@@ -546,16 +546,36 @@
       <div class="win"><span class="wico">◆</span><span><b>Bon marché grâce à U1 :</b> la bible étant un blob unique sur le slot, dupliquer = créer un slot, copier le blob, recopier la page 0. <b>Aucune entité nouvelle, aucune migration.</b></span></div>
     </div>
 
-    <h3>6.3 — Ce qui reste ouvert</h3>
+    <h3>6.3 — Les déclencheurs, et leur réponse</h3>
+    <p>Trois limites de la version pauvre avaient été identifiées ; deux ont mordu tout de suite,
+      et ont motivé le passage à une entité <code>Univers</code> de plein droit.</p>
     <ul class="clean">
-      <li><strong>La duplication ne propage rien.</strong> Retoucher le monde d'une partie ne touche pas les autres. C'est l'arbitrage assumé de la version pauvre.</li>
-      <li><strong>La bibliothèque va se charger.</strong> Plusieurs univers × plusieurs parties, à plat, deviendra illisible. Un regroupement s'imposera.</li>
-      <li><strong>Le canon dérive.</strong> Les parties inventent des personnages (un frère disparu est apparu spontanément lors des tests). Vouloir les promouvoir dans l'univers viendra tôt ou tard.</li>
+      <li><strong>La duplication ne propageait rien.</strong> Retoucher le monde d'une partie ne touchait pas les autres. <span class="pill present"><span class="dot"></span>Résolu par U3</span></li>
+      <li><strong>La bibliothèque se chargeait.</strong> Plusieurs univers × plusieurs parties, à plat, devenait illisible. <span class="pill present"><span class="dot"></span>Résolu par U3</span></li>
+      <li><strong>Le canon dérive.</strong> Les parties inventent des personnages (un frère disparu est apparu spontanément lors des tests). Les promouvoir dans l'univers reste à faire.</li>
     </ul>
-    <p>Ces trois points sont exactement les déclencheurs d'une entité <code>Univers</code> de plein
-      droit (table dédiée + clé étrangère sur le slot, assistant scindé en « créer un univers » /
-      « démarrer une partie », bibliothèque à deux niveaux). <strong>Tant qu'ils ne mordent pas, la
-      version actuelle suffit.</strong></p>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">U3</span><h3>L'entité <code>Univers</code> et la bibliothèque à deux niveaux</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · M</span></div>
+      <p class="oneliner">L'univers devient un objet de première classe ; les parties sont ses exécutions.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Avant</div><p>La bible vivait sur le slot, dupliquée à chaque partie. Aucun lien entre les parties d'un même monde.</p></div>
+        <div class="to"><div class="lab">Après</div><p>Table <code>Universes</code> + <code>SaveSlots.UniverseId</code>. L'univers est la source de vérité : une correction du monde vaut pour toutes ses parties, passées comme futures.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li>Migration <code>AddUniverses</code> ; <code>IUniverseRepository</code> / <code>UniverseRepository</code> / <code>UniverseService</code>.</li>
+          <li>Résolution de la bible : l'univers d'abord, le blob du slot en repli — les histoires antérieures continuent de fonctionner.</li>
+          <li><code>StartRunAsync(universeId)</code> sème une partie depuis l'univers, la rattache et la nomme « <em>univers</em> — partie N ».</li>
+          <li>L'assistant crée désormais un <strong>univers</strong>, puis sa première partie.</li>
+          <li>Bibliothèque à deux niveaux : univers dépliables, parties en dessous, actions au niveau de l'univers (＋ nouvelle partie, supprimer). Même regroupement dans la barre latérale de génération.</li>
+          <li>Supprimer un univers <strong>ne supprime pas ses parties</strong> : elles sont détachées et rejoignent « Sans univers ».</li>
+          <li><code>UniverseBackfillService</code> promeut au démarrage les bibles pré-existantes en univers, en dédupliquant par empreinte (nom + genre + description).</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span><b>Vérifié au démarrage :</b> le backfill a rattaché <b>3 histoires à un seul univers</b> — elles partageaient la même bible, la déduplication a donc bien reconnu trois parties d'un même monde plutôt que trois mondes.</span></div>
+    </div>
   </div>
 </section>
 

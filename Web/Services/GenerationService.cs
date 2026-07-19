@@ -27,6 +27,7 @@ public class GenerationService : IGenerationService
     private readonly ILlmClient _llmClient;
     private readonly IImageGenerator _imageGenerator;
     private readonly ImageStorageService _imageStorage;
+    private readonly IUniverseRepository _universes;
     private readonly ILogger<GenerationService> _logger;
     private readonly PromptOptimizationService _promptOptimizer = new();
     private readonly AgentTemperatureConfig _temperatures = AgentTemperatureConfig.Default;
@@ -45,6 +46,7 @@ public class GenerationService : IGenerationService
         ILlmClient llmClient,
         IImageGenerator imageGenerator,
         ImageStorageService imageStorage,
+        IUniverseRepository universes,
         ILogger<GenerationService> logger)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
@@ -53,6 +55,7 @@ public class GenerationService : IGenerationService
         _llmClient = llmClient ?? throw new ArgumentNullException(nameof(llmClient));
         _imageGenerator = imageGenerator ?? throw new ArgumentNullException(nameof(imageGenerator));
         _imageStorage = imageStorage ?? throw new ArgumentNullException(nameof(imageStorage));
+        _universes = universes ?? throw new ArgumentNullException(nameof(universes));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -638,6 +641,65 @@ public class GenerationService : IGenerationService
     public Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default)
         => _storyRepository.RenameStoryAsync(slotName, displayName, ct);
 
+    /// <summary>A universe rendered as the bible the prompts consume.</summary>
+    private static StoryWorld ToWorld(Core.Universe u) => new(
+        u.Name,
+        u.GenreStyle,
+        u.Description,
+        u.NarrativeStyle,
+        Deserialize<Models.WorldCharacter>(u.SerializedCharacters),
+        Deserialize<Models.WorldPlace>(u.SerializedLocations));
+
+    private static IReadOnlyList<T> Deserialize<T>(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<T>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<StoryRun>> StartRunAsync(string universeId, CancellationToken ct = default)
+    {
+        var universe = await _universes.GetAsync(universeId, ct);
+        if (universe is null)
+            return Result<StoryRun>.Fail("Cet univers n'existe plus.");
+
+        var world = ToWorld(universe);
+        var characters = world.Characters ?? [];
+
+        var request = new StoryCreationRequest(
+            universe.Name,
+            universe.GenreStyle,
+            [.. characters.Select(c => (c.Name, (string?)c.Description))],
+            universe.Description,
+            universe.NarrativeStyle,
+            [.. (world.Locations ?? []).Select(l => (l.Name, (string?)l.Description))],
+            universe.DefaultModel);
+
+        var slotName = $"story-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        var created = await CreateStoryAsync(slotName, request, ct);
+        if (created is Result<string>.Failure failure)
+            return Result<StoryRun>.Fail(failure.Message);
+
+        await _storyRepository.SetStoryUniverseAsync(slotName, universeId, ct);
+
+        var stories = await _storyRepository.ListStoriesAsync(ct);
+        var runCount = stories.Count(s => s.UniverseId == universeId);
+        await _storyRepository.RenameStoryAsync(slotName, $"{universe.Name} — partie {runCount}", ct);
+
+        _logger.LogInformation("Started run {Slot} of universe {UniverseId}", slotName, universeId);
+
+        return Result<StoryRun>.Ok(new StoryRun(slotName, universe.OpeningAction));
+    }
+
     /// <inheritdoc />
     public async Task<Result<StoryRun>> DuplicateStoryAsync(
         string sourceSlotName, CancellationToken ct = default)
@@ -765,6 +827,17 @@ public class GenerationService : IGenerationService
     {
         try
         {
+            // When the run belongs to a universe, that universe is the single source of truth —
+            // editing it in one place is what makes the entity worth having. The per-slot
+            // snapshot remains the fallback for unattached and legacy stories.
+            var universeId = await _storyRepository.GetStoryUniverseAsync(slotName, ct);
+            if (!string.IsNullOrWhiteSpace(universeId))
+            {
+                var universe = await _universes.GetAsync(universeId, ct);
+                if (universe is not null)
+                    return ToWorld(universe);
+            }
+
             var json = await _storyRepository.GetStoryWorldAsync(slotName, ct);
 
             return string.IsNullOrWhiteSpace(json)
