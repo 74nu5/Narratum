@@ -339,6 +339,23 @@ public class StoryRepository : IStoryRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<int> TruncatePagesAfterAsync(string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var obsolete = await db.PageSnapshots
+            .Where(p => p.SlotName == slotName && p.PageIndex > pageIndex)
+            .ToListAsync(ct);
+
+        if (obsolete.Count == 0)
+            return 0;
+
+        db.PageSnapshots.RemoveRange(obsolete);
+        await db.SaveChangesAsync(ct);
+
+        return obsolete.Count;
+    }
+
     public async Task<bool> StoryExistsAsync(string slotName, CancellationToken ct = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(ct);

@@ -193,6 +193,8 @@ textarea.field { resize: vertical; line-height: 1.5; }
 /* ---- Secret revealed box ------------------------------------------------- */
 .secret { background: var(--secret-bg); border: 1px solid var(--secret-border); border-radius: 10px; padding: 14px 16px; }
 .secret p { margin: 0; font-family: var(--serif); font-size: 15px; line-height: 1.6; color: var(--secret-text); }
+/* Hidden secrets (Expert only): the author's material, not yet revealed to the reader. */
+.secret-hidden { background: transparent; border-style: dashed; opacity: .78; }
 
 /* ---- Character card ------------------------------------------------------ */
 .person { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }

@@ -64,6 +64,13 @@ public interface IStoryRepository
     Task<bool> StoryExistsAsync(string slotName, CancellationToken ct = default);
 
     /// <summary>
+    /// Deletes every page strictly after <paramref name="pageIndex"/>. Used when the author
+    /// rewrites the story from an earlier page: the pages that followed no longer belong to it.
+    /// Returns how many pages were removed.
+    /// </summary>
+    Task<int> TruncatePagesAfterAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets all page indices for a story (timeline).
     /// </summary>
     Task<List<int>> GetPageHistoryAsync(string slotName, CancellationToken ct = default);

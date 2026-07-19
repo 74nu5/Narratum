@@ -92,9 +92,25 @@
                                     <span class="chip" style="position:absolute;top:10px;left:10px;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(4px)">Planche</span>
                                 </div>
                                 <figcaption class="mono" style="font-size:10.5px;color:var(--text-3);margin-top:9px">@SlotName / page @_currentPageIndex</figcaption>
+                                <button class="btn btn-quiet btn-sm" style="padding-left:0;margin-top:2px" @onclick="RegenerateImage" disabled="@(_regeneratingImage || _isGenerating)">
+                                    @(_regeneratingImage ? "↻ Régénération…" : "↻ Régénérer l'illustration")
+                                </button>
                             </figure>
                         }
-                        <div class="prose dropcap">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
+                        <div>
+                            <div class="prose dropcap">@_currentNarrative@(_isGenerating ? "▋" : string.Empty)</div>
+
+                            @if (string.IsNullOrEmpty(_currentPageImage) && !_isGenerating)
+                            {
+                                <button class="btn btn-dashed btn-sm" style="margin-top:22px" @onclick="RegenerateImage" disabled="@_regeneratingImage">
+                                    @(_regeneratingImage ? "🖼 Génération de l'illustration…" : "🖼 Générer une illustration")
+                                </button>
+                            }
+                            @if (!string.IsNullOrEmpty(_imageError))
+                            {
+                                <div class="msg msg-error" style="margin-top:12px">@_imageError</div>
+                            }
+                        </div>
                     </article>
                 }
                 else
@@ -111,18 +127,20 @@
             }
 
             @* Secrets + characters *@
-            @if (!_isGenerating && (_secrets.Any(s => s.IsRevealed) || _characters.Count > 0))
+            @if (!_isGenerating && (VisibleSecrets.Count > 0 || _characters.Count > 0))
             {
                 <div class="gen-2col-secrets">
                     <div>
-                        <div class="eyebrow" style="margin-bottom:12px">🔑 Secrets révélés</div>
-                        @if (_secrets.Any(s => s.IsRevealed))
+                        <div class="eyebrow" style="margin-bottom:12px">
+                            🔑 Secrets révélés@(ExpertMode.IsExpertModeEnabled ? " + cachés" : null)
+                        </div>
+                        @if (VisibleSecrets.Count > 0)
                         {
                             <div style="display:flex;flex-direction:column;gap:10px">
-                                @foreach (var secret in _secrets.Where(s => s.IsRevealed))
+                                @foreach (var secret in VisibleSecrets)
                                 {
-                                    <div class="secret">
-                                        <span class="chip-secret" style="margin-bottom:8px">@secret.Category</span>
+                                    <div class="secret @(secret.IsRevealed ? null : "secret-hidden")">
+                                        <span class="chip-secret" style="margin-bottom:8px">@secret.Category@(secret.IsRevealed ? null : " · caché")</span>
                                         <p>@secret.Content</p>
                                     </div>
                                 }
@@ -172,7 +190,7 @@
                             @foreach (var choice in _choices)
                             {
                                 n++;
-                                <button class="choice" @onclick="() => ChooseAndContinue(choice)" disabled="@_isGenerating">
+                                <button class="choice" @onclick="() => RequestGenerate(choice.Text)" disabled="@_isGenerating">
                                     <span class="choice-num">@Roman(n)</span>
                                     <span class="choice-body">
                                         <span class="choice-title">@choice.Text</span>
@@ -228,7 +246,8 @@
                     <textarea class="field" style="min-height:78px;margin-bottom:16px" @bind="_userIntent" @bind:event="oninput"
                               placeholder="Ex : Les personnages découvrent une porte secrète…"></textarea>
 
-                    <button class="btn btn-accent btn-block" @onclick="GenerateNextPage" disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">✦ Générer la suite</button>
+                    <button class="btn btn-accent btn-block" @onclick="() => RequestGenerate(_userIntent)" disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">✦ Générer la suite</button>
+                    <button class="btn btn-ghost btn-block" style="margin-top:8px" @onclick="() => RequestGenerate(AutoContinueIntent)" disabled="@_isGenerating">↷ Continuer seul</button>
                     <a class="btn btn-quiet btn-block" href="/" style="margin-top:4px">← Retour au tableau de bord</a>
                 </div>
             </section>
@@ -243,6 +262,27 @@
         </div>
     </div>
 </div>
+
+@* Rewriting from an earlier page drops everything that followed — destructive, so confirm. *@
+@if (_confirmRewrite)
+{
+    <div class="overlay" @onclick="CancelRewrite">
+        <div class="modal" style="max-width:440px;padding:26px 26px 22px" @onclick:stopPropagation="true">
+            <div class="modal-title" style="margin-bottom:8px">Réécrire à partir de cette page ?</div>
+            <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--text-2)">
+                Vous êtes revenu sur la page <strong style="color:var(--text)">@_currentPageIndex</strong>.
+                Générer une suite ici supprimera définitivement
+                <strong style="color:var(--text)">@PagesToDrop page@(PagesToDrop > 1 ? "s" : null)</strong>
+                (@(_currentPageIndex + 1) à @(_pageHistory.Count > 0 ? _pageHistory.Max() : _currentPageIndex)).
+                Cette action est irréversible.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button class="btn btn-soft" @onclick="CancelRewrite">Annuler</button>
+                <button class="btn btn-danger" @onclick="ConfirmRewrite">Supprimer et générer</button>
+            </div>
+        </div>
+    </div>
+}
 
 @* Backstage modal (expert) *@
 @if (_backstageOpen && ExpertMode.IsExpertModeEnabled)
@@ -279,6 +319,14 @@
     private List<StoryEntry> _library = new();
     private string? _genre;
     private bool _backstageOpen;
+    private bool _confirmRewrite;
+    private string? _pendingIntent;
+    private bool _regeneratingImage;
+    private string? _imageError;
+
+    // Used by "Continuer seul": the service requires a non-empty intent, so hand the narrator
+    // an explicit "just keep going" instruction rather than loosening the contract.
+    private const string AutoContinueIntent = "Poursuis naturellement le récit, sans changer de direction.";
 
     private List<int> _pageHistory = new();
     private int _currentPageIndex = 0;
@@ -309,6 +357,14 @@
     private const string NarratorAgent = "Narrateur";
     private IReadOnlyList<AgentTraceInfo> BackstageTraces =>
         [.. _agentTraces.Where(t => !string.Equals(t.Agent, NarratorAgent, StringComparison.OrdinalIgnoreCase))];
+
+    // Hidden secrets are the author's material: surface them in Expert mode only.
+    private IReadOnlyList<StorySecret> VisibleSecrets =>
+        ExpertMode.IsExpertModeEnabled ? _secrets : [.. _secrets.Where(s => s.IsRevealed)];
+
+    // Generating from a page that is not the tip rewrites the story from there.
+    private bool IsAtTip => _pageHistory.Count == 0 || _currentPageIndex >= _pageHistory.Max();
+    private int PagesToDrop => _pageHistory.Count == 0 ? 0 : Math.Max(0, _pageHistory.Max() - _currentPageIndex);
 
     // Timeline navigation over the sorted page history.
     private int CurrentPos => _pageHistory.IndexOf(_currentPageIndex);
@@ -389,10 +445,75 @@
     private async Task LoadCharacters(int pageIndex) => _characters = await GenService.GetPageCharactersAsync(SlotName, pageIndex);
     private async Task LoadSecrets(int pageIndex) => _secrets = await GenService.GetPageSecretsAsync(SlotName, pageIndex);
 
-    private async Task ChooseAndContinue(StoryChoice choice)
+    /// Entry point for every generation trigger (compose, a choice, or "continuer seul").
+    /// Guards the case where the author went back: rewriting from there drops the rest.
+    private async Task RequestGenerate(string intent)
     {
-        _userIntent = choice.Text;
-        await GenerateNextPage();
+        if (string.IsNullOrWhiteSpace(intent) || _isGenerating)
+            return;
+
+        if (!IsAtTip)
+        {
+            _pendingIntent = intent;
+            _confirmRewrite = true;
+            return;
+        }
+
+        await RunGenerationAsync(intent);
+    }
+
+    private void CancelRewrite()
+    {
+        _confirmRewrite = false;
+        _pendingIntent = null;
+    }
+
+    private async Task ConfirmRewrite()
+    {
+        _confirmRewrite = false;
+        var intent = _pendingIntent;
+        _pendingIntent = null;
+        if (intent is null)
+            return;
+
+        await GenService.TruncateAfterAsync(SlotName, _currentPageIndex);
+        await LoadPageHistory();
+        await RunGenerationAsync(intent);
+    }
+
+    /// Re-runs just the illustration for the page on screen (the prose is untouched).
+    private async Task RegenerateImage()
+    {
+        _imageError = null;
+
+        if (string.IsNullOrEmpty(_selectedImageModel))
+        {
+            _imageError = "Choisissez d'abord un modèle d'image dans « Écrire la suite ».";
+            return;
+        }
+
+        _regeneratingImage = true;
+        try
+        {
+            var result = await GenService.RegeneratePageImageAsync(SlotName, _currentPageIndex, _selectedImageModel);
+            switch (result)
+            {
+                case Narratum.Core.Result<string>.Success success:
+                    _currentPageImage = success.Value;
+                    break;
+                case Narratum.Core.Result<string>.Failure failure:
+                    _imageError = failure.Message;
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _imageError = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            _regeneratingImage = false;
+        }
     }
 
     private async Task LoadPageHistory()
@@ -435,16 +556,16 @@
         await LoadImage(pageIndex);
     }
 
-    private async Task GenerateNextPage()
+    private async Task RunGenerationAsync(string intent)
     {
         _isGenerating = true;
         _errorMessage = string.Empty;
+        _imageError = null;
         _currentNarrative = string.Empty;
         _choices = Array.Empty<StoryChoice>();          // hide stale choices while the next page streams
         _characters = Array.Empty<CharacterProfile>();  // and the previous roster
         _secrets = Array.Empty<StorySecret>();          // and the previous secrets
         _currentPageImage = null;                       // and the previous image
-        var intent = _userIntent;
 
         try
         {

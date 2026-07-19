@@ -522,6 +522,38 @@ public class GenerationService : IGenerationService
         _ => "Tu es un agent narratif. " + FrenchOnly
     };
 
+    /// <inheritdoc />
+    public async Task<Result<string>> RegeneratePageImageAsync(
+        string slotName, int pageIndex, string imageModel, CancellationToken ct = default)
+    {
+        if (!_imageGenerator.CanHandle(imageModel))
+            return Result<string>.Fail("Aucun modèle d'image sélectionné.");
+
+        var loadResult = await _storyRepository.LoadPageAsync(slotName, pageIndex, ct);
+        if (loadResult is Result<Core.PageSnapshot>.Failure loadFailure)
+            return Result<string>.Fail(loadFailure.Message);
+
+        var page = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
+
+        // Re-derive the visual prompt from the page text: when the first attempt failed, no
+        // prompt was ever persisted, so there is nothing to reuse.
+        var textModel = _modelSelector.NormalizeOrDefault(page.ModelUsed);
+        var (imagePath, imagePrompt) = await GenerateImageAsync(
+            slotName, pageIndex, page.NarrativeText, imageModel, textModel, ct);
+
+        if (imagePath is null)
+            return Result<string>.Fail("La génération de l'illustration a échoué.");
+
+        await _storyRepository.SavePageImageAsync(slotName, pageIndex, imagePath, imagePrompt, ct);
+        _logger.LogInformation("Regenerated image for {SlotName} page {PageIndex}", slotName, pageIndex);
+
+        return Result<string>.Ok(imagePath);
+    }
+
+    /// <inheritdoc />
+    public Task<int> TruncateAfterAsync(string slotName, int pageIndex, CancellationToken ct = default)
+        => _storyRepository.TruncatePagesAfterAsync(slotName, pageIndex, ct);
+
     /// <summary>
     /// Two-stage image generation: an ImagePrompt agent turns the page into a visual prompt (using
     /// the text model), then the chosen image model renders it and the bytes are saved to a file.

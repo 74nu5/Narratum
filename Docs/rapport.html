@@ -243,6 +243,7 @@
           <tr><td class="feat">Refonte IHM</td><td>Thème éditorial (Newsreader + Hanken, sienna, jour/nuit) ; 6 écrans reconstruits ; sidebar bibliothèque, timeline en barre, coulisses en modale, lettrine.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Retrait de Fluent</td><td>Suppression des paquets, DI, providers, imports et bundle Fluent ; <code>theme.css</code> + <code>theme.js</code> uniques.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Hygiène dépôt</td><td>Base SQLite dev désindexée (gitignore) ; nettoyage des branches ; refonte mergée dans <code>main</code>.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Évolutions — phase 0</td><td>E2 « Lire » depuis l'accueil · E4 Narrateur masqué des coulisses · E5 suppression de la page Configuration.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -303,7 +304,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">E2</span><h3>Lire une histoire depuis l'accueil</h3><span class="effort">Effort · S</span></div>
+      <div class="fhead"><span class="fidx">E2</span><h3>Lire une histoire depuis l'accueil</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · S</span></div>
       <p class="oneliner">Ajouter une action « Lire » sur les cartes du tableau de bord.</p>
       <div class="maprow">
         <div class="from"><div class="lab">Aujourd'hui</div><p>La carte d'accueil est un seul lien → <code>/generation</code> (« Reprendre »). Pour lire, il faut passer par la Bibliothèque.</p></div>
@@ -338,7 +339,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">E4</span><h3>Masquer l'agent Narrateur dans les coulisses</h3><span class="effort">Effort · S</span></div>
+      <div class="fhead"><span class="fidx">E4</span><h3>Masquer l'agent Narrateur dans les coulisses</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · S</span></div>
       <p class="oneliner">Le Narrateur produit la prose déjà affichée : son bloc est redondant dans la modale des coulisses.</p>
       <div class="maprow">
         <div class="from"><div class="lab">Aujourd'hui</div><p>La modale liste <em>toutes</em> les traces, dont « Narrateur » — dont le contenu est exactement le texte de la page.</p></div>
@@ -355,7 +356,7 @@
     </div>
 
     <div class="feature">
-      <div class="fhead"><span class="fidx">E5</span><h3>Supprimer la page Configuration</h3><span class="effort">Effort · S</span></div>
+      <div class="fhead"><span class="fidx">E5</span><h3>Supprimer la page Configuration</h3><span class="pill present"><span class="dot"></span>Livré</span><span class="effort">Effort · S</span></div>
       <p class="oneliner">Tout se configure désormais au fil de l'eau (modèle par histoire et par page, souscription, image) : la page Réglages n'a plus lieu d'être.</p>
       <div class="maprow">
         <div class="from"><div class="lab">Aujourd'hui</div><p><code>/config</code> gère un modèle de narration « par défaut de session » + un test de connexion LLM, accessible via l'engrenage ⚙ du header.</p></div>
@@ -437,9 +438,9 @@
     <div class="phase p0">
       <div class="pnum">0</div>
       <div>
-        <span class="ptag">Quick wins · &lt; 1 jour</span>
-        <h4>Nettoyage & petits gains</h4>
-        <p>Aucune plomberie serveur : markup et filtrage.</p>
+        <span class="ptag">Quick wins · livré</span>
+        <h4>Nettoyage & petits gains <span class="pill present"><span class="dot"></span>Livré</span></h4>
+        <p>Aucune plomberie serveur : markup et filtrage. Build propre, 24/24 tests verts.</p>
         <div class="deliv"><b>Livrables</b> E2 (Lire depuis l'accueil) · E4 (masquer le Narrateur) · E5 (supprimer Config).</div>
       </div>
     </div>
