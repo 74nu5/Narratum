@@ -123,6 +123,23 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em
 /* ---- Surfaces ------------------------------------------------------------ */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
 
+/* ---- Story card (dashboard / grids) -------------------------------------- */
+.story-card {
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px 18px; box-shadow: var(--shadow); color: inherit;
+    transition: transform .15s, border-color .15s;
+}
+.story-card:hover { transform: translateY(-3px); border-color: var(--accent); color: inherit; }
+.story-card-rule { position: absolute; top: 0; left: 0; width: 100%; height: 3px; }
+
+/* ---- Library table (rows inside a card) ---------------------------------- */
+.lib-row { display: grid; grid-template-columns: 2.4fr 1fr .7fr 1.3fr auto; gap: 16px; align-items: center; padding: 15px 22px; }
+.lib-head { padding: 13px 22px; }
+.lib-body { border-top: 1px solid var(--border); transition: background .12s; }
+.lib-body:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.lib-del:hover { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
 /* ---- Chips & badges ------------------------------------------------------ */
 .chip {
     display: inline-block; font-family: var(--sans); font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
@@ -155,6 +172,14 @@ textarea.field { resize: vertical; line-height: 1.5; }
     text-transform: uppercase; color: var(--text-3); margin-bottom: 6px;
 }
 .fld-req { color: var(--accent); }
+
+/* ---- Editor rows (wizard characters / locations) ------------------------- */
+.editor-row {
+    display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 12px; align-items: end;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; padding: 14px;
+}
+.editor-del { align-self: end; }
+.editor-del:hover { border-color: var(--danger); color: var(--danger); }
 
 /* ---- Prose (narrative) with drop-cap ------------------------------------- */
 .prose { font-family: var(--serif); font-size: 18px; line-height: 1.72; color: var(--prose); white-space: pre-wrap; }
@@ -194,6 +219,28 @@ textarea.field { resize: vertical; line-height: 1.5; }
 .progress { position: relative; height: 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
 .progress > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; transition: width .3s; }
 
+/* ---- Generation page layout (library sidebar + centred content) ---------- */
+.gen-shell { display: flex; align-items: stretch; min-height: 0; }
+.gen-side {
+    width: 270px; flex: none; border-right: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+    align-self: flex-start; position: sticky; top: 63px; max-height: calc(100vh - 63px);
+    overflow: auto; padding: 22px 16px 28px;
+}
+.gen-body { flex: 1; min-width: 0; }
+.gen-content { width: 100%; max-width: 1020px; margin: 0 auto; padding: 44px 28px 72px; }
+.side-story { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 10px; cursor: pointer; color: inherit; }
+.side-story:hover { background: var(--surface-2); color: inherit; }
+.side-story.is-active { background: var(--accent-glow); box-shadow: inset 3px 0 0 var(--accent); }
+.gen-2col-secrets { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 40px 0 8px; padding-top: 34px; border-top: 1px solid var(--border); }
+.gen-2col-actions { display: grid; grid-template-columns: 1fr 330px; gap: 30px; align-items: start; margin-top: 52px; }
+.gen-hero { display: grid; grid-template-columns: 340px 1fr; gap: 44px; align-items: start; }
+.gen-hero.noimage { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 960px) {
+    .gen-side { display: none; }
+    .gen-hero, .gen-2col-secrets, .gen-2col-actions { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ---- Status message bar -------------------------------------------------- */
 .msg { border-radius: 8px; padding: 11px 14px; font-size: 13.5px; line-height: 1.5; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); }
 .msg-error { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--surface-2)); }
@@ -229,6 +276,8 @@ textarea.field { resize: vertical; line-height: 1.5; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes stepIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
     .choice, .btn, .icon-btn, .progress > span, .trace > summary::before { transition: none; }

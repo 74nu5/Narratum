@@ -7,12 +7,8 @@ using Narratum.Orchestration.Services;
 using Narratum.Core;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add Fluent UI Components
-builder.Services.AddFluentUIComponents();
 
 // Add Blazor Server with Interactive Server Components
 builder.Services.AddRazorComponents()
