@@ -137,6 +137,12 @@ public interface IStoryRepository
     Task<string?> GetPageImageAsync(string slotName, int pageIndex, CancellationToken ct = default);
 
     /// <summary>
+    /// Gets the visual prompt used for a page's illustration, or null when none was ever
+    /// recorded (a failed generation persists no prompt).
+    /// </summary>
+    Task<string?> GetPageImagePromptAsync(string slotName, int pageIndex, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns the concatenated narrative text of every page (in order) — the story so far.
     /// </summary>
     Task<string> GetStoryTextAsync(string slotName, CancellationToken ct = default);

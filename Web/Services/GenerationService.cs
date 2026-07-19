@@ -523,8 +523,29 @@ public class GenerationService : IGenerationService
     };
 
     /// <inheritdoc />
+    public async Task<string> SuggestImagePromptAsync(
+        string slotName, int pageIndex, CancellationToken ct = default)
+    {
+        // Prefer the prompt that produced the current illustration, so the author edits what
+        // they can actually see. A failed attempt persists none, hence the fallback.
+        var stored = await _storyRepository.GetPageImagePromptAsync(slotName, pageIndex, ct);
+        if (!string.IsNullOrWhiteSpace(stored))
+            return stored;
+
+        var loadResult = await _storyRepository.LoadPageAsync(slotName, pageIndex, ct);
+        if (loadResult is not Result<Core.PageSnapshot>.Success success)
+            return string.Empty;
+
+        var page = success.Value;
+        var textModel = _modelSelector.NormalizeOrDefault(page.ModelUsed);
+
+        return await DeriveImagePromptAsync(page.NarrativeText, textModel, ct);
+    }
+
+    /// <inheritdoc />
     public async Task<Result<string>> RegeneratePageImageAsync(
-        string slotName, int pageIndex, string imageModel, CancellationToken ct = default)
+        string slotName, int pageIndex, string imageModel, string? imagePromptOverride = null,
+        CancellationToken ct = default)
     {
         if (!_imageGenerator.CanHandle(imageModel))
             return Result<string>.Fail("Aucun modèle d'image sélectionné.");
@@ -535,11 +556,11 @@ public class GenerationService : IGenerationService
 
         var page = ((Result<Core.PageSnapshot>.Success)loadResult).Value;
 
-        // Re-derive the visual prompt from the page text: when the first attempt failed, no
-        // prompt was ever persisted, so there is nothing to reuse.
+        // With no override, re-derive the prompt from the page text: a failed first attempt
+        // persists no prompt, so there is nothing to reuse.
         var textModel = _modelSelector.NormalizeOrDefault(page.ModelUsed);
         var (imagePath, imagePrompt) = await GenerateImageAsync(
-            slotName, pageIndex, page.NarrativeText, imageModel, textModel, ct);
+            slotName, pageIndex, page.NarrativeText, imageModel, textModel, ct, imagePromptOverride);
 
         if (imagePath is null)
             return Result<string>.Fail("La génération de l'illustration a échoué.");
@@ -589,15 +610,13 @@ public class GenerationService : IGenerationService
     /// Returns the served image URL (or null on failure) and the prompt used.
     /// </summary>
     private async Task<(string? Path, string Prompt)> GenerateImageAsync(
-        string slotName, int pageIndex, string narrative, string imageModel, string textModel, CancellationToken ct)
+        string slotName, int pageIndex, string narrative, string imageModel, string textModel,
+        CancellationToken ct, string? explicitPrompt = null)
     {
-        var promptAgent = await RunAgentAsync(
-            AgentType.ImagePrompt, "Prompt d'image", "Texte → prompt visuel",
-            BuildImagePromptPrompt(narrative), textModel, ct);
-
-        var imagePrompt = promptAgent.Output;
-        if (string.IsNullOrWhiteSpace(imagePrompt) || imagePrompt.StartsWith("(agent", StringComparison.Ordinal))
-            imagePrompt = narrative.Length > 400 ? narrative[..400] : narrative; // fallback: the narrative itself
+        // An author-supplied prompt wins: no point asking the agent to rewrite what they typed.
+        var imagePrompt = string.IsNullOrWhiteSpace(explicitPrompt)
+            ? await DeriveImagePromptAsync(narrative, textModel, ct)
+            : explicitPrompt.Trim();
 
         var result = await _imageGenerator.GenerateAsync(imagePrompt, imageModel, ct);
         if (result is Result<ImageResult>.Success success)
@@ -619,6 +638,23 @@ public class GenerationService : IGenerationService
         }
 
         return (null, imagePrompt);
+    }
+
+    /// <summary>
+    /// Runs the ImagePrompt agent to turn a page into a visual prompt, falling back to the
+    /// narrative itself when the agent produces nothing usable.
+    /// </summary>
+    private async Task<string> DeriveImagePromptAsync(string narrative, string textModel, CancellationToken ct)
+    {
+        var promptAgent = await RunAgentAsync(
+            AgentType.ImagePrompt, "Prompt d'image", "Texte → prompt visuel",
+            BuildImagePromptPrompt(narrative), textModel, ct);
+
+        var imagePrompt = promptAgent.Output;
+        if (string.IsNullOrWhiteSpace(imagePrompt) || imagePrompt.StartsWith("(agent", StringComparison.Ordinal))
+            imagePrompt = narrative.Length > 400 ? narrative[..400] : narrative; // fallback: the narrative itself
+
+        return imagePrompt;
     }
 
     /// <summary>Builds the prompt asking for a single concise visual prompt of the latest page.</summary>
