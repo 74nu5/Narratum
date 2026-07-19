@@ -281,7 +281,7 @@
 <section>
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">04</span><h2>Évolutions demandées</h2></div>
-    <p>Cinq raffinements issus de l'usage réel. Chacun avec son approche, les fichiers concernés et un ordre de grandeur d'effort.</p>
+    <p>Six raffinements issus de l'usage réel. Chacun avec son approche, les fichiers concernés et un ordre de grandeur d'effort.</p>
 
     <div class="feature">
       <div class="fhead"><span class="fidx">E1</span><h3>Régénérer l'illustration d'une page</h3><span class="effort">Effort · M</span></div>
@@ -370,6 +370,25 @@
       </div>
       <div class="win"><span class="wico">◆</span><span>Moins de surface, header épuré. Recommandation : supprimer, et n'ajouter un diagnostic que si le besoin se fait sentir.</span></div>
     </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">E6</span><h3>Régénérer depuis une page antérieure = tronquer la suite</h3><span class="effort">Effort · M</span></div>
+      <p class="oneliner">Revenir sur une page précédente et relancer la génération doit supprimer les pages suivantes (devenues une branche caduque) — après avertissement.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p>La génération enchaîne depuis la pointe du récit. Régénérer en étant revenu sur une page antérieure n'a pas de sémantique claire, et les pages suivantes resteraient incohérentes.</p></div>
+        <div class="to"><div class="lab">Cible</div><p>Générer (ou choisir une suite) depuis la page N alors que N &lt; dernière page ⇒ <strong>modale d'avertissement</strong> « les pages N+1 à M seront supprimées », puis troncature et nouvelle génération à partir de l'état de la page N.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li>Déclencheur : <code>_currentPageIndex &lt; _pageHistory.Max()</code> au moment de « Générer la suite » <em>ou</em> de cliquer un choix.</li>
+          <li>Modale de confirmation destructive (réutilise le pattern <code>.overlay/.modal</code> de la suppression d'histoire).</li>
+          <li>Nouvelle méthode de persistance <code>TruncatePagesAfterAsync(slot, pageIndex)</code> puis génération classique — l'archi <strong>snapshot-par-page</strong> rend la reprise depuis N propre (l'état caché des secrets, le casting, etc. repartent du snapshot de N).</li>
+          <li>Rafraîchir timeline + sidebar après troncature.</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Transforme la timeline en vrais <b>points de branche</b> : on peut réécrire l'histoire à partir de n'importe quelle page. Action irréversible ⇒ l'avertissement est indispensable.</span></div>
+    </div>
   </div>
 </section>
 
@@ -430,8 +449,8 @@
       <div>
         <span class="ptag">Génération à la carte</span>
         <h4>Reprendre la main sur une page</h4>
-        <p>Rejouer l'image, laisser filer le récit, dévoiler les secrets à l'auteur.</p>
-        <div class="deliv"><b>Livrables</b> E1 (régénérer l'illustration) · C3 (continuer seul) · secrets cachés en Expert.</div>
+        <p>Rejouer l'image, réécrire depuis une page antérieure, laisser filer le récit, dévoiler les secrets à l'auteur.</p>
+        <div class="deliv"><b>Livrables</b> E1 (régénérer l'illustration) · E6 (tronquer la suite à partir d'une page) · C3 (continuer seul) · secrets cachés en Expert.</div>
       </div>
     </div>
 
@@ -470,6 +489,11 @@
     <div class="q">
       <p class="qq">E5 — Garde-t-on un diagnostic de connexion ?</p>
       <p><strong>Recommandation :</strong> supprimer <code>/config</code> et l'engrenage ; n'ajouter un indicateur d'état LLM (pastille verte/rouge) que si le besoin apparaît. À trancher : suppression totale, ou mini-indicateur conservé ?</p>
+    </div>
+
+    <div class="q">
+      <p class="qq">E6 — Que déclenche la réécriture depuis une page antérieure ?</p>
+      <p><strong>Recommandation :</strong> toute génération depuis une page N &lt; dernière (bouton « Générer » <em>ou</em> clic sur un choix) ouvre l'avertissement de troncature. À trancher : ce comportement implicite, ou réserver la réécriture à une action explicite « Réécrire à partir d'ici » ?</p>
     </div>
 
     <div class="q">
