@@ -71,6 +71,8 @@
                         <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
                             <a class="btn btn-accent btn-sm" href="@($"/generation/{story.SlotName}")">▶ Continuer</a>
                             <a class="btn btn-soft btn-sm" href="@($"/reader/{story.SlotName}")">📖 Lire</a>
+                            <button class="btn btn-soft btn-sm" title="Rejouer cet univers dans une nouvelle partie"
+                                    @onclick="() => StartNewRunAsync(story.SlotName)" disabled="@_duplicating">⎘ Nouvelle partie</button>
                             <a class="btn btn-soft btn-sm" href="@($"/export/{story.SlotName}/epub")" title="Exporter en EPUB">⤓ EPUB</a>
                             <button class="icon-btn lib-del" title="Supprimer" @onclick="() => _deleteTarget = story">🗑</button>
                         </div>
@@ -103,6 +105,28 @@
     private StoryEntry? _deleteTarget;
     private string? _renamingSlot;
     private string _renameText = string.Empty;
+    private bool _duplicating;
+
+    /// Clones the universe into a fresh slot and replays its opening action there.
+    private async Task StartNewRunAsync(string slotName)
+    {
+        _duplicating = true;
+        try
+        {
+            var result = await GenService.DuplicateStoryAsync(slotName);
+            if (result is Narratum.Core.Result<StoryRun>.Success success)
+            {
+                var run = success.Value;
+                Navigation.NavigateTo(string.IsNullOrWhiteSpace(run.OpeningIntent)
+                    ? $"/generation/{run.SlotName}"
+                    : $"/generation/{run.SlotName}?intent={Uri.EscapeDataString(run.OpeningIntent)}");
+            }
+        }
+        finally
+        {
+            _duplicating = false;
+        }
+    }
 
     protected override async Task OnInitializedAsync() => _stories = await LibraryService.ListStoriesAsync();
 

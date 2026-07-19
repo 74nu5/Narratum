@@ -308,6 +308,10 @@
 
                     <button class="btn btn-accent btn-block" @onclick="() => RequestGenerate(_userIntent)" disabled="@(_isGenerating || string.IsNullOrWhiteSpace(_userIntent))">✦ Générer la suite</button>
                     <button class="btn btn-ghost btn-block" style="margin-top:8px" @onclick="() => RequestGenerate(AutoContinueIntent)" disabled="@_isGenerating">↷ Continuer seul</button>
+                    <button class="btn btn-ghost btn-block" style="margin-top:8px" @onclick="StartNewRunAsync"
+                            disabled="@(_isGenerating || _duplicating)" title="Rejouer ce même univers dans une nouvelle partie">
+                        ⎘ Nouvelle partie
+                    </button>
                     <div style="display:flex;gap:6px;margin-top:8px">
                         <a class="btn btn-quiet btn-sm" href="@($"/export/{SlotName}/epub")" style="flex:1">⤓ EPUB</a>
                         <a class="btn btn-quiet btn-sm" href="@($"/export/{SlotName}/markdown")" style="flex:1">⤓ Markdown</a>
@@ -389,6 +393,7 @@
     private string? _imageError;
     private bool _editing;
     private string _editText = string.Empty;
+    private bool _duplicating;
     private bool _imagePromptOpen;
     private bool _loadingImagePrompt;
     private string _imagePrompt = string.Empty;
@@ -643,6 +648,31 @@
                     await LoadPage(_pageHistory.Max());
                 _library = await LibraryService.ListStoriesAsync();
             });
+    }
+
+    /// Clones this universe into a fresh run and replays its opening action there.
+    private async Task StartNewRunAsync()
+    {
+        _duplicating = true;
+        try
+        {
+            var result = await GenService.DuplicateStoryAsync(SlotName);
+            if (result is Narratum.Core.Result<StoryRun>.Success success)
+            {
+                var run = success.Value;
+                Navigation.NavigateTo(string.IsNullOrWhiteSpace(run.OpeningIntent)
+                    ? $"/generation/{run.SlotName}"
+                    : $"/generation/{run.SlotName}?intent={Uri.EscapeDataString(run.OpeningIntent)}");
+            }
+            else if (result is Narratum.Core.Result<StoryRun>.Failure failure)
+            {
+                _errorMessage = failure.Message;
+            }
+        }
+        finally
+        {
+            _duplicating = false;
+        }
     }
 
     private void StartEdit()

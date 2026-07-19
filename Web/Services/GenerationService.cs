@@ -638,6 +638,89 @@ public class GenerationService : IGenerationService
     public Task RenameStoryAsync(string slotName, string displayName, CancellationToken ct = default)
         => _storyRepository.RenameStoryAsync(slotName, displayName, ct);
 
+    /// <inheritdoc />
+    public async Task<Result<StoryRun>> DuplicateStoryAsync(
+        string sourceSlotName, CancellationToken ct = default)
+    {
+        // The seed page carries the starting state; everything written after it belongs to the
+        // run we're leaving behind.
+        var seedResult = await _storyRepository.LoadPageAsync(sourceSlotName, 0, ct);
+        if (seedResult is Result<Core.PageSnapshot>.Failure seedFailure)
+            return Result<StoryRun>.Fail(seedFailure.Message);
+
+        var seed = ((Result<Core.PageSnapshot>.Success)seedResult).Value;
+        var world = await GetStoryWorldAsync(sourceSlotName, ct);
+        var sourceName = await _storyRepository.GetDisplayNameAsync(sourceSlotName, ct);
+
+        var stories = await _storyRepository.ListStoriesAsync(ct);
+        var genre = world?.GenreStyle
+            ?? stories.FirstOrDefault(s => s.SlotName == sourceSlotName)?.GenreStyle
+            ?? string.Empty;
+
+        var newSlotName = $"story-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        var createResult = await _storyRepository.CreateStoryAsync(
+            newSlotName,
+            world?.WorldName ?? sourceName,
+            genre,
+            string.IsNullOrWhiteSpace(world?.NarrativeStyle) ? genre : $"{genre} — {world!.NarrativeStyle}",
+            seed.State,
+            seed.NarrativeText,
+            seed.ModelUsed,
+            ct);
+
+        if (createResult is Result<StoryMetadata>.Failure createFailure)
+            return Result<StoryRun>.Fail(createFailure.Message);
+
+        if (world is not null)
+            await _storyRepository.SaveStoryWorldAsync(newSlotName, JsonSerializer.Serialize(world), ct);
+
+        await _storyRepository.RenameStoryAsync(newSlotName, NextRunName(sourceName, stories), ct);
+
+        // Page 1's intent is the opening action the author gave this universe; replaying it is
+        // what makes the new run start the same way before drifting.
+        var openingIntent = await GetOpeningIntentAsync(sourceSlotName, ct);
+
+        _logger.LogInformation("Duplicated {Source} into {Target}", sourceSlotName, newSlotName);
+
+        return Result<StoryRun>.Ok(new StoryRun(newSlotName, openingIntent));
+    }
+
+    /// <summary>The opening action of a story — the intent recorded on its first written page.</summary>
+    private async Task<string?> GetOpeningIntentAsync(string slotName, CancellationToken ct)
+    {
+        var result = await _storyRepository.LoadPageAsync(slotName, 1, ct);
+
+        return result is Result<Core.PageSnapshot>.Success success
+            && !string.IsNullOrWhiteSpace(success.Value.IntentDescription)
+                ? success.Value.IntentDescription
+                : null;
+    }
+
+    /// <summary>« Titre » → « Titre — partie 2 », en évitant les collisions.</summary>
+    private static string NextRunName(string sourceName, IReadOnlyList<Core.StoryEntry> stories)
+    {
+        const string separator = " — partie ";
+
+        var baseName = sourceName;
+        var separatorIndex = sourceName.LastIndexOf(separator, StringComparison.Ordinal);
+        if (separatorIndex > 0)
+            baseName = sourceName[..separatorIndex];
+
+        var taken = stories
+            .Select(s => s.DisplayName)
+            .Where(n => n is not null && n.StartsWith(baseName, StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+
+        for (var run = 2; run < 100; run++)
+        {
+            var candidate = $"{baseName}{separator}{run}";
+            if (!taken.Contains(candidate))
+                return candidate;
+        }
+
+        return $"{baseName}{separator}{DateTime.UtcNow:HHmmss}";
+    }
+
     /// <summary>
     /// Two-stage image generation: an ImagePrompt agent turns the page into a visual prompt (using
     /// the text model), then the chosen image model renders it and the bytes are saved to a file.
@@ -1061,6 +1144,9 @@ public class GenerationService : IGenerationService
 /// <summary>
 /// Simple DTO for page information.
 /// </summary>
+/// <summary>A freshly started run: the new slot, and the opening action to replay in it.</summary>
+public record StoryRun(string SlotName, string? OpeningIntent);
+
 public record PageInfo(
     int PageIndex,
     string NarrativeText,
