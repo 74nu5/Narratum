@@ -1,0 +1,487 @@
+<title>Narratum — État des lieux & feuille de route</title>
+<style>
+  :root {
+    --bg: #f4f5f8;
+    --surface: #ffffff;
+    --surface-2: #eceef3;
+    --ink: #16172a;
+    --muted: #5c5f74;
+    --faint: #8b8ea3;
+    --border: #dcdee7;
+    --border-strong: #c4c7d4;
+    --primary: #4a3fa0;
+    --primary-soft: #ece9fb;
+    --primary-line: #d6d0f2;
+    --accent: #9a6a12;
+    --accent-soft: #f7edd6;
+    --present: #2c7a55;
+    --present-soft: #dcefe4;
+    --partial: #9a6a12;
+    --partial-soft: #f7edd6;
+    --absent: #a83a2c;
+    --absent-soft: #f5e0dc;
+    --shadow: 0 1px 2px rgba(22,23,42,.05), 0 8px 28px rgba(22,23,42,.06);
+    --measure: 46rem;
+    --serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0f18; --surface: #171827; --surface-2: #1f2133; --ink: #e9e9f2;
+      --muted: #a1a4bb; --faint: #71748c; --border: #2a2c40; --border-strong: #3a3d55;
+      --primary: #9488e8; --primary-soft: #211f3b; --primary-line: #322e5c;
+      --accent: #d3a44a; --accent-soft: #2c2517;
+      --present: #5cbf8c; --present-soft: #16281f; --partial: #d3a44a; --partial-soft: #2c2517;
+      --absent: #e0776a; --absent-soft: #2e1a17;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5f8; --surface: #ffffff; --surface-2: #eceef3; --ink: #16172a;
+    --muted: #5c5f74; --faint: #8b8ea3; --border: #dcdee7; --border-strong: #c4c7d4;
+    --primary: #4a3fa0; --primary-soft: #ece9fb; --primary-line: #d6d0f2;
+    --accent: #9a6a12; --accent-soft: #f7edd6;
+    --present: #2c7a55; --present-soft: #dcefe4; --partial: #9a6a12; --partial-soft: #f7edd6;
+    --absent: #a83a2c; --absent-soft: #f5e0dc;
+    --shadow: 0 1px 2px rgba(22,23,42,.05), 0 8px 28px rgba(22,23,42,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e0f18; --surface: #171827; --surface-2: #1f2133; --ink: #e9e9f2;
+    --muted: #a1a4bb; --faint: #71748c; --border: #2a2c40; --border-strong: #3a3d55;
+    --primary: #9488e8; --primary-soft: #211f3b; --primary-line: #322e5c;
+    --accent: #d3a44a; --accent-soft: #2c2517;
+    --present: #5cbf8c; --present-soft: #16281f; --partial: #d3a44a; --partial-soft: #2c2517;
+    --absent: #e0776a; --absent-soft: #2e1a17;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--measure); margin: 0 auto; padding: 0 1.5rem; }
+  .bleed { max-width: 68rem; margin: 0 auto; padding: 0 1.5rem; }
+
+  header.masthead {
+    border-bottom: 1px solid var(--border);
+    background: radial-gradient(120% 100% at 100% 0, var(--primary-soft) 0, transparent 55%), var(--surface);
+  }
+  .masthead .wrap { padding-top: 3.2rem; padding-bottom: 2.6rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--primary); font-weight: 600; margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.08; letter-spacing: -.01em; margin: 0 0 1rem; text-wrap: balance;
+  }
+  h1 .amp { color: var(--primary); font-style: italic; }
+  .lede { font-size: 1.12rem; color: var(--muted); margin: 0; max-width: 40rem; text-wrap: pretty; }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; margin-top: 1.8rem;
+    font-family: var(--mono); font-size: .76rem; color: var(--faint);
+  }
+  .meta-row b { color: var(--muted); font-weight: 600; }
+
+  section { padding: 2.8rem 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: 0; }
+  .sec-head { margin-bottom: 1.6rem; }
+  .sec-num { font-family: var(--mono); font-size: .74rem; color: var(--accent); font-weight: 600; letter-spacing: .1em; }
+  h2 { font-family: var(--sans); font-weight: 650; font-size: 1.6rem; letter-spacing: -.01em; margin: .3rem 0 0; text-wrap: balance; }
+  h3 { font-family: var(--sans); font-weight: 640; font-size: 1.12rem; letter-spacing: -.005em; margin: 2rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  p.tight { margin-bottom: .5rem; }
+  strong { font-weight: 640; }
+  a { color: var(--primary); text-decoration-color: var(--primary-line); text-underline-offset: 2px; }
+  code {
+    font-family: var(--mono); font-size: .84em; background: var(--surface-2); border: 1px solid var(--border);
+    padding: .06em .38em; border-radius: 5px; white-space: nowrap;
+  }
+  .muted { color: var(--muted); }
+  ul.clean { margin: 0 0 1rem; padding-left: 1.15rem; }
+  ul.clean li { margin: .3rem 0; }
+  ul.clean li::marker { color: var(--primary); }
+
+  .callout {
+    display: grid; grid-template-columns: auto 1fr; gap: .9rem;
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--primary);
+    border-radius: 10px; padding: 1.1rem 1.25rem; margin: 1.4rem 0; box-shadow: var(--shadow);
+  }
+  .callout.warn { border-left-color: var(--absent); }
+  .callout.warn .cico { color: var(--absent); }
+  .callout .cico { font-size: 1.1rem; line-height: 1.5; }
+  .callout .ctitle { font-weight: 640; margin: 0 0 .2rem; }
+  .callout p { margin: 0; font-size: .95rem; color: var(--muted); }
+  .callout p + p { margin-top: .5rem; }
+
+  .table-scroll { overflow-x: auto; margin: 1.2rem 0; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; background: var(--surface); }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--faint); font-weight: 600;
+    padding: .75rem .9rem; border-bottom: 1px solid var(--border-strong); white-space: nowrap;
+  }
+  tbody td { padding: .8rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .feat { font-weight: 640; }
+  .pill {
+    display: inline-flex; align-items: center; gap: .35rem; font-family: var(--mono);
+    font-size: .68rem; font-weight: 600; letter-spacing: .03em; padding: .18rem .5rem;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .pill.present { background: var(--present-soft); color: var(--present); }
+  .pill.partial { background: var(--partial-soft); color: var(--partial); }
+  .pill.absent { background: var(--absent-soft); color: var(--absent); }
+  .dot { width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+
+  .pipe-block { margin: 1.2rem 0; }
+  .pipe-label { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: .7rem; }
+  .pipe { display: flex; flex-wrap: wrap; align-items: stretch; gap: .4rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); }
+  .node { display: flex; flex-direction: column; justify-content: center; padding: .5rem .7rem; border-radius: 8px; font-size: .82rem; font-weight: 600; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--ink); min-width: 0; }
+  .node small { display: block; font-family: var(--mono); font-size: .62rem; font-weight: 500; color: var(--faint); letter-spacing: .03em; }
+  .node.stream { border-color: var(--primary-line); background: var(--primary-soft); color: var(--primary); }
+  .node.save { border-style: dashed; border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .arrow { align-self: center; color: var(--faint); font-size: .9rem; }
+  .par-group { display: flex; gap: .4rem; padding: .35rem; border: 1px dashed var(--primary-line); border-radius: 10px; flex-wrap: wrap; }
+  .par-wrap { display: flex; flex-direction: column; gap: .25rem; }
+  .par-note { font-family: var(--mono); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); text-align: center; }
+
+  .feature { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem 1.5rem; margin: 1.2rem 0; box-shadow: var(--shadow); }
+  .feature > .fhead { display: flex; align-items: baseline; gap: .7rem; margin-bottom: .3rem; flex-wrap: wrap; }
+  .feature .fidx { font-family: var(--mono); font-size: .78rem; font-weight: 700; color: var(--primary); }
+  .feature h3 { margin: 0; font-size: 1.22rem; }
+  .feature .effort { margin-left: auto; font-family: var(--mono); font-size: .68rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: .2rem .55rem; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+  .feature .oneliner { color: var(--muted); font-size: .95rem; margin: 0 0 1rem; }
+  .maprow { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 1rem 0; }
+  .maprow > div { padding: .85rem 1rem; }
+  .maprow .from { background: var(--surface-2); }
+  .maprow .to { background: var(--surface); border-left: 2px solid var(--primary-line); }
+  .maprow .lab { font-family: var(--mono); font-size: .64rem; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 600; margin-bottom: .3rem; }
+  .maprow p { margin: 0; font-size: .88rem; }
+  .plug { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: .8rem 1rem; margin-top: 1rem; font-size: .85rem; }
+  .plug .lab { font-family: var(--mono); font-size: .64rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin-bottom: .45rem; }
+  .plug ul { margin: 0; padding-left: 1.1rem; }
+  .plug li { margin: .28rem 0; }
+  .win { display: flex; gap: .5rem; margin-top: 1rem; font-size: .9rem; align-items: flex-start; }
+  .win .wico { color: var(--present); flex: none; }
+  .win b { color: var(--present); }
+
+  .phase { display: grid; grid-template-columns: auto 1fr; gap: 1.1rem; padding: 1.1rem 0; border-bottom: 1px solid var(--border); }
+  .phase:last-child { border-bottom: 0; }
+  .phase .pnum { font-family: var(--mono); font-weight: 700; font-size: .8rem; color: #fff; background: var(--primary); width: 2rem; height: 2rem; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .phase.p0 .pnum { background: var(--accent); }
+  .phase h4 { margin: .1rem 0 .3rem; font-size: 1.05rem; }
+  .phase .ptag { font-family: var(--mono); font-size: .66rem; color: var(--faint); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .phase p { margin: .35rem 0 0; font-size: .9rem; color: var(--muted); }
+  .phase .deliv { font-size: .82rem; margin-top: .5rem; color: var(--ink); }
+  .phase .deliv b { font-family: var(--mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+
+  .q { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: .95rem 1.15rem; margin: .8rem 0; box-shadow: var(--shadow); }
+  .q .qq { font-weight: 640; margin: 0 0 .25rem; }
+  .q p { margin: 0; font-size: .89rem; color: var(--muted); }
+  .q.resolved { border-left-color: var(--present); }
+  .q.resolved .chk { color: var(--present); font-weight: 700; margin-right: .3rem; }
+
+  footer { padding: 2.4rem 0 3rem; color: var(--faint); font-size: .82rem; font-family: var(--mono); }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem; }
+
+  @media (max-width: 40rem) {
+    .maprow { grid-template-columns: 1fr; }
+    .feature .effort { margin-left: 0; }
+  }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Rapport · Livré + feuille de route</p>
+    <h1>Narratum — état des lieux <span class="amp">&</span> évolutions</h1>
+    <p class="lede">Le port des fonctionnalités narratives de StoryMaker est terminé, et l'interface a été entièrement refondue en un langage « éditorial » maison. Ce rapport dresse l'inventaire de ce qui a été livré, puis détaille les prochaines évolutions fonctionnelles.</p>
+    <div class="meta-row">
+      <span><b>Projet</b> O:\Perso\Narratum</span>
+      <span><b>Branche</b> main</span>
+      <span><b>Date</b> 19/07/2026</span>
+      <span><b>Statut</b> Fonctionnalités livrées · IHM refondue · roadmap ouverte</span>
+    </div>
+  </div>
+</header>
+
+<!-- 01 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Résumé exécutif</h2></div>
+    <p>Parti d'une base <strong>hexagonale, 100 % locale et persistée</strong> (Foundry Local, EF Core + SQLite, un snapshot d'état par page), Narratum a d'abord absorbé les quatre features narratives de StoryMaker — <strong>choix multiples, personnages, secrets, image par page</strong> — sans renoncer à sa propreté. Un <strong>provider cloud Azure AI Foundry</strong> (auth Entra) est venu compléter l'inférence locale, sélectionnable modèle par modèle.</p>
+    <p>Le chantier suivant fut l'<strong>interface</strong> : après un aller-retour Fluent UI (v4 → v5 RC), le choix a été fait d'abandonner Fluent au profit d'un <strong>thème éditorial custom</strong> (serif Newsreader + sans Hanken&nbsp;Grotesk, accent sienna, papier crème, mode jour/nuit). Les six écrans ont été reconstruits en HTML natif + une feuille de style unique, et la dépendance Fluent entièrement retirée.</p>
+    <div class="callout">
+      <span class="cico">✦</span>
+      <div>
+        <p class="ctitle">Où en est-on aujourd'hui</p>
+        <p>L'application est fonctionnelle de bout en bout — création, génération multi-agents streamée, lecture, bibliothèque — dans une IHM cohérente et sans dette Fluent. Les évolutions ci-dessous sont des raffinements d'usage, nés de la pratique réelle de l'outil.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Ce qui a été livré</h2></div>
+    <p>De l'intégration des features jusqu'à la refonte visuelle, dans l'ordre chronologique.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Lot</th><th>Contenu</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td class="feat">Phase 0 — socle</td><td>Migrations EF Core (remplacent <code>EnsureCreated</code>), sortie structurée LLM (<code>GenerateStructuredAsync&lt;T&gt;</code>).</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">F1 — Trois choix</td><td>Agent « Choix » proposant 3 suites ; cartes cliquables qui relancent la génération.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">F2 — Personnages</td><td>Casting structuré (rôle, description, évolution) par page.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">F3 — Secrets</td><td>Infos révélées + <strong>cachées</strong> avec continuité d'état d'une page à l'autre.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">F4 — Image par page</td><td>Génération d'illustration par page, modèle d'image sélectionnable.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Provider cloud</td><td>Azure AI Foundry : auth Entra, changement de souscription, listing dynamique des déploiements (texte + image), routage <code>azure:*</code>.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Fiabilité image</td><td>Routage par modèle repris de GenerateMultiImage (endpoints MAI / BFL-FLUX / OpenAI, en-têtes, détection de format).</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Refonte IHM</td><td>Thème éditorial (Newsreader + Hanken, sienna, jour/nuit) ; 6 écrans reconstruits ; sidebar bibliothèque, timeline en barre, coulisses en modale, lettrine.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Retrait de Fluent</td><td>Suppression des paquets, DI, providers, imports et bundle Fluent ; <code>theme.css</code> + <code>theme.js</code> uniques.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Hygiène dépôt</td><td>Base SQLite dev désindexée (gitignore) ; nettoyage des branches ; refonte mergée dans <code>main</code>.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:.9rem">Références : <code>Docs/ui-redesign.html</code> (système de design), <code>Docs/overview.html</code> (dossier technique), maquettes dans <code>reviews/Révision IHM générateur d'histoire/</code>.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Le pipeline de génération</h2></div>
+    <p>Une page se construit en streaming (le Narrateur écrit la prose affichée), puis une série d'agents spécialisés enrichissent l'état après sauvegarde. C'est cette chaîne que les évolutions viennent raffiner.</p>
+    <div class="pipe-block">
+      <div class="pipe-label">Intention → page</div>
+      <div class="pipe">
+        <div class="node">Résumé<small>condense</small></div>
+        <span class="arrow">→</span>
+        <div class="node stream">Narrateur<small>prose · streamé</small></div>
+        <span class="arrow">→</span>
+        <div class="par-wrap"><span class="par-note">après sauvegarde</span>
+          <div class="par-group">
+            <div class="node save">Cohérence</div>
+            <div class="node save">Personnages</div>
+            <div class="node save">Choix</div>
+            <div class="node save">Secrets</div>
+            <div class="node save">Image</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:.9rem">Le mode Expert expose ces traces (« coulisses des agents ») dans une modale. Le lecteur, lui, ne voit que la prose du Narrateur.</p>
+  </div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Évolutions demandées</h2></div>
+    <p>Cinq raffinements issus de l'usage réel. Chacun avec son approche, les fichiers concernés et un ordre de grandeur d'effort.</p>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">E1</span><h3>Régénérer l'illustration d'une page</h3><span class="effort">Effort · M</span></div>
+      <p class="oneliner">Relancer manuellement la génération d'image quand elle a échoué (ou déçu) sur une page.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p>L'image est produite dans la passe d'agents post-sauvegarde. Si elle échoue, la page reste sans illustration (<code>ImagePath</code> nul) et rien ne permet de réessayer.</p></div>
+        <div class="to"><div class="lab">Cible</div><p>Un bouton <em>« ↻ Régénérer l'illustration »</em> sous l'image (ou <em>« Générer une illustration »</em> si absente) rejoue l'agent image pour cette page, avec le modèle d'image choisi.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li>Nouvelle méthode <code>IGenerationService.RegeneratePageImageAsync(slot, pageIndex, imageModel)</code>.</li>
+          <li>Réutiliser le <code>ImagePrompt</code> déjà persité (colonne existante) ; le régénérer via l'agent ImagePrompt s'il manque.</li>
+          <li>Sauver via <code>ImageStorageService</code> + mise à jour du <code>PageSnapshot</code> (ImagePath).</li>
+          <li>UI : bouton sur la page courante de <code>Generation/Index.razor</code>, avec état « en cours » (spinner).</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Débloque les pages sans image sans devoir régénérer tout le texte. <b>Fondation</b> pour « régénérer / éditer la page » (voir E-bis).</span></div>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">E2</span><h3>Lire une histoire depuis l'accueil</h3><span class="effort">Effort · S</span></div>
+      <p class="oneliner">Ajouter une action « Lire » sur les cartes du tableau de bord.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p>La carte d'accueil est un seul lien → <code>/generation</code> (« Reprendre »). Pour lire, il faut passer par la Bibliothèque.</p></div>
+        <div class="to"><div class="lab">Cible</div><p>Deux actions par carte, comme en Bibliothèque : <em>Reprendre</em> → génération, <em>Lire</em> → <code>/reader/{slot}</code>.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li><code>Dashboard/Index.razor</code> : transformer le pied de carte en deux boutons (Reprendre / Lire) plutôt qu'un lien global.</li>
+          <li>Réutiliser les classes <code>.btn</code> existantes ; aucune logique nouvelle.</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Quick win pur — quelques lignes de markup.</span></div>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">E3</span><h3>Première action dans le wizard → génère la 1ʳᵉ page</h3><span class="effort">Effort · M</span></div>
+      <p class="oneliner">Une étape pour décrire la première action, afin de générer directement la page 1 à la création.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p>Le wizard crée l'histoire puis atterrit sur l'écran de génération, où l'utilisateur doit saisir une première intention pour lancer la page&nbsp;1.</p></div>
+        <div class="to"><div class="lab">Cible</div><p>Une étape « Première action » (avant le récap) ; à la création, l'intention est utilisée pour générer la page&nbsp;1 immédiatement.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li>Wizard : nouveau champ <code>firstAction</code> + une étape (ou un bloc dans le récap).</li>
+          <li>Après <code>CreateStoryAsync</code>, naviguer vers <code>/generation/{slot}</code> en passant l'intention, et <strong>lancer la génération automatiquement</strong> au chargement (réutilise l'UI de streaming existante).</li>
+          <li>Alternative — générer <em>dans</em> le wizard : plus lourd (dupliquer l'affichage du streaming). Décision à trancher (§07).</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Réduit la friction « histoire créée mais vide » : on arrive sur une première page déjà écrite.</span></div>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">E4</span><h3>Masquer l'agent Narrateur dans les coulisses</h3><span class="effort">Effort · S</span></div>
+      <p class="oneliner">Le Narrateur produit la prose déjà affichée : son bloc est redondant dans la modale des coulisses.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p>La modale liste <em>toutes</em> les traces, dont « Narrateur » — dont le contenu est exactement le texte de la page.</p></div>
+        <div class="to"><div class="lab">Cible</div><p>Filtrer le Narrateur de l'affichage des coulisses (les autres agents restent : Résumé, Cohérence, Personnages, Choix, Secrets, Image).</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li><code>Generation/Index.razor</code> : <code>_agentTraces.Where(t =&gt; !EstNarrateur(t))</code> à l'affichage (on garde la donnée brute).</li>
+          <li>Filtrer sur un identifiant stable de l'agent Narrateur (nom/rôle) — à confirmer côté <code>GenerationService</code>.</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Coulisses plus lisibles — on n'y voit que la « valeur ajoutée » invisible au lecteur.</span></div>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">E5</span><h3>Supprimer la page Configuration</h3><span class="effort">Effort · S</span></div>
+      <p class="oneliner">Tout se configure désormais au fil de l'eau (modèle par histoire et par page, souscription, image) : la page Réglages n'a plus lieu d'être.</p>
+      <div class="maprow">
+        <div class="from"><div class="lab">Aujourd'hui</div><p><code>/config</code> gère un modèle de narration « par défaut de session » + un test de connexion LLM, accessible via l'engrenage ⚙ du header.</p></div>
+        <div class="to"><div class="lab">Cible</div><p>Supprimer <code>/config</code> et retirer l'engrenage. <code>ModelSelectionService</code> reste (fournit le défaut) mais sans écran dédié.</p></div>
+      </div>
+      <div class="plug">
+        <div class="lab">Mise en œuvre</div>
+        <ul>
+          <li>Supprimer <code>Config/Index.razor</code> ; retirer le lien ⚙ de <code>MainLayout</code>.</li>
+          <li>Le seul élément à valeur réelle est le <strong>test de connexion LLM</strong>. Options : (a) l'abandonner ; (b) le garder sous forme d'un petit indicateur d'état (pastille verte/rouge) dans le header ou le composer. Décision à trancher (§07).</li>
+        </ul>
+      </div>
+      <div class="win"><span class="wico">◆</span><span>Moins de surface, header épuré. Recommandation : supprimer, et n'ajouter un diagnostic que si le besoin se fait sentir.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Idées complémentaires</h2></div>
+    <p>Quelques pistes qui prolongent naturellement l'usage — à prendre ou à laisser.</p>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">C1</span><h3>Exporter l'histoire</h3><span class="effort">Effort · M</span></div>
+      <p class="oneliner">Compiler toutes les pages (prose + illustrations) en un fichier téléchargeable — Markdown d'abord, puis EPUB/PDF.</p>
+      <p class="muted" style="font-size:.9rem;margin:0">Une maquette antérieure prévoyait un bouton « Export ». Très fort ROI pour un générateur d'histoires : on repart avec un livre. Markdown = trivial ; EPUB/PDF = une lib.</p>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">C2</span><h3>Régénérer / éditer la page courante</h3><span class="effort">Effort · M</span></div>
+      <p class="oneliner">Rejouer la génération de la page affichée (autre modèle, intention ajustée) ou corriger la prose à la main.</p>
+      <p class="muted" style="font-size:.9rem;margin:0">Symétrique de E1 côté texte. Utile quand une page part de travers, sans repartir de zéro.</p>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">C3</span><h3>« Continuer seul »</h3><span class="effort">Effort · S</span></div>
+      <p class="oneliner">Le composer promet déjà « ou laissez le récit continuer seul » — mais aucun bouton ne le fait.</p>
+      <p class="muted" style="font-size:.9rem;margin:0">Un bouton qui génère la page suivante sans intention explicite (l'IA enchaîne), ou choisit une des 3 suites automatiquement.</p>
+    </div>
+
+    <div class="feature">
+      <div class="fhead"><span class="fidx">C4</span><h3>Petits plus</h3><span class="effort">Effort · S</span></div>
+      <ul class="clean" style="margin:.2rem 0 0">
+        <li><strong>Annuler la dernière page</strong> — rollback quand une génération rate.</li>
+        <li><strong>Secrets cachés en mode Expert</strong> — ils sont stockés ; les montrer à l'auteur (pas au lecteur).</li>
+        <li><strong>Renommer une histoire</strong> — éditer le titre depuis la bibliothèque.</li>
+        <li><strong>Régénérer les choix</strong> — si les 3 suites n'inspirent pas.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Feuille de route proposée</h2></div>
+    <p>Regroupée pour livrer de la valeur vite : d'abord les gains rapides, puis les chantiers avec un peu de plomberie.</p>
+
+    <div class="phase p0">
+      <div class="pnum">0</div>
+      <div>
+        <span class="ptag">Quick wins · &lt; 1 jour</span>
+        <h4>Nettoyage & petits gains</h4>
+        <p>Aucune plomberie serveur : markup et filtrage.</p>
+        <div class="deliv"><b>Livrables</b> E2 (Lire depuis l'accueil) · E4 (masquer le Narrateur) · E5 (supprimer Config).</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pnum">1</div>
+      <div>
+        <span class="ptag">Génération à la carte</span>
+        <h4>Reprendre la main sur une page</h4>
+        <p>Rejouer l'image, laisser filer le récit, dévoiler les secrets à l'auteur.</p>
+        <div class="deliv"><b>Livrables</b> E1 (régénérer l'illustration) · C3 (continuer seul) · secrets cachés en Expert.</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pnum">2</div>
+      <div>
+        <span class="ptag">Confort de création</span>
+        <h4>Démarrer et emporter</h4>
+        <p>Une histoire qui démarre déjà écrite, et qu'on peut exporter.</p>
+        <div class="deliv"><b>Livrables</b> E3 (première action au wizard) · C1 (export Markdown).</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pnum">3</div>
+      <div>
+        <span class="ptag">Édition avancée</span>
+        <h4>Retoucher le récit</h4>
+        <p>Reprise fine du texte et de la structure.</p>
+        <div class="deliv"><b>Livrables</b> C2 (régénérer/éditer la page) · annuler la dernière page · renommer · régénérer les choix · export EPUB/PDF.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Décisions à confirmer</h2></div>
+
+    <div class="q">
+      <p class="qq">E3 — Où génère-t-on la première page ?</p>
+      <p><strong>Recommandation :</strong> naviguer vers l'écran de génération avec l'intention pré-remplie et <em>lancer automatiquement</em> le streaming. Réutilise l'UI existante, effort moindre. (Alternative : afficher la génération dans le wizard — plus lourd.)</p>
+    </div>
+
+    <div class="q">
+      <p class="qq">E5 — Garde-t-on un diagnostic de connexion ?</p>
+      <p><strong>Recommandation :</strong> supprimer <code>/config</code> et l'engrenage ; n'ajouter un indicateur d'état LLM (pastille verte/rouge) que si le besoin apparaît. À trancher : suppression totale, ou mini-indicateur conservé ?</p>
+    </div>
+
+    <div class="q">
+      <p class="qq">C1 — Formats d'export prioritaires ?</p>
+      <p>Markdown est quasi gratuit et suffit pour une v1. EPUB/PDF demandent une librairie. Ordre suggéré : Markdown → EPUB → PDF.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Narratum — rapport fonctionnel</span>
+    <span>Mis à jour le 19/07/2026 · main</span>
+  </div>
+</footer>
