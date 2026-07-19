@@ -143,6 +143,21 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em
 .lib-rename { opacity: 0; transition: opacity .12s; }
 .lib-body:hover .lib-rename { opacity: 1; }
 
+/* ---- Library level 1: the universe header -------------------------------- */
+.uni-head {
+    display: flex; align-items: center; gap: 14px; padding: 18px 22px; cursor: pointer;
+    background: color-mix(in srgb, var(--accent) 4%, transparent); transition: background .12s;
+}
+.uni-head:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.uni-caret { flex: none; font-size: 13px; color: var(--text-3); transition: transform .16s; }
+
+/* Sidebar grouping: the universe a run belongs to, above its stories. */
+.side-uni {
+    font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-3); padding: 14px 4px 6px; display: flex; align-items: center; gap: 7px;
+}
+.side-uni::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
 /* ---- Chips & badges ------------------------------------------------------ */
 .chip {
     display: inline-block; font-family: var(--sans); font-size: 10.5px; font-weight: 600; letter-spacing: .06em;

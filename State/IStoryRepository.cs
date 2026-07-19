@@ -161,6 +161,12 @@ public interface IStoryRepository
     /// <summary>Gets the serialized world bible, or null for stories created before it existed.</summary>
     Task<string?> GetStoryWorldAsync(string slotName, CancellationToken ct = default);
 
+    /// <summary>Attaches a story to the universe it is a run of (null detaches it).</summary>
+    Task SetStoryUniverseAsync(string slotName, string? universeId, CancellationToken ct = default);
+
+    /// <summary>The universe this story is a run of, or null when it is unattached.</summary>
+    Task<string?> GetStoryUniverseAsync(string slotName, CancellationToken ct = default);
+
     /// <summary>
     /// Replaces a page's prose — the author correcting the narrator by hand. Only the text
     /// changes; the page's state snapshot, choices, characters and image are untouched.
@@ -199,4 +205,5 @@ public record StoryEntry(
     string Description,
     int PageCount,
     DateTime LastUpdated,
-    string GenreStyle);
+    string GenreStyle,
+    string? UniverseId = null);

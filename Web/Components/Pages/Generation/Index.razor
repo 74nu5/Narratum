@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IGenerationService GenService
 @inject StoryLibraryService LibraryService
+@inject UniverseService Universes
 @inject NavigationManager Navigation
 @inject ExpertModeService ExpertMode
 @inject ModelCatalogService ModelCatalog
@@ -21,19 +22,24 @@
             <span class="eyebrow">Bibliothèque</span>
             <span class="mono" style="font-size:11px;color:var(--text-3)">@_library.Count</span>
         </div>
-        <a class="btn btn-accent btn-block" href="/wizard" style="border-radius:10px;padding:11px;margin-bottom:18px">＋ Nouvelle histoire</a>
-        <div style="display:flex;flex-direction:column;gap:4px">
-            @foreach (var s in _library)
-            {
-                <a class="side-story @(s.SlotName == SlotName ? "is-active" : null)" href="@($"/generation/{s.SlotName}")">
-                    <span style="font-size:15px;flex:none;opacity:.85">@StoryVisuals.Icon(s.GenreStyle)</span>
-                    <span style="flex:1;min-width:0">
-                        <span style="display:block;font-size:14px;font-weight:@(s.SlotName == SlotName ? 700 : 500);color:@(s.SlotName == SlotName ? "var(--text)" : "var(--text-2)");white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@s.DisplayName</span>
-                        <span style="display:block;font-size:11.5px;color:var(--text-3)">@s.PageCount page@(s.PageCount == 1 ? "" : "s")</span>
-                    </span>
-                </a>
-            }
-        </div>
+        <a class="btn btn-accent btn-block" href="/wizard" style="border-radius:10px;padding:11px;margin-bottom:18px">＋ Nouvel univers</a>
+        @* Two levels here too: the runs sit under the universe they belong to. *@
+        @foreach (var group in LibraryGroups)
+        {
+            <div class="side-uni" title="@group.Key">@group.Key</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+                @foreach (var s in group)
+                {
+                    <a class="side-story @(s.SlotName == SlotName ? "is-active" : null)" href="@($"/generation/{s.SlotName}")">
+                        <span style="font-size:15px;flex:none;opacity:.85">@StoryVisuals.Icon(s.GenreStyle)</span>
+                        <span style="flex:1;min-width:0">
+                            <span style="display:block;font-size:14px;font-weight:@(s.SlotName == SlotName ? 700 : 500);color:@(s.SlotName == SlotName ? "var(--text)" : "var(--text-2)");white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@s.DisplayName</span>
+                            <span style="display:block;font-size:11.5px;color:var(--text-3)">@s.PageCount page@(s.PageCount == 1 ? "" : "s")</span>
+                        </span>
+                    </a>
+                }
+            </div>
+        }
     </aside>
 
     @* RIGHT: story *@
@@ -378,11 +384,28 @@
 @code {
     [Parameter] public string SlotName { get; set; } = string.Empty;
 
+    /// Sidebar level 1 — runs grouped under their universe's name, unattached stories last.
+    private IEnumerable<IGrouping<string, StoryEntry>> LibraryGroups
+    {
+        get
+        {
+            var names = _universes.ToDictionary(u => u.UniverseId, u => u.Name);
+
+            return _library
+                .GroupBy(s => s.UniverseId is not null && names.TryGetValue(s.UniverseId, out var name)
+                    ? name
+                    : "Sans univers")
+                .OrderBy(g => g.Key == "Sans univers" ? 1 : 0)
+                .ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase);
+        }
+    }
+
     /// Opening action handed over by the wizard: page 1 is generated on arrival.
     [SupplyParameterFromQuery(Name = "intent")]
     public string? OpeningIntent { get; set; }
 
     private List<StoryEntry> _library = new();
+    private IReadOnlyList<UniverseInfo> _universes = [];
     private string? _loadedSlot;
     private string? _autoStartedFor;
     private string? _genre;
@@ -509,6 +532,7 @@
         _imagePrompt = string.Empty;
 
         _library = await LibraryService.ListStoriesAsync();
+        _universes = await Universes.ListAsync();
         _genre = _library.FirstOrDefault(s => s.SlotName == SlotName)?.GenreStyle;
         _displayTitle = await GenService.GetDisplayNameAsync(SlotName);
         _localModels = await ModelCatalog.GetModelsAsync(LlmClient);

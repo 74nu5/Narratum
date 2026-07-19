@@ -310,7 +310,8 @@ public class StoryRepository : IStoryRepository
                 enrichedStories.Add(story with
                 {
                     DisplayName = metadata.DisplayName ?? story.DisplayName,
-                    Description = metadata.Description ?? story.Description
+                    Description = metadata.Description ?? story.Description,
+                    UniverseId = metadata.UniverseId
                 });
             }
             else
@@ -576,6 +577,29 @@ public class StoryRepository : IStoryRepository
             .AsNoTracking()
             .Where(m => m.SlotName == slotName)
             .Select(m => m.SerializedWorld)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task SetStoryUniverseAsync(string slotName, string? universeId, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var metadata = await db.SaveSlots.FirstOrDefaultAsync(m => m.SlotName == slotName, ct);
+        if (metadata == null)
+            return;
+
+        db.Entry(metadata).CurrentValues.SetValues(metadata with { UniverseId = universeId });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<string?> GetStoryUniverseAsync(string slotName, CancellationToken ct = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        return await db.SaveSlots
+            .AsNoTracking()
+            .Where(m => m.SlotName == slotName)
+            .Select(m => m.UniverseId)
             .FirstOrDefaultAsync(ct);
     }
 

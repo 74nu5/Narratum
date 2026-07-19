@@ -1,6 +1,7 @@
 @page "/library"
 @rendermode InteractiveServer
 @inject StoryLibraryService LibraryService
+@inject UniverseService Universes
 @inject IGenerationService GenService
 @inject NavigationManager Navigation
 
@@ -10,74 +11,112 @@
 
     <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:12px">
         <div>
-            <div class="kicker" style="margin-bottom:10px">Toutes mes histoires</div>
+            <div class="kicker" style="margin-bottom:10px">Mes univers et leurs parties</div>
             <h1 style="font-size:42px">Bibliothèque</h1>
         </div>
-        <a class="btn btn-accent" href="/wizard" style="flex:none">＋ Nouvelle histoire</a>
+        <a class="btn btn-accent" href="/wizard" style="flex:none">＋ Nouvel univers</a>
     </div>
 
-    @if (_stories is not null)
+    @if (_stories is not null && _universes is not null)
     {
         <div class="mono" style="font-size:12px;color:var(--text-3);margin-bottom:26px">
-            @_stories.Count histoire@(_stories.Count == 1 ? "" : "s") · triées par date de modification
+            @_universes.Count univers · @_stories.Count partie@(_stories.Count == 1 ? "" : "s")
         </div>
     }
 
-    @if (_stories is null)
+    @if (_stories is null || _universes is null)
     {
         <div class="spinner" style="margin:32px auto"></div>
     }
+    else if (_stories.Count == 0 && _universes.Count == 0)
+    {
+        <div class="card" style="padding:48px 22px;text-align:center;font-family:var(--serif);font-size:17px;color:var(--text-3)">
+            Aucun univers pour l'instant. Créez-en un pour commencer.
+        </div>
+    }
     else
     {
-        <div class="card" style="overflow:hidden">
-            <div class="lib-row lib-head">
-                <span class="eyebrow">Titre</span>
-                <span class="eyebrow">Genre</span>
-                <span class="eyebrow">Pages</span>
-                <span class="eyebrow">Modifiée</span>
-                <span class="eyebrow" style="text-align:right">Actions</span>
-            </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
 
-            @if (_stories.Count == 0)
+            @* ── Niveau 1 : les univers ─────────────────────────────────── *@
+            @foreach (var universe in _universes)
             {
-                <div style="padding:48px 22px;text-align:center;font-family:var(--serif);font-size:17px;color:var(--text-3)">
-                    Aucune histoire pour l'instant. Créez-en une pour commencer.
-                </div>
-            }
-            else
-            {
-                @foreach (var story in _stories)
-                {
-                    <div class="lib-row lib-body">
-                        <div style="display:flex;align-items:center;gap:12px;min-width:0">
-                            <span style="font-size:19px;flex:none">@StoryVisuals.Icon(story.GenreStyle)</span>
-                            @if (_renamingSlot == story.SlotName)
+                var runs = RunsOf(universe.UniverseId);
+                var open = _expanded.Contains(universe.UniverseId);
+
+                <div class="card" style="overflow:hidden">
+                    <div class="uni-head" @onclick="() => Toggle(universe.UniverseId)">
+                        <span class="uni-caret" style="@(open ? "transform:rotate(90deg)" : "")">▸</span>
+                        <span style="font-size:20px;flex:none">@StoryVisuals.Icon(universe.GenreStyle)</span>
+                        <div style="min-width:0;flex:1">
+                            <div style="font-family:var(--serif);font-size:20px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@universe.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(universe.Description))
                             {
-                                <input class="field" @bind="_renameText" @onkeydown="@(e => OnRenameKeyAsync(e, story.SlotName))"
-                                       style="font-family:var(--serif);font-size:17px" autofocus />
-                                <button class="btn btn-accent btn-sm" @onclick="() => SaveRenameAsync(story.SlotName)">OK</button>
-                                <button class="btn btn-quiet btn-sm" @onclick="() => _renamingSlot = null">✕</button>
-                            }
-                            else
-                            {
-                                <span style="font-family:var(--serif);font-size:18px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@story.DisplayName</span>
-                                <button class="btn btn-quiet btn-sm lib-rename" title="Renommer" style="padding:2px 6px"
-                                        @onclick="() => StartRename(story)">✎</button>
+                                <div style="font-size:13px;color:var(--text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@universe.Description</div>
                             }
                         </div>
-                        <div><span class="chip">@story.GenreStyle</span></div>
-                        <div style="font-size:14px;color:var(--text-2)">@story.PageCount</div>
-                        <div class="mono" style="font-size:12px;color:var(--text-3)">@story.LastModified.ToString("dd/MM/yyyy HH:mm")</div>
-                        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
-                            <a class="btn btn-accent btn-sm" href="@($"/generation/{story.SlotName}")">▶ Continuer</a>
-                            <a class="btn btn-soft btn-sm" href="@($"/reader/{story.SlotName}")">📖 Lire</a>
-                            <button class="btn btn-soft btn-sm" title="Rejouer cet univers dans une nouvelle partie"
-                                    @onclick="() => StartNewRunAsync(story.SlotName)" disabled="@_duplicating">⎘ Nouvelle partie</button>
-                            <a class="btn btn-soft btn-sm" href="@($"/export/{story.SlotName}/epub")" title="Exporter en EPUB">⤓ EPUB</a>
-                            <button class="icon-btn lib-del" title="Supprimer" @onclick="() => _deleteTarget = story">🗑</button>
+                        <span class="chip" style="flex:none">@universe.GenreStyle</span>
+                        <span class="mono" style="flex:none;font-size:12px;color:var(--text-3)">@runs.Count partie@(runs.Count == 1 ? "" : "s")</span>
+                        <div style="display:flex;align-items:center;gap:8px;flex:none" @onclick:stopPropagation="true">
+                            <button class="btn btn-accent btn-sm" title="Démarrer une nouvelle partie dans cet univers"
+                                    @onclick="() => StartRunAsync(universe.UniverseId)" disabled="@_starting">＋ Nouvelle partie</button>
+                            <button class="icon-btn lib-del" title="Supprimer l'univers"
+                                    @onclick="() => _deleteUniverse = universe">🗑</button>
                         </div>
                     </div>
-                }
+
+                    @* ── Niveau 2 : les parties de cet univers ──────────────── *@
+                    @if (open)
+                    {
+                        @if (runs.Count == 0)
+                        {
+                            <div style="padding:22px;text-align:center;font-family:var(--serif);font-size:15px;color:var(--text-3);border-top:1px solid var(--border)">
+                                Aucune partie. Lancez-en une pour explorer cet univers.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="lib-row lib-head">
+                                <span class="eyebrow">Partie</span>
+                                <span class="eyebrow">Genre</span>
+                                <span class="eyebrow">Pages</span>
+                                <span class="eyebrow">Modifiée</span>
+                                <span class="eyebrow" style="text-align:right">Actions</span>
+                            </div>
+                            @foreach (var story in runs)
+                            {
+                                @RunRow(story)
+                            }
+                        }
+                    }
+                </div>
+            }
+
+            @* ── Les histoires antérieures aux univers ───────────────────── *@
+            @if (Unattached.Count > 0)
+            {
+                <div class="card" style="overflow:hidden">
+                    <div class="uni-head" @onclick="() => Toggle(NoUniverseKey)">
+                        <span class="uni-caret" style="@(_expanded.Contains(NoUniverseKey) ? "transform:rotate(90deg)" : "")">▸</span>
+                        <span style="font-size:20px;flex:none">📄</span>
+                        <div style="flex:1;font-family:var(--serif);font-size:20px;font-weight:600;color:var(--text)">Sans univers</div>
+                        <span class="mono" style="flex:none;font-size:12px;color:var(--text-3)">@Unattached.Count histoire@(Unattached.Count == 1 ? "" : "s")</span>
+                    </div>
+                    @if (_expanded.Contains(NoUniverseKey))
+                    {
+                        <div class="lib-row lib-head">
+                            <span class="eyebrow">Titre</span>
+                            <span class="eyebrow">Genre</span>
+                            <span class="eyebrow">Pages</span>
+                            <span class="eyebrow">Modifiée</span>
+                            <span class="eyebrow" style="text-align:right">Actions</span>
+                        </div>
+                        @foreach (var story in Unattached)
+                        {
+                            @RunRow(story)
+                        }
+                    }
+                </div>
             }
         </div>
     }
@@ -87,10 +126,10 @@
 {
     <div class="overlay" @onclick="() => _deleteTarget = null">
         <div class="modal" style="max-width:400px;padding:26px 26px 22px" @onclick:stopPropagation="true">
-            <div class="modal-title" style="margin-bottom:8px">Supprimer l'histoire ?</div>
+            <div class="modal-title" style="margin-bottom:8px">Supprimer la partie ?</div>
             <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--text-2)">
                 « <strong style="color:var(--text)">@_deleteTarget.DisplayName</strong> » et toutes ses pages seront
-                définitivement supprimées. Cette action est irréversible.
+                définitivement supprimées. L'univers, lui, est conservé.
             </p>
             <div style="display:flex;gap:10px;justify-content:flex-end">
                 <button class="btn btn-soft" @onclick="() => _deleteTarget = null">Annuler</button>
@@ -100,20 +139,87 @@
     </div>
 }
 
+@if (_deleteUniverse is not null)
+{
+    var affected = RunsOf(_deleteUniverse.UniverseId).Count;
+    <div class="overlay" @onclick="() => _deleteUniverse = null">
+        <div class="modal" style="max-width:430px;padding:26px 26px 22px" @onclick:stopPropagation="true">
+            <div class="modal-title" style="margin-bottom:8px">Supprimer l'univers ?</div>
+            <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--text-2)">
+                « <strong style="color:var(--text)">@_deleteUniverse.Name</strong> » sera supprimé.
+                @if (affected > 0)
+                {
+                    <text>Ses @affected partie@(affected == 1 ? "" : "s") <strong style="color:var(--text)">ne sont pas supprimées</strong> : elles rejoignent « Sans univers » et restent lisibles.</text>
+                }
+            </p>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button class="btn btn-soft" @onclick="() => _deleteUniverse = null">Annuler</button>
+                <button class="btn btn-danger" @onclick="ConfirmDeleteUniverse">Supprimer</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
+    private const string NoUniverseKey = "__none__";
+
     private List<StoryEntry>? _stories;
+    private IReadOnlyList<UniverseInfo>? _universes;
+    private readonly HashSet<string> _expanded = [];
     private StoryEntry? _deleteTarget;
+    private UniverseInfo? _deleteUniverse;
     private string? _renamingSlot;
     private string _renameText = string.Empty;
-    private bool _duplicating;
+    private bool _starting;
 
-    /// Clones the universe into a fresh slot and replays its opening action there.
-    private async Task StartNewRunAsync(string slotName)
+    private List<StoryEntry> RunsOf(string universeId) =>
+        _stories?.Where(s => s.UniverseId == universeId).ToList() ?? [];
+
+    private List<StoryEntry> Unattached =>
+        _stories?.Where(s => string.IsNullOrWhiteSpace(s.UniverseId)).ToList() ?? [];
+
+    private void Toggle(string key)
     {
-        _duplicating = true;
+        if (!_expanded.Remove(key))
+            _expanded.Add(key);
+    }
+
+    /// One row of level 2 — shared by universe runs and legacy unattached stories.
+    private RenderFragment RunRow(StoryEntry story) =>@<div class="lib-row lib-body">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+            <span style="font-size:19px;flex:none">@StoryVisuals.Icon(story.GenreStyle)</span>
+            @if (_renamingSlot == story.SlotName)
+            {
+                <input class="field" @bind="_renameText" @onkeydown="@(e => OnRenameKeyAsync(e, story.SlotName))"
+                       style="font-family:var(--serif);font-size:17px" autofocus />
+                <button class="btn btn-accent btn-sm" @onclick="() => SaveRenameAsync(story.SlotName)">OK</button>
+                <button class="btn btn-quiet btn-sm" @onclick="() => _renamingSlot = null">✕</button>
+            }
+            else
+            {
+                <span style="font-family:var(--serif);font-size:18px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@story.DisplayName</span>
+                <button class="btn btn-quiet btn-sm lib-rename" title="Renommer" style="padding:2px 6px"
+                        @onclick="() => StartRename(story)">✎</button>
+            }
+        </div>
+        <div><span class="chip">@story.GenreStyle</span></div>
+        <div style="font-size:14px;color:var(--text-2)">@story.PageCount</div>
+        <div class="mono" style="font-size:12px;color:var(--text-3)">@story.LastModified.ToString("dd/MM/yyyy HH:mm")</div>
+        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+            <a class="btn btn-accent btn-sm" href="@($"/generation/{story.SlotName}")">▶ Continuer</a>
+            <a class="btn btn-soft btn-sm" href="@($"/reader/{story.SlotName}")">📖 Lire</a>
+            <a class="btn btn-soft btn-sm" href="@($"/export/{story.SlotName}/epub")" title="Exporter en EPUB">⤓ EPUB</a>
+            <button class="icon-btn lib-del" title="Supprimer" @onclick="() => _deleteTarget = story">🗑</button>
+        </div>
+    </div>;
+
+    /// Seeds a fresh story from the universe and replays its opening action there.
+    private async Task StartRunAsync(string universeId)
+    {
+        _starting = true;
         try
         {
-            var result = await GenService.DuplicateStoryAsync(slotName);
+            var result = await GenService.StartRunAsync(universeId);
             if (result is Narratum.Core.Result<StoryRun>.Success success)
             {
                 var run = success.Value;
@@ -124,11 +230,26 @@
         }
         finally
         {
-            _duplicating = false;
+            _starting = false;
         }
     }
 
-    protected override async Task OnInitializedAsync() => _stories = await LibraryService.ListStoriesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+
+        // Open everything on arrival: the two levels are only useful once you see the runs.
+        foreach (var u in _universes!)
+            _expanded.Add(u.UniverseId);
+
+        _expanded.Add(NoUniverseKey);
+    }
+
+    private async Task ReloadAsync()
+    {
+        _stories = await LibraryService.ListStoriesAsync();
+        _universes = await Universes.ListAsync();
+    }
 
     private void StartRename(StoryEntry story)
     {
@@ -150,7 +271,7 @@
         if (name.Length > 0)
         {
             await GenService.RenameStoryAsync(slotName, name);
-            _stories = await LibraryService.ListStoriesAsync();
+            await ReloadAsync();
         }
 
         _renamingSlot = null;
@@ -163,6 +284,16 @@
 
         await LibraryService.DeleteStoryAsync(_deleteTarget.SlotName);
         _deleteTarget = null;
-        _stories = await LibraryService.ListStoriesAsync();
+        await ReloadAsync();
+    }
+
+    private async Task ConfirmDeleteUniverse()
+    {
+        if (_deleteUniverse is null)
+            return;
+
+        await Universes.DeleteAsync(_deleteUniverse.UniverseId);
+        _deleteUniverse = null;
+        await ReloadAsync();
     }
 }
