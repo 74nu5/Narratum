@@ -259,6 +259,7 @@
           <tr><td class="feat">Entité <code>Univers</code></td><td>Table dédiée + <code>SaveSlots.UniverseId</code> (migration <code>AddUniverses</code>) : l'univers devient la source de vérité, les parties sont ses exécutions. Assistant scindé en « créer un univers » puis « démarrer une partie » ; rattrapage automatique des histoires antérieures.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Bibliothèque à deux niveaux</td><td>Univers dépliables et leurs parties en dessous, actions au niveau de l'univers ; même regroupement dans la barre latérale de génération.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
           <tr><td class="feat">Provenance d'une partie</td><td>Chaque partie écrit contre l'instantané de l'univers pris à son démarrage. Écran d'édition d'univers (les retouches valent pour les prochaines parties) et panneau « l'univers de cette partie », qui signale si l'univers a bougé depuis.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
+          <tr><td class="feat">Canon inventé promu</td><td>Un personnage né en cours de récit peut rejoindre le casting de l'univers d'un clic, pour les prochaines parties.</td><td><span class="pill present"><span class="dot"></span>Livré</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -662,10 +663,10 @@
     <div class="phase">
       <div class="pnum">7</div>
       <div>
-        <span class="ptag">Suite possible · à décider</span>
-        <h4>Absorber le canon inventé <span class="pill">À arbitrer</span></h4>
-        <p>Les personnages nés en cours de partie ne remontent pas dans la bible et meurent avec elle. Voir §08.</p>
-        <div class="deliv"><b>Piste</b> « ajouter à l'univers » depuis une fiche personnage.</div>
+        <span class="ptag">Canon vivant · livré</span>
+        <h4>Absorber ce que le récit invente <span class="pill present"><span class="dot"></span>Livré</span></h4>
+        <p>Un personnage né en cours de partie ne meurt plus avec elle : il peut rejoindre le casting de l'univers. 1017 tests verts.</p>
+        <div class="deliv"><b>Livrables</b> U5 (« ＋ Ajouter à l'univers » sur une fiche personnage · idempotent par nom · sans effet sur les parties en cours).</div>
       </div>
     </div>
   </div>
@@ -675,8 +676,8 @@
 <section>
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">08</span><h2>Décisions</h2></div>
-    <p>Les arbitrages E3, E5, E6, C1, U3 et U4 sont tranchés et implémentés. Restent ouverts :
-      l'absorption du canon inventé en cours de partie, et le PDF.</p>
+    <p>Les arbitrages E3, E5, E6, C1, U3, U4 et U5 sont tranchés et implémentés.
+      Seul le PDF reste ouvert.</p>
 
     <div class="q resolved">
       <p class="qq"><span class="chk">✓</span> E3 — Où génère-t-on la première page ?</p>
@@ -715,9 +716,9 @@
       <p><strong>Éditer, l'instantané tenant lieu de garde-fou.</strong> La duplication systématique préservait bien la provenance, mais au prix d'une variante d'univers par retouche, et un simple correctif n'aurait jamais atteint les parties existantes. Avec l'instantané, l'édition en place devient sûre : elle ne peut pas réécrire le passé. Écran <code>/universe/{id}</code>, mêmes champs que l'assistant.</p>
     </div>
 
-    <div class="q">
-      <p class="qq">Absorber le canon inventé en cours de partie ?</p>
-      <p>Les parties inventent des personnages — un « frère disparu » est apparu spontanément lors des tests — et rien ne permet de les promouvoir dans l'univers. <strong>Recommandation : un bouton « ajouter à l'univers »</strong> sur une fiche personnage, qui l'ajoute à la bible pour les prochaines parties sans toucher aux parties en cours. Cohérent avec l'arbitrage ci-dessus.</p>
+    <div class="q resolved">
+      <p class="qq"><span class="chk">✓</span> U5 — Absorber le canon inventé en cours de partie ?</p>
+      <p><strong>Recommandation retenue : un bouton « ＋ Ajouter à l'univers »</strong> sur la fiche d'un personnage que l'univers ne connaît pas. Il rejoint le casting pour les <strong>prochaines</strong> parties ; la partie courante ne bouge pas — elle connaît déjà le personnage par son propre relevé de page, et son instantané reste figé. Le bouton n'apparaît que pour les personnages absents du casting, ce qui distingue d'un coup d'œil le canon de l'invention.</p>
     </div>
 
     <div class="q">

@@ -230,6 +230,17 @@
                                     {
                                         <div class="person-evo">↝ @character.Evolution</div>
                                     }
+                                    @* A character born mid-story can join the universe's cast, for the runs to come. *@
+                                    @if (IsNewToUniverse(character))
+                                    {
+                                        <button class="btn btn-quiet btn-sm person-promote" disabled="@_promoting"
+                                                title="Ce personnage n'existe pas dans l'univers : l'y ajouter pour les prochaines parties"
+                                                @onclick="() => PromoteCharacterAsync(character)">＋ Ajouter à l'univers</button>
+                                    }
+                                    else if (_promoted.Contains(character.Name))
+                                    {
+                                        <div class="person-evo" style="color:var(--accent)">✓ Ajouté à l'univers — les prochaines parties le connaîtront</div>
+                                    }
                                 </div>
                             }
                         </div>
@@ -481,6 +492,44 @@
                 != System.Text.Json.JsonSerializer.Serialize(_liveUniverse.ToWorld());
     }
 
+    /// <summary>
+    /// True when the story invented this character: the run belongs to a universe whose cast
+    /// doesn't know the name. Nothing to offer for unattached stories.
+    /// </summary>
+    private bool IsNewToUniverse(CharacterProfile character)
+        => _liveUniverse is not null
+            && !string.IsNullOrWhiteSpace(character.Name)
+            && !_liveUniverse.Characters.Any(c => string.Equals(c.Name, character.Name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Adds an invented character to the universe's cast. This run keeps its own frozen setting —
+    /// it already knows the character from its page roster — so only the next runs change.
+    /// </summary>
+    private async Task PromoteCharacterAsync(CharacterProfile character)
+    {
+        if (_liveUniverse is null)
+            return;
+
+        _promoting = true;
+        try
+        {
+            var description = string.IsNullOrWhiteSpace(character.Description)
+                ? character.Role
+                : character.Description;
+
+            if (await Universes.AddCharacterAsync(_liveUniverse.UniverseId, new WorldCharacter(character.Name, description)))
+                _promoted.Add(character.Name);
+
+            // The universe moved: refresh it so the cast and the divergence flag stay truthful.
+            var entry = _library.FirstOrDefault(s => s.SlotName == SlotName);
+            await LoadRunWorldAsync(entry?.UniverseId);
+        }
+        finally
+        {
+            _promoting = false;
+        }
+    }
+
     /// Sidebar level 1 — runs grouped under their universe's name, unattached stories last.
     private IEnumerable<IGrouping<string, StoryEntry>> LibraryGroups
     {
@@ -513,6 +562,10 @@
     private UniverseInfo? _liveUniverse;
     private bool _universeDiverged;
     private bool _universeOpen;
+
+    // Characters promoted into the universe during this visit, to acknowledge the click.
+    private readonly HashSet<string> _promoted = new(StringComparer.OrdinalIgnoreCase);
+    private bool _promoting;
     private ConfirmPrompt? _confirm;
     private bool _regeneratingImage;
     private bool _regeneratingChoices;
@@ -629,6 +682,7 @@
         _userIntent = string.Empty;
         _backstageOpen = false;
         _universeOpen = false;
+        _promoted.Clear();
         _confirm = null;
         _editing = false;
         _currentPageIntent = string.Empty;
